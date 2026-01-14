@@ -192,7 +192,8 @@ class Game():
     draw.text(((5000-font.getlength(inningScore))/2,4582+54.5),inningScore,font=font,fill=darkVoilet)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
-      return discord.File(fp=image_binary, filename='battingSC.png')
+      image_binary.seek(0)
+      return discord.File(fp=image_binary, filename='battingSC.png', compress_level=1)
   def bowlingCard(self):
     inn = self.currentInning
     img = Image.open(os.path.join(BASE_DIR,"templates","bowlingSummary.png")).convert("RGBA")
@@ -226,7 +227,7 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='bowlingSC.png')
+      return discord.File(fp=image_binary, filename='bowlingSC.png', compress_level=1)
   def matchSummaryCard(self):
     img = Image.open(os.path.join(BASE_DIR, "templates","matchSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
@@ -261,13 +262,13 @@ class Game():
             draw.text((4680 - font.getlength(bowlerScore), y2 + 70.5), bowlerScore, font=font, fill=darkVoilet)
         y2 += offset2
       y += offset
-    footer = self.matchStatus.upper()
+    footer = self.matchStatus().upper()
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120)
     draw.text(((5000-font.getlength(footer))/2,4582+79.5),footer,font=font,fill=darkVoilet)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='matchSummary.png')
+      return discord.File(fp=image_binary, filename='matchSummary.png',compress_level=1)
   def kickAPlayer(self, index):
     combined= self.players 
     del combined[index]
@@ -523,6 +524,8 @@ class Game():
         while True:
           g = await self.getInputs()
           if self.v:
+            w = self.checkForWinner()
+            if w: break
             self.v.stop()
           self.v = self.score()
           

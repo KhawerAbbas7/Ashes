@@ -5,7 +5,7 @@ from collections import deque
 import asyncio
 import discord
 from PIL import Image, ImageDraw, ImageFont
-for io import BytesIO
+from io import BytesIO
 BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class BattingInning():
   def __init__(self,player):
@@ -186,7 +186,7 @@ class Game():
       b = font2.getlength(batterBalls)+20
       draw.text((4700-(l+b),y),batterRuns,font=font,fill=darkVoilet)
       draw.text(((4700-b),y+30),batterBalls,font=font2,fill=darkVoilet)
-      y += 
+      y += offset
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),180)
     inningScore = f"{inn.runs}/{inn.wickets}"
     draw.text(((5000-font.getlength(inningScore))/2,4582+54.5),inningScore,font=font,fill=darkVoilet)

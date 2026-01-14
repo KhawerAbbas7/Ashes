@@ -23,6 +23,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
       return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
+    if g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
   @commands.command(aliases= ['pl'])
@@ -36,9 +37,38 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
+    if g.batFirstTeam is not None:return await ctx.send(embed= Embed(title='Toss Done', description='Toss had already been done', color=Color.from_str('#b30707')))
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
     await g.toss()
+    #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['cc'])
+  async def changecap(self, ctx, cap:discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id and ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Host or Captain Only', description='This command is only intended to be run by host or captains.', color=Color.from_str('#b30707')))
+    if cap.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='New Captain not in Game.', description='New captain must have joined .', color=Color.from_str('#b30707')))
+    team = g.teama if cap.id in [p.id for p in g.teama.players] else g.teamb
+    team.captain = next(p for p in team.players if p.id == cap.id)
+    await ctx.send(f"{cap} will be captaining {team.name}")
+    #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['sp'])
+  async def swap(self, ctx, idx: int, idx2: int):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    try:
+      a,b = g.players[idx-1], g.players[idx2-1]
+      g.swap(idx-1, idx2-1)
+      await ctx.send(f"Swapped {a} with {b}")
+    except:
+      await ctx.send(f"Couldn't swap, perhaps wrong indexes?")
+      
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['s'])
   async def start(self, ctx):
@@ -47,6 +77,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g = self.bot.games[ctx.channel.id]
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif g.batFirstTeam is None:return await ctx.send(embed= Embed(title='Toss Not Done', description='Toss has not taken place yet', color=Color.from_str('#b30707')))
     await g.start()
     #await ctx.send(view=g.showPlayers())
 async def setup(bot):await bot.add_cog(TestCricket(bot))

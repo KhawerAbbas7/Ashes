@@ -35,9 +35,14 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if ctx.author.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{ctx.author} not in Game.', description='You are already not playing.', color=Color.from_str('#b30707')))
     if g.hostId == ctx.author.id:return await ctx.send(embed= Embed(title='Hosts can\'t leave', description='This command is can\'t be run by host', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
-    p = next(p for p in g.players if p.id == ctx.author.id)
-    g.kickAPlayer(g.players.index(p))
-    await ctx.send(f'{user} has decided to be a prick and left the game')
+    p = next((p for p in g.teama.players if p.id == ctx.author.id), None)
+    if p:
+      g.teama.players.pop(g.teama.players.index(p))
+    else:
+      p = next((p for p in g.teamb.players if p.id == ctx.author.id), None) 
+      if p:g.teamb.players.pop(g.teamb.players.index(p))
+    g.mitigatePlayers()
+    await ctx.send(f'{ctx.author} has decided to be a prick and left the game')
   @commands.command(aliases= [])
   async def kick(self, ctx, user: discord.User):
     if ctx.channel.id not in self.bot.games:
@@ -47,8 +52,13 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
     elif user.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{user} not in Game.', description='User is already not playing.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
-    p = next(p for p in g.players if p.id == user.id)
-    g.kickAPlayer(g.players.index(p))
+    p = next((p for p in g.teama.players if p.id == user.id), None)
+    if p:
+      g.teama.players.pop(g.teama.players.index(p))
+    else:
+      p = next((p for p in g.teamb.players if p.id == user.id), None) 
+      if p:g.teamb.players.pop(g.teamb.players.index(p))
+    g.mitigatePlayers()
     await ctx.send(f'{user} has been kicked off from the game')
   @commands.command(aliases= ['pl'])
   async def playersList(self, ctx):

@@ -38,6 +38,7 @@ class Inning():
     self.currentBowlers = deque(maxlen=2)
     self.timeline = deque(maxlen=13)
     self.declared = False
+    self.followOn = False
     self.runs = 0
     self.wickets = 0
     self.balls = 0
@@ -145,6 +146,10 @@ class Game():
       if self.followOnTeam==bat:
         lead=bowlTotal-batTotal
         if lead>0:return f"{bowl.name} have won by an innings and {lead} runs"
+      elif len(self.innings)==3:
+        lead=bowlTotal-batTotal
+        if (batTotal- bowlTotal) < 0:
+          return f"{bowl.name} have won by an innings and {lead} runs"
       if len(self.innings)==4:
         return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
     if len(self.innings)==4:
@@ -152,6 +157,8 @@ class Game():
       target=(bowlTotal-batPrev)+1
       if last.runs>=target:
         return f"{bat.name} have won by {len(bat.players)-1-last.wickets} wickets"
+      elif last.runs==target-1:
+        return "Match Tied"
     return None
   def mitigatePlayers(self):
     combined= self.players
@@ -191,7 +198,7 @@ class Game():
       draw.text(((4700-b),y+30),batterBalls,font=font2,fill=darkVoilet)
       y += offset
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),180)
-    inningScore = f"{inn.runs}/{inn.wickets}"
+    inningScore = f"{inn.runs}/{inn.wickets} ({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
     draw.text(((5000-font.getlength(inningScore))/2,4582+54.5),inningScore,font=font,fill=darkVoilet)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
@@ -225,7 +232,7 @@ class Game():
       draw.text((4175.2+145.5/2-font.getlength(eo)/2, y), eo, font=font, fill=darkVoilet)
       y += offset
     font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"), 180)
-    inningScore = f"{inn.runs}/{inn.wickets}"
+    inningScore = f"{inn.runs}/{inn.wickets}({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
     draw.text(((5000-font.getlength(inningScore))/2, 4582+54.5), inningScore, font=font, fill=darkVoilet)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
@@ -240,8 +247,10 @@ class Game():
     y = 588.4
     offset = 966.2 
     for inn in self.innings:
-      battingTeam = inn.battingTeam.name.upper()
-      score = f"{inn.runs}/{inn.wickets}"
+      battingTeam = inn.battingTeam.name.upper() 
+      if inn.inningNo == 3 and self.followOnTeam:
+        battingTeam += " (f/o)"
+      score = f"{inn.runs}/{inn.wickets} ({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
       draw.text((300, y + 54.5), battingTeam, font=font, fill=white)
       draw.text((4700 - font.getlength(score), y + 54.5), score, font=font, fill=white)
       topBat = sorted(inn.batters.items(), key=lambda x: x[1].runs, reverse=True)[:2]
@@ -272,10 +281,6 @@ class Game():
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='matchSummary.png')
-  def kickAPlayer(self, index):
-    combined= self.players 
-    del combined[index]
-    self.mitigatePlayers()
   def showPlayers(self):
     teamaP = ""
     teambP = ""
@@ -328,7 +333,7 @@ class Game():
     container = ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
     t = {}
     for i in self.innings:
-      s = f"{i.runs}/{i.wickets}"
+      s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
         s += f" ({self.ballsToOvers(i.balls)})"
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
@@ -595,5 +600,6 @@ class Game():
       duration= time.time() - self.startedAt
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
       await self.ctx.send(f"This game took {formatted}")
+      self.ctx.games.pop(self.ctx.channel.id)
     except Exception as e:
       traceback.print_exc()

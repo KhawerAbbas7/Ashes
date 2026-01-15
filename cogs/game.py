@@ -1,4 +1,4 @@
-import random, traceback,os
+import random, traceback,os, time
 from cogs.views import *
 from discord import ui 
 from collections import deque
@@ -15,6 +15,7 @@ class BattingInning():
     self.balls=0
     self.consecutiveDots=0
     self.BoundaryThisOver= False
+    self.AFKs = 0
   @property
   def sr(self): return round((self.runs/self.balls)*100,2) if self.balls else 0.0
 class BowlingInning():
@@ -24,6 +25,7 @@ class BowlingInning():
     self.runsConceded=0
     self.wickets=0
     self.balls=0
+    self.AFKs = 0
 class Inning():
   def __init__(self):
     self.inningNo = None 
@@ -66,6 +68,7 @@ class Game():
     self.teama = Team('Team A')
     self.teamb = Team('Team B', 2)
     self.started = False 
+    self.startedAt = None
     self.batFirstTeam = None
     self.innings = []
     self.v = None
@@ -193,7 +196,7 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='battingSC.png', compress_level=1)
+      return discord.File(fp=image_binary, filename='battingSC.png')
   def bowlingCard(self):
     inn = self.currentInning
     img = Image.open(os.path.join(BASE_DIR,"templates","bowlingSummary.png")).convert("RGBA")
@@ -227,7 +230,7 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='bowlingSC.png', compress_level=1)
+      return discord.File(fp=image_binary, filename='bowlingSC.png',)
   def matchSummaryCard(self):
     img = Image.open(os.path.join(BASE_DIR, "templates","matchSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
@@ -268,7 +271,7 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='matchSummary.png',compress_level=1)
+      return discord.File(fp=image_binary, filename='matchSummary.png')
   def kickAPlayer(self, index):
     combined= self.players 
     del combined[index]
@@ -359,6 +362,10 @@ class Game():
     inn=self.currentInning
     captain=inn.bowlingTeam.captain
     options=[{'name':p.name,'id':p.id} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
+    if len(options) == 1:
+      pid = options[0]['id']
+      inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+      return
     view=ui.LayoutView(timeout=60)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Bowler'))
@@ -388,6 +395,11 @@ class Game():
     captain=inn.battingTeam.captain
     used={p.id for p in inn.currentBatters}
     options=[{'name':p.name,'id':p.id} for p in inn.battingTeam.players if p.id not in inn.cantBat]
+    if len(options) == 1:
+      pid = options[0]['id']
+      inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
+      inn.cantBat.append(pid)
+      return
     view=ui.LayoutView(timeout=60)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Next Batter'))
@@ -427,7 +439,7 @@ class Game():
       allowed={'1','2','3','4','6'}
     def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
     def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
-    battxt = f"Send your shot ({','.join(allowed)}) within 20s"
+    battxt = f"Send your shot ({','.join(sorted(allowed, key=int))}) within 20s"
     batview = ui.LayoutView(timeout=None)
     batview.add_item(ui.TextDisplay(battxt))
     batview.add_item(self.score(True))
@@ -444,23 +456,52 @@ class Game():
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:
         for t in pending: t.cancel()
-        await self.ctx.send("Both the bowler and batter were afk, replaying the ball")
+        bowler_p.AFKs += 1; striker_p.AFKs += 1
+        await self.ctx.send(f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: 3/{bowler_p.AFKs}\nBatter AFKs: 6/{striker_p.AFKs}")
         await asyncio.sleep(0.3)
-        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt}")
+        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
         await asyncio.sleep(0.3)
-        await bowler.send("You didn't respond in time. Replaying the ball.\nSend your delivery (1,2,3,4,6) within 20s")
+        await bowler.send(f"You didn't respond in time. Replaying the ball.\n{'Send your delivery (1,2,3,4,6) within 20s' if bowler_p.AFKs != 3 else 'You are retiring out!'} ")
+        if bowler_p.AFKs == 3:
+          bowler_p.AFKs = 0
+          await self.selectBowler()
+        if striker_p.AFKs == 3:
+          inn.currentBatters.pop(0)
+          inn.cantBat.remove(striker.id)
+          await self.selectNextBatter()
+        if striker_p.AFKs == 6:
+          inn.currentBatters.pop(0)
+        if len(inn.cantBat) < len(inn.battingTeam.players):
+          await self.selectNextBatter()
+        elif not inn.currentBatters:
+          return 'Inning Over'
         continue
       elif not bat_ok and bowl_ok:
         for t in pending: t.cancel()
-        await self.ctx.send("Batter was afk, replaying the ball")
+        striker_p.AFKs += 1
+        await self.ctx.send(f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6")
         await asyncio.sleep(0.3)
-        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt}")
+        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
         await asyncio.sleep(0.3)
+        if striker_p.AFKs == 3:
+          inn.currentBatters.pop(0)
+          inn.cantBat.remove(striker.id)
+          await self.selectNextBatter()
+        if striker_p.AFKs == 6:
+          inn.currentBatters.pop(0)
+        if len(inn.cantBat) < len(inn.battingTeam.players):
+          await self.selectNextBatter()
+        elif not inn.currentBatters:
+          return 'Inning Over'
         await bowler.send("Batter didn't respond in time. Replaying the ball.\nSend your delivery (1,2,3,4,6) within 20s")
         continue
       elif bat_ok and not bowl_ok:
         for t in pending: t.cancel()
-        await self.ctx.send("Bowler was afk, replaying the ball")
+        bowler_p.AFKs += 1
+        await self.ctx.send(f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3")
+        if bowler_p.AFKs == 3:
+          bowler_p.AFKs = 0
+          await self.selectBowler()
         await asyncio.sleep(0.3)
         await striker.send(f"Bowler didn't respond in time. Replaying the ball.\n{battxt}")
         await asyncio.sleep(0.3)
@@ -482,7 +523,7 @@ class Game():
       v.add_item(c)
       await self.ctx.send(view=v)
       await asyncio.sleep(0.3)
-      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})You are out!!\nBowler did {bowl}")
+      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
       await asyncio.sleep(0.3)
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}")
       await asyncio.sleep(0.3)
@@ -516,6 +557,7 @@ class Game():
   async def start(self):
     try:
       self.started = True 
+      self.startedAt = time.time()
       for i in range(4):
         w = self.checkForWinner()
         if w: break
@@ -546,5 +588,8 @@ class Game():
             break
       await self.ctx.send(files=[self.battingCard(), self.bowlingCard()])
       await self.ctx.send(file=self.matchSummaryCard())
+      duration= time.time() - self.startedAt
+      hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
+      await self.ctx.send(f"This game took {formatted}")
     except Exception as e:
       traceback.print_exc()

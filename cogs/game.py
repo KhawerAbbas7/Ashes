@@ -423,32 +423,34 @@ class Game():
     self.innings.append(inn)
     await asyncio.gather(self.selectBowler(),self.selectOpeners())
   async def getInputs(self):
-    inn=self.currentInning
-    striker=inn.currentBatters[0]
-    bowler=inn.currentBowlers[0]
-    striker_p=inn.batters[striker]
-    bowler_p=inn.bowlers[bowler]
-    cando0=striker_p.consecutiveDots!=3
-    if cando0 and not striker_p.BoundaryThisOver:
-      allowed={'0','1','2','3','4','6'}
-    elif cando0 and striker_p.BoundaryThisOver:
-      allowed={'0','1','2','3'}
-    elif not cando0 and striker_p.BoundaryThisOver:
-      allowed={'1','2','3'}
-    else:
-      allowed={'1','2','3','4','6'}
-    def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
-    def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
-    battxt = f"Send your shot ({','.join(sorted(allowed, key=int))}) within 20s"
-    batview = ui.LayoutView(timeout=None)
-    batview.add_item(ui.TextDisplay(battxt))
-    batview.add_item(self.score(True))
-    bowlview = ui.LayoutView(timeout=None)
-    bowlview.add_item(ui.TextDisplay("Send your delivery (1,2,3,4,6) within 20s"))
-    bowlview.add_item(self.score(True))
-    await striker.send(view=batview)
-    await bowler.send(view=bowlview)
     while True:
+      inn=self.currentInning
+      striker=inn.currentBatters[0]
+      bowler=inn.currentBowlers[0]
+      striker_p=inn.batters[striker]
+      bowler_p=inn.bowlers[bowler]
+      bowlerExtraTXT = ""
+      batterExtraTXT = ""
+      cando0=striker_p.consecutiveDots!=3
+      if cando0 and not striker_p.BoundaryThisOver:
+        allowed={'0','1','2','3','4','6'}
+      elif cando0 and striker_p.BoundaryThisOver:
+        allowed={'0','1','2','3'}
+      elif not cando0 and striker_p.BoundaryThisOver:
+        allowed={'1','2','3'}
+      else:
+        allowed={'1','2','3','4','6'}
+      def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
+      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) within 20s"
+      batview = ui.LayoutView(timeout=None)
+      batview.add_item(self.score(True))
+      batview.add_item(ui.TextDisplay(battxt))
+      bowlview = ui.LayoutView(timeout=None)
+      bowlview.add_item(self.score(True))
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) within 20s"))
+      await striker.send(view=batview)
+      await bowler.send(view=bowlview)
       bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
       bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
       done,pending=await asyncio.wait([bat_task,bowl_task],timeout=20)
@@ -459,41 +461,43 @@ class Game():
         bowler_p.AFKs += 1; striker_p.AFKs += 1
         await self.ctx.send(f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: 3/{bowler_p.AFKs}\nBatter AFKs: 6/{striker_p.AFKs}")
         await asyncio.sleep(0.3)
-        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
+        await striker.send(f"You didn't respond in time. Replaying the ball.\n{'' if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
         await asyncio.sleep(0.3)
-        await bowler.send(f"You didn't respond in time. Replaying the ball.\n{'Send your delivery (1,2,3,4,6) within 20s' if bowler_p.AFKs != 3 else 'You are retiring out!'} ")
         if bowler_p.AFKs == 3:
+          await bowler.send(f"You didn't respond in time. Replaying the ball.\nYou are retiring from the crease\n-# We know your girlfriend deseres more attention than a fucking discord bot!'")
           bowler_p.AFKs = 0
           await self.selectBowler()
+        else:
+          bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         if striker_p.AFKs == 3:
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
           await self.selectNextBatter()
-        if striker_p.AFKs == 6:
+        elif striker_p.AFKs == 6:
+          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
-        if len(inn.cantBat) < len(inn.battingTeam.players):
-          await self.selectNextBatter()
-        elif not inn.currentBatters:
-          return 'Inning Over'
+          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter()
+          elif not inn.currentBatters:return 'Inning Over'
+        else:
+          batterExtraTXT = "You were AFK, try this again."
         continue
       elif not bat_ok and bowl_ok:
         for t in pending: t.cancel()
         striker_p.AFKs += 1
         await self.ctx.send(f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6")
         await asyncio.sleep(0.3)
-        await striker.send(f"You didn't respond in time. Replaying the ball.\n{battxt if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
-        await asyncio.sleep(0.3)
         if striker_p.AFKs == 3:
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
           await self.selectNextBatter()
-        if striker_p.AFKs == 6:
+        elif striker_p.AFKs == 6:
+          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
-        if len(inn.cantBat) < len(inn.battingTeam.players):
-          await self.selectNextBatter()
-        elif not inn.currentBatters:
-          return 'Inning Over'
-        await bowler.send("Batter didn't respond in time. Replaying the ball.\nSend your delivery (1,2,3,4,6) within 20s")
+          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter()
+          elif not inn.currentBatters:return 'Inning Over'
+        else:
+          batterExtraTXT = "You were AFK, try this again."
+        bowlerExtraTXT = "Batter didn't respond in time. Replaying the ball."
         continue
       elif bat_ok and not bowl_ok:
         for t in pending: t.cancel()
@@ -502,10 +506,10 @@ class Game():
         if bowler_p.AFKs == 3:
           bowler_p.AFKs = 0
           await self.selectBowler()
+        else:
+          bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         await asyncio.sleep(0.3)
-        await striker.send(f"Bowler didn't respond in time. Replaying the ball.\n{battxt}")
-        await asyncio.sleep(0.3)
-        await bowler.send("You didn't respond in time. Replaying the ball.\nSend your delivery (1,2,3,4,6) within 20s")
+        batterExtraTXT = "Bowler didn't respond in time. Replaying the ball"
         continue
       bat=int(bat_task.result().content)
       bowl=int(bowl_task.result().content)

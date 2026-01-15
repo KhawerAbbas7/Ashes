@@ -146,7 +146,7 @@ class Game():
         lead=bowlTotal-batTotal
         if lead>0:return f"{bowl.name} have won by an innings and {lead} runs"
       if len(self.innings)==4:
-        return f"{bowl.name} have won by {batTotal-bowlTotal} runs"
+        return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
     if len(self.innings)==4:
       batPrev=batTotal-last.runs
       target=(bowlTotal-batPrev)+1

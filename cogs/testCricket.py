@@ -24,8 +24,32 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    elif len(g.players) == 22:return await ctx.send(embed= Embed(title='22 Players.', description='22 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
+  @commands.command(aliases= ['l'])
+  async def leave(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if ctx.author.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{ctx.author} not in Game.', description='You are already not playing.', color=Color.from_str('#b30707')))
+    if g.hostId == ctx.author.id:return await ctx.send(embed= Embed(title='Hosts can\'t leave', description='This command is can\'t be run by host', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    p = next(p for p in g.players if p.id == ctx.author.id)
+    g.kickAPlayer(g.players.index(p))
+    await ctx.send(f'{user} has decided to be a prick and left the game')
+  @commands.command(aliases= [])
+  async def kick(self, ctx, user: discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif user.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{user} not in Game.', description='User is already not playing.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    p = next(p for p in g.players if p.id == user.id)
+    g.kickAPlayer(g.players.index(p))
+    await ctx.send(f'{user} has been kicked off from the game')
   @commands.command(aliases= ['pl'])
   async def playersList(self, ctx):
     if ctx.channel.id not in self.bot.games:
@@ -78,6 +102,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
     elif g.batFirstTeam is None:return await ctx.send(embed= Embed(title='Toss Not Done', description='Toss has not taken place yet', color=Color.from_str('#b30707')))
+    elif len(g.players)%2 != 0:return await ctx.send(embed= Embed(title='Unequal Teams', description='Teams are unequal. Just like your love for them vs their love for you.', color=Color.from_str('#b30707')))
     await g.start()
     #await ctx.send(view=g.showPlayers())
 async def setup(bot):await bot.add_cog(TestCricket(bot))

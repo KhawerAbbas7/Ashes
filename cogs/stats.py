@@ -1,6 +1,7 @@
 import discord
 from discord import Embed, Color
 from discord import ui 
+from discord.ext import commands, tasks
 class Statistics(commands.Cog, name= "Statistics"):
   def __init__(self, bot):
     self.bot = bot

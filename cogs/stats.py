@@ -10,12 +10,12 @@ class Statistics(commands.Cog, name= "Statistics"):
   async def profile(self, ctx, target: discord.User = None):
     cr = self.bot.crsr
     if not target: target=ctx.author
+    uid=target.id
     cr.execute("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?", (uid,uid))
     row=cr.fetchone()
     if not row or row[0]==0: return await ctx.send(f"{target} has not played any games yet.")
     view=ui.LayoutView(timeout=30)
     container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
-    uid=target.id
     cr=ctx.bot.crsr
     cr.execute("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=?", (uid,))
     matches,innings,total_runs,balls_faced,wickets=row=cr.fetchone()

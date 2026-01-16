@@ -724,7 +724,7 @@ class Game():
       wkttxt = f"# It's A Wicket!!\n**{striker.name}** {striker_p.runs} ({striker_p.balls})\n**{bowler.name}** {bowler_p.runsConceded}/{bowler_p.wickets+1} ({self.ballsToOvers(bowler_p.balls)})\n**Number: {bat}**"
       if len(inn.currentBatters) == 2:
         wkttxt += f"\n**Partnership: ** {inn.currentPartnership[0]} ({inn.currentPartnership[1]})"
-      c.add_item(ui.TextDisplay())
+      c.add_item(ui.TextDisplay(wkttxt))
       v.add_item(c)
       inn.currentPartnership = [0,0]
       await self.ctx.send(view=v)

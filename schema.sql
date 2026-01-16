@@ -43,4 +43,3 @@ CREATE TABLE deliveries(
   FOREIGN KEY(matchId) REFERENCES matches(matchId) ON DELETE CASCADE,
   FOREIGN KEY(inningId) REFERENCES innings(inningId) ON DELETE CASCADE
 );
-COMMIT;

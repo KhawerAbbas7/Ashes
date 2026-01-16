@@ -8,7 +8,7 @@ class Statistics(commands.Cog, name= "Statistics"):
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.command(aliases= ['me'])
   async def profile(self, ctx, target: discord.User = None):
-    cr = self.bot.cursor
+    cr = self.bot.crsr
     if not target: target=ctx.author
     cr.execute("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?", (uid,uid))
     row=cr.fetchone()

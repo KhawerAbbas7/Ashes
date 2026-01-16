@@ -19,8 +19,9 @@ class Statistics(commands.Cog, name= "Statistics"):
     cr=ctx.bot.crsr
     cr.execute("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=?", (uid,))
     matches,innings,total_runs,balls_faced,wickets=row=cr.fetchone()
-    cr.execute("SELECT MAX(runs) FROM (SELECT SUM(runs) runs FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", (uid,))
-    best_batting=cr.fetchone()[0] or 0
+    cr.execute("SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,MAX(CASE WHEN isWicket=0 THEN 1 ELSE 0 END) notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)", (uid,))
+    bb=cr.fetchone()
+    best_batting=f"{bb[0]}({bb[1]}){'*' if bb[2] else ''}" if bb else "—"
     cr.execute("SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)", (uid,uid,uid,))
     best_partner=cr.fetchone()
     cr.execute("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?", (uid,))
@@ -38,22 +39,42 @@ class Statistics(commands.Cog, name= "Statistics"):
       cr.execute("SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL", (uid,n))
       c=cr.fetchone()[0]
       bowl_pct[n]=round((c/balls_bowled)*100,2) if balls_bowled else 0
-    bat_sr=round((total_runs*100/balls_faced),2) if balls_faced else 0
+    bat_sr=round((total_runs*100/balls_faced),2) if balls_faced else 0.00
     bat_avg=round((total_runs/wickets),2) if wickets else total_runs
     overs=balls_bowled/6
     bowl_econ=round((conceded/overs),2) if overs else 0
-    bowl_sr=round((balls_bowled/wkts),2) if wkts else 0
-    container.add_item(ui.TextDisplay(f" | "))
-    container.add_item(ui.TextDisplay(f"### Batting Stats\nMatches: {matches} | Runs: {total_runs} | Innings: {innings}\nBalls: {balls_faced} | Best Batting: {best_batting} "))
-    if best_partner and best_partner[0]:
-      container.add_item(ui.TextDisplay(f"Best Partner: {ctx.bot.get_user(best_partner[0])} ({best_partner[1]} runs)"))
+    bowl_avg = round((conceded/wkts),2) if wkts else 0.00
+    bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
+    battingStatsDict= {
+      "Matches":matches,
+      "Innings":innings,
+      "Runs":total_runs,
+      "Balls Played":balls_faced,
+      "Strike Rate":bat_sr,
+      "BBI": best_batting,
+      "Best Partner": f"{ctx.bot.get_user(best_partner[0])} ({best_partner[1]} Runs)"
+    }
+    battxt = "\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
+    container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add_item(ui.TextDisplay(f"Bowling Innings: {bowl_innings} | Wickets: {wkts} | Runs Conceded: {conceded}"))
-    container.add_item(ui.TextDisplay(f"Best Bowling: {best_bowling} wickets"))
+    bowlStatsDict = {
+      "Innings": bowl_innings,
+      "wickets": wkts,
+      "Balls Bowled": balls_bowled,
+      "Runs Conceded": conceded,
+      "Bowling Avg": bowl_avg,
+      "Bowling SR": bowl_sr,
+      "Best Bowling": best_bowling
+    }
+    bowltxt = "\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
+    container.add_item(ui.TextDisplay(f"# Bowling Stats\n{bowltxt}"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add_item(ui.TextDisplay("Batting Num %: "+" ".join([f"{n}:{bat_pct[n]}%" for n in nums])))
+    b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bat_pct.items())
+    container.add_item(ui.TextDisplay(f"**Batting Num %:**\n```py\n{b}\n```"))
+    b  = "\n".join(f"{str(k).ljust(7)}{v}" for str(k),str(v) in bowl_pct.items())
+    container.add_item(ui.TextDisplay(f"**Bowling Num %:**\n```py\n{b}\n```"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add_item(ui.TextDisplay("Bowling Num %: "+" ".join([f"{n}:{bowl_pct[n]}%" for n in nums])))
+    container.add_item(ui.TextDisplay("**Bowling Num %:**\n "+"\n".join([f"{n}: {bowl_pct[n]}%" for n in nums])))
     view.add_item(container)
     await ctx.send(view=view)
       

@@ -92,10 +92,25 @@ class Game():
     self.ctx.bot.crsr.executemany(f"INSERT INTO deliveries VALUES ({placeholders})", self.ballsData)
     self.ctx.bot.db.commit()
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
+  
+  @property
+  def matchTotalBalls(self):
+    return sum([i.balls for i in self.innings])
   @property 
   def currentInning(self): return self.innings[-1]
   @property 
   def players(self): return self.teama.players + self.teamb.players
+  def getDaysAndSessions(self):
+    total_overs = int(self.ballsToOvers(self.matchTotalBalls))
+    days=(total_overs+19)//20
+    rem=total_overs%20
+    if rem==0:
+      return days,3
+    if rem<=6:
+      return days,1
+    if rem<=12:
+      return days,2
+    return days,3
   def teamTotal(self,team):return sum(i.runs for i in self.innings if i.battingTeam==team)
   def inningsByTeam(self,team):return [i for i in self.innings if i.battingTeam==team]
   def swap(self,idx1,idx2):
@@ -152,6 +167,9 @@ class Game():
     if need>0:return f"{bat.name} need {need} runs to win"
     return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
+    if self.matchTotalBalls >= 600:
+      self.winner = 'Drawn'
+      return "Match Drawn"
     if len(self.innings)<2:return None
     last=self.currentInning
     bat=last.battingTeam
@@ -353,6 +371,8 @@ class Game():
   def score(self, returnContainer=False):
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
+    DaysAndSessions = self.getDaysAndSessions()
+    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
@@ -361,6 +381,7 @@ class Game():
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
+    Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/100)"
     if returnContainer is False:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
@@ -462,6 +483,7 @@ class Game():
       inn=self.currentInning
       striker=inn.currentBatters[0]
       bowler=inn.currentBowlers[0]
+      DaysAndSessions = self.getDaysAndSessions()
       striker_p=inn.batters[striker]
       bowler_p=inn.bowlers[bowler]
       cando0=striker_p.consecutiveDots!=3
@@ -522,7 +544,7 @@ class Game():
             inn.wickets,
             None, None,
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
@@ -547,7 +569,7 @@ class Game():
             inn.wickets,
             None, None,
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
@@ -573,7 +595,7 @@ class Game():
             inn.wickets,
             None, None,
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
         continue
       elif not bat_ok and bowl_ok:
@@ -600,7 +622,7 @@ class Game():
             inn.wickets,
             None, int(bowl_task.result().content),
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
@@ -625,7 +647,7 @@ class Game():
             inn.wickets,
             None, int(bowl_task.result().content),
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
@@ -650,7 +672,7 @@ class Game():
             inn.wickets,
             None, int(bowl_task.result().content),
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
           batterExtraTXT = "You were AFK, try this again."
         bowlerExtraTXT = "Batter didn't respond in time. Replaying the ball."
@@ -677,7 +699,7 @@ class Game():
             inn.wickets,
             int(bat_task.result().content),None, 
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
         if bowler_p.AFKs == 3:
           bowler_p.AFKs = 0
@@ -717,7 +739,7 @@ class Game():
             inn.wickets,
             bat, bowl,
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
@@ -761,7 +783,7 @@ class Game():
             inn.wickets,
             bat, bowl,
             int(time.time()),
-            None, None,
+            DaysAndSessions[0], DaysAndSessions[1],
           ))
       if bat in [4,6]:
         striker_p.BoundaryThisOver = True

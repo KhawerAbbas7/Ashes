@@ -71,7 +71,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       "Best Bowling": best_bowling
     }
     bowltxt = "\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
-    container.add_item(ui.TextDisplay(f"# Bowling Stats\n{bowltxt}"))
+    container.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bat_pct.items())
     container.add_item(ui.TextDisplay(f"**Batting Num %:**\n```py\n{b}\n```"))

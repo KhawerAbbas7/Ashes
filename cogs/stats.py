@@ -22,7 +22,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     cr.execute("SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)", (uid,))
     bb=cr.fetchone()
     best_batting=f"{bb[0]}({bb[1]}){'*' if bb[2]==1 else ''}" if bb else "—"
-    cr.execute("SELECT bowlerId,w,b FROM (SELECT bowlerId,SUM(isWicket) w,COUNT(*) b FROM deliveries WHERE batterId=? AND isWicket=1 AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY w DESC,b ASC LIMIT 1)", (uid,))
+    cr.execute("SELECT bowlerId, SUM(isWicket) w, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY w DESC, b ASC LIMIT 1", (uid,))
     bo=cr.fetchone()
     bunny=f"{ctx.bot.get_user(bo[0])} ({bo[1]} times in {bo[2]} balls)" if bo else "—"
     cr.execute("SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)", (uid,uid,uid,))

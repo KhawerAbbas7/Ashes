@@ -819,6 +819,6 @@ class Game():
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
       self.saveData()
       await self.ctx.send(f"This game took {formatted}")
-      self.ctx.games.pop(self.ctx.channel.id)
+      self.ctx.bot.games.pop(self.ctx.channel.id)
     except Exception as e:
       traceback.print_exc()

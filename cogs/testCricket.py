@@ -1,7 +1,8 @@
 import discord
-from discord import Embed, Color
+from discord import Embed, Color,ui
 from discord.ext import commands, tasks
 from cogs.game import Game
+from cogs.views import *
 class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
@@ -44,6 +45,27 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.mitigatePlayers()
     await ctx.send(f'{ctx.author} has decided to be a prick and left the game')
   @commands.command(aliases= [])
+  async def yeet(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"Are you sure to yeet this game?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value in [None, 'No']: return 
+    ctx.bot.games.pop(ctx.channel.id)
+    await ctx.send("Game yeeted!")
   async def kick(self, ctx, user: discord.User):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))

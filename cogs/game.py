@@ -8,6 +8,15 @@ from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
 from uuid6 import uuid7
 BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+class customCtx():
+  def __init__(self,ctx):
+    self.ctx = ctx
+    for key, value in vars(ctx).items ():setattr(self, key, value)
+  async def send(self,content=None, **kwargs):
+    for _ in range(3):
+      try:
+        return await self.ctx.send(content, **kwargs)
+      except:await asyncio.sleep(1)
 class BattingInning():
   def __init__(self,player):
     self.player=player
@@ -68,7 +77,7 @@ class Player():
 class Game():
   def __init__(self, ctx):
     self.gameId = str(uuid7())
-    self.ctx = ctx
+    self.ctx = customCtx(ctx)
     self.hostId = ctx.author.id
     self.teama = Team('Team A')
     self.teamb = Team('Team B', 2)
@@ -106,12 +115,12 @@ class Game():
     days=(total_overs+19)//20
     rem=total_overs%20
     if rem==0:
-      return days,3
+      return int(days),3
     if rem<=6:
-      return days,1
+      return int(days),1
     if rem<=12:
-      return days,2
-    return days,3
+      return int(days),2
+    return int(days),3
   def teamTotal(self,team):return sum(i.runs for i in self.innings if i.battingTeam==team)
   def inningsByTeam(self,team):return [i for i in self.innings if i.battingTeam==team]
   def swap(self,idx1,idx2):
@@ -373,7 +382,7 @@ class Game():
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
     DaysAndSessions = self.getDaysAndSessions()
-    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}"))
+    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
@@ -816,11 +825,8 @@ class Game():
         while True:
           g = await self.getInputs()
           if self.v:
-            w = self.checkForWinner()
-            if w: break
             self.v.stop()
           self.v = self.score()
-          
           await self.ctx.send(view=self.v)
           w = self.checkForWinner()
           if g != None or w:

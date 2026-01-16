@@ -102,7 +102,7 @@ class Game():
   def players(self): return self.teama.players + self.teamb.players
   def getDaysAndSessions(self):
     total_overs = float(self.ballsToOvers(self.matchTotalBalls))
-    if total_overs < 1: return 1,1
+    if total_overs < 1: return 1, 1
     days=(total_overs+19)//20
     rem=total_overs%20
     if rem==0:
@@ -373,18 +373,15 @@ class Game():
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
     DaysAndSessions = self.getDaysAndSessions()
-    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
+    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
-        s += f" ({self.ballsToOvers(i
-        if total_overs == 0: return 1,1.balls)})"
+        s += f" ({self.ballsToOvers(i.balls)})"
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
-    
-    if total_overs == 0: return 1,1  else: t[i.battingTeam.name] = s
-    Score = "\n".join(f"**`{k.ljust(18
-    if total_overs == 0: return 1,1)}{v}`**" for k,v in t.items())
+      else: t[i.battingTeam.name] = s
+    Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
     Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/100)"
     if returnContainer is False:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))

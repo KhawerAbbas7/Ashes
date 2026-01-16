@@ -43,17 +43,17 @@ class Statistics(commands.Cog, name= "Statistics"):
     overs=balls_bowled/6
     bowl_econ=round((conceded/overs),2) if overs else 0
     bowl_sr=round((balls_bowled/wkts),2) if wkts else 0
-    container.add(ui.TextDisplay(f" | "))
-    container.add(ui.TextDisplay(f"### Batting Stats\nMatches: {matches} | Runs: {total_runs} | Innings: {innings}\nBalls: {balls_faced} | Best Batting: {best_batting} "))
+    container.add_item(ui.TextDisplay(f" | "))
+    container.add_item(ui.TextDisplay(f"### Batting Stats\nMatches: {matches} | Runs: {total_runs} | Innings: {innings}\nBalls: {balls_faced} | Best Batting: {best_batting} "))
     if best_partner and best_partner[0]:
-      container.add(ui.TextDisplay(f"Best Partner: {ctx.bot.get_user(best_partner[0])} ({best_partner[1]} runs)"))
+      container.add_item(ui.TextDisplay(f"Best Partner: {ctx.bot.get_user(best_partner[0])} ({best_partner[1]} runs)"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add(ui.TextDisplay(f"Bowling Innings: {bowl_innings} | Wickets: {wkts} | Runs Conceded: {conceded}"))
-    container.add(ui.TextDisplay(f"Best Bowling: {best_bowling} wickets"))
+    container.add_item(ui.TextDisplay(f"Bowling Innings: {bowl_innings} | Wickets: {wkts} | Runs Conceded: {conceded}"))
+    container.add_item(ui.TextDisplay(f"Best Bowling: {best_bowling} wickets"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add(ui.TextDisplay("Batting Num %: "+" ".join([f"{n}:{bat_pct[n]}%" for n in nums])))
+    container.add_item(ui.TextDisplay("Batting Num %: "+" ".join([f"{n}:{bat_pct[n]}%" for n in nums])))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-    container.add(ui.TextDisplay("Bowling Num %: "+" ".join([f"{n}:{bowl_pct[n]}%" for n in nums])))
+    container.add_item(ui.TextDisplay("Bowling Num %: "+" ".join([f"{n}:{bowl_pct[n]}%" for n in nums])))
     view.add_item(container)
     await ctx.send(view=view)
       

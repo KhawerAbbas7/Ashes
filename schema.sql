@@ -1,5 +1,5 @@
 BEGIN;
-CREATE TABLE matches(
+CREATE TABLE IF NOT EXISTS matches(
   matchId TEXT PRIMARY KEY,
   channelId INTEGER NOT NULL,
   guildId INTEGER NOT NULL,
@@ -7,7 +7,7 @@ CREATE TABLE matches(
   teamBName TEXT NOT NULL,
   winner TEXT
 );
-CREATE TABLE innings(
+CREATE TABLE IF NOT EXISTS innings(
   inningId TEXT PRIMARY KEY,
   matchId TEXT NOT NULL,
   runs INTEGER,
@@ -19,7 +19,7 @@ CREATE TABLE innings(
   isFollowOn INTEGER,
   FOREIGN KEY(matchId) REFERENCES matches(matchId) ON DELETE CASCADE
 );
-CREATE TABLE deliveries(
+CREATE TABLE IF NOT EXISTS deliveries(
   ballId TEXT PRIMARY KEY,
   matchId TEXT NOT NULL,
   inningId TEXT NOT NULL,

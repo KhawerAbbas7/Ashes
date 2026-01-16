@@ -71,7 +71,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bat_pct.items())
     container.add_item(ui.TextDisplay(f"**Batting Num %:**\n```py\n{b}\n```"))
-    b  = "\n".join(f"{str(k).ljust(7)}{v}" for str(k),str(v) in bowl_pct.items())
+    b  = "\n".join(f"{str(k).ljust(7)}{v}" for k,v in bowl_pct.items())
     container.add_item(ui.TextDisplay(f"**Bowling Num %:**\n```py\n{b}\n```"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay("**Bowling Num %:**\n "+"\n".join([f"{n}: {bowl_pct[n]}%" for n in nums])))

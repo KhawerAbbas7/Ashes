@@ -101,8 +101,8 @@ class Game():
   @property 
   def players(self): return self.teama.players + self.teamb.players
   def getDaysAndSessions(self):
-    total_overs = int(self.ballsToOvers(self.matchTotalBalls))
-    if total_overs == 0: return 1,1
+    total_overs = float(self.ballsToOvers(self.matchTotalBalls))
+    if total_overs < 1: return 1,1
     days=(total_overs+19)//20
     rem=total_overs%20
     if rem==0:

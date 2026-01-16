@@ -102,6 +102,7 @@ class Game():
   def players(self): return self.teama.players + self.teamb.players
   def getDaysAndSessions(self):
     total_overs = int(self.ballsToOvers(self.matchTotalBalls))
+    if total_overs == 0: return 1,1
     days=(total_overs+19)//20
     rem=total_overs%20
     if rem==0:
@@ -377,10 +378,13 @@ class Game():
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
-        s += f" ({self.ballsToOvers(i.balls)})"
+        s += f" ({self.ballsToOvers(i
+        if total_overs == 0: return 1,1.balls)})"
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
-      else: t[i.battingTeam.name] = s
-    Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
+    
+    if total_overs == 0: return 1,1  else: t[i.battingTeam.name] = s
+    Score = "\n".join(f"**`{k.ljust(18
+    if total_overs == 0: return 1,1)}{v}`**" for k,v in t.items())
     Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/100)"
     if returnContainer is False:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))

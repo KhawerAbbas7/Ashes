@@ -29,7 +29,7 @@ class BowlingInning():
     self.AFKs = 0
 class Inning():
   def __init__(self):
-    self.inningId = uuid7()
+    self.inningId = str(uuid7())
     self.inningNo = None 
     self.battingTeam = None 
     self.bowlingTeam = None 
@@ -67,7 +67,7 @@ class Player():
     return self
 class Game():
   def __init__(self, ctx):
-    self.gameId = uuid7()
+    self.gameId = str(uuid7())
     self.ctx = ctx
     self.hostId = ctx.author.id
     self.teama = Team('Team A')
@@ -458,7 +458,7 @@ class Game():
     bowlerExtraTXT = ""
     batterExtraTXT = ""
     while True:
-      ballId = uuid7()
+      ballId = str(uuid7())
       inn=self.currentInning
       striker=inn.currentBatters[0]
       bowler=inn.currentBowlers[0]

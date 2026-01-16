@@ -6,6 +6,7 @@ import asyncio
 import discord
 from PIL import Image, ImageDraw, ImageFont
 from io import BytesIO
+from uuid6 import uuid7
 BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class BattingInning():
   def __init__(self,player):
@@ -28,6 +29,7 @@ class BowlingInning():
     self.AFKs = 0
 class Inning():
   def __init__(self):
+    self.inningId = uuid7()
     self.inningNo = None 
     self.battingTeam = None 
     self.bowlingTeam = None 
@@ -42,6 +44,7 @@ class Inning():
     self.runs = 0
     self.wickets = 0
     self.balls = 0
+    self.currentPartnership= [0,0]
 class Team():
   def __init__(self, name: str = 'Team A', id: int = 1):
     self.name = name
@@ -64,6 +67,7 @@ class Player():
     return self
 class Game():
   def __init__(self, ctx):
+    self.gameId = uuid7()
     self.ctx = ctx
     self.hostId = ctx.author.id
     self.teama = Team('Team A')
@@ -72,9 +76,21 @@ class Game():
     self.startedAt = None
     self.batFirstTeam = None
     self.innings = []
+    self.ballsData = []
     self.v = None
     self.followOnTeam=None
     self.followOnLimit=75
+    self.winner = None
+  def saveData(self):
+    self.ctx.bot.crsr.execute("INSERT INTO matches VALUES (?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id,self.teama.name,self.teamb.name, self.winner, ))
+    data = []
+    for i in self.innings:
+      data.append((i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name,1 if i.declared else 0, 1 if i.followOn else 0, ))
+    placeholders=",".join(["?"]*len(data[0]))
+    self.ctx.bot.crsr.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
+    placeholders=",".join(["?"]*len(self.ballsData[0]))
+    self.ctx.bot.crsr.executemany(f"INSERT INTO deliveries VALUES ({placeholders})", self.ballsData)
+    self.ctx.bot.db.commit()
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @property 
   def currentInning(self): return self.innings[-1]
@@ -134,7 +150,7 @@ class Game():
     target=(bowlTotal-batPrev)+1
     need=target-inn.runs
     if need>0:return f"{bat.name} need {need} runs to win"
-    return f"{bat.name} have won by {len(bat.players)-1-inn.wickets} wickets"
+    return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
     if len(self.innings)<2:return None
     last=self.currentInning
@@ -145,19 +161,25 @@ class Game():
     if not last.currentBatters and len(last.cantBat)==len(bat.players):
       if self.followOnTeam==bat:
         lead=bowlTotal-batTotal
-        if lead>0:return f"{bowl.name} have won by an innings and {lead} runs"
+        if lead>0:
+          self.winner = bowl.name
+          return f"{bowl.name} have won by an innings and {lead} runs"
       elif len(self.innings)==3:
         lead=bowlTotal-batTotal
         if (batTotal- bowlTotal) < 0:
+          self.winner = bowl.name
           return f"{bowl.name} have won by an innings and {lead} runs"
       if len(self.innings)==4:
+        self.winner = bowl.name
         return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
     if len(self.innings)==4:
       batPrev=batTotal-last.runs
       target=(bowlTotal-batPrev)+1
       if last.runs>=target:
-        return f"{bat.name} have won by {len(bat.players)-1-last.wickets} wickets"
+        self.winner = bat.name
+        return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
       elif last.runs==target-1:
+        self.winner = "Tied"
         return "Match Tied"
     return None
   def mitigatePlayers(self):
@@ -343,7 +365,10 @@ class Game():
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"
-    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].BoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]+["\n```"]
+    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].BoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
+    if len(self.currentInning.currentBatters) == 2:
+      rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]})\n```"]
+    else: rows += ["\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BatterScore))
@@ -423,19 +448,22 @@ class Game():
     inn.inningNo=no
     inn.battingTeam=bat
     inn.bowlingTeam=bowl
+    if no == 3 and self.followOnTeam:
+      inn.followOn = True
     for p in bat.players: inn.batters[p]=BattingInning(p)
     for p in bowl.players: inn.bowlers[p]=BowlingInning(p)
     self.innings.append(inn)
     await asyncio.gather(self.selectBowler(),self.selectOpeners())
   async def getInputs(self):
+    bowlerExtraTXT = ""
+    batterExtraTXT = ""
     while True:
+      ballId = uuid7()
       inn=self.currentInning
       striker=inn.currentBatters[0]
       bowler=inn.currentBowlers[0]
       striker_p=inn.batters[striker]
       bowler_p=inn.bowlers[bowler]
-      bowlerExtraTXT = ""
-      batterExtraTXT = ""
       cando0=striker_p.consecutiveDots!=3
       if cando0 and not striker_p.BoundaryThisOver:
         allowed={'0','1','2','3','4','6'}
@@ -462,6 +490,7 @@ class Game():
       bat_ok=bat_task in done and not bat_task.cancelled()
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:
+        
         for t in pending: t.cancel()
         bowler_p.AFKs += 1; striker_p.AFKs += 1
         await self.ctx.send(f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: 3/{bowler_p.AFKs}\nBatter AFKs: 6/{striker_p.AFKs}")
@@ -475,16 +504,77 @@ class Game():
         else:
           bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         if striker_p.AFKs == 3:
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, None,
+            int(time.time()),
+            None, None,
+          ))
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
           await self.selectNextBatter()
+          if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            1,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, None,
+            int(time.time()),
+            None, None,
+          ))
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
-          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter()
+          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter(); inn.currentPartnership = [0,0]
           elif not inn.currentBatters:return 'Inning Over'
         else:
           batterExtraTXT = "You were AFK, try this again."
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, None,
+            int(time.time()),
+            None, None,
+          ))
         continue
       elif not bat_ok and bowl_ok:
         for t in pending: t.cancel()
@@ -492,15 +582,76 @@ class Game():
         await self.ctx.send(f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6")
         await asyncio.sleep(0.3)
         if striker_p.AFKs == 3:
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, int(bowl_task.result().content),
+            int(time.time()),
+            None, None,
+          ))
           inn.currentBatters.pop(0)
           inn.cantBat.remove(striker.id)
           await self.selectNextBatter()
+          if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            1,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, int(bowl_task.result().content),
+            int(time.time()),
+            None, None,
+          ))
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
-          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter()
+          if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter();inn.currentPartnership = [0,0]
           elif not inn.currentBatters:return 'Inning Over'
         else:
+          self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            None, int(bowl_task.result().content),
+            int(time.time()),
+            None, None,
+          ))
           batterExtraTXT = "You were AFK, try this again."
         bowlerExtraTXT = "Batter didn't respond in time. Replaying the ball."
         continue
@@ -508,6 +659,26 @@ class Game():
         for t in pending: t.cancel()
         bowler_p.AFKs += 1
         await self.ctx.send(f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3")
+        self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            int(bat_task.result().content),None, 
+            int(time.time()),
+            None, None,
+          ))
         if bowler_p.AFKs == 3:
           bowler_p.AFKs = 0
           await self.selectBowler()
@@ -523,13 +694,39 @@ class Game():
     inn.balls+=1
     striker_p.balls+=1
     bowler_p.balls+=1
+    inn.currentPartnership[1] +=1
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
+      inn.wickets+=1
+      self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            1,
+            0,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            bat, bowl,
+            int(time.time()),
+            None, None,
+          ))
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
-      c.add_item(ui.TextDisplay(f"# It's A Wicket!!\n**{striker.name}** {striker_p.runs} ({striker_p.balls})\n**{bowler.name}** {bowler_p.runsConceded}/{bowler_p.wickets+1} ({self.ballsToOvers(bowler_p.balls)})\n**Number: {bat}**"))
+      wkttxt = f"# It's A Wicket!!\n**{striker.name}** {striker_p.runs} ({striker_p.balls})\n**{bowler.name}** {bowler_p.runsConceded}/{bowler_p.wickets+1} ({self.ballsToOvers(bowler_p.balls)})\n**Number: {bat}**"
+      if len(inn.currentBatters) == 2:
+        wkttxt += f"\n**Partnership: ** {inn.currentPartnership[0]} ({inn.currentPartnership[1]})"
+      c.add_item(ui.TextDisplay())
       v.add_item(c)
+      inn.currentPartnership = [0,0]
       await self.ctx.send(view=v)
       await asyncio.sleep(0.3)
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
@@ -537,7 +734,7 @@ class Game():
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}")
       await asyncio.sleep(0.3)
       inn.timeline.append("W")
-      inn.wickets+=1
+      
       bowler_p.wickets+=1
       inn.currentBatters.pop(0)
       if len(inn.cantBat) < len(inn.battingTeam.players):
@@ -545,11 +742,32 @@ class Game():
       elif not inn.currentBatters:
         return 'Inning Over'
     else:
+      inn.runs+=bat
+      self.ballsData.append((
+            ballId,
+            self.gameId,
+            inn.inningId,
+            inn.inningNo,
+            striker.id,
+            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+            bowler.id,
+            1 if cando0 else 0,
+            0 if striker_p.BoundaryThisOver else 1, 
+            0,
+            bat,
+            inn.runs,
+            inn.balls,
+            float(self.ballsToOvers(inn.balls)),
+            inn.wickets,
+            bat, bowl,
+            int(time.time()),
+            None, None,
+          ))
       if bat in [4,6]:
         striker_p.BoundaryThisOver = True
-      inn.runs+=bat
       striker_p.runs+=bat
       bowler_p.runsConceded+=bat
+      inn.currentPartnership[0] += bat
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}")
       await asyncio.sleep(0.3)
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}")
@@ -599,6 +817,7 @@ class Game():
       await self.ctx.send(file=self.matchSummaryCard())
       duration= time.time() - self.startedAt
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
+      self.saveData()
       await self.ctx.send(f"This game took {formatted}")
       self.ctx.games.pop(self.ctx.channel.id)
     except Exception as e:

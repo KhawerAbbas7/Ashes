@@ -94,16 +94,14 @@ class Game():
     self.followOnLimit=75
     self.winner = None
     self.mvp = None
-  def saveData(self):
-    self.ctx.bot.crsr.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id,self.teama.name,self.teamb.name, self.winner, self.mvp.id))
-    data = []
-    for i in self.innings:
-      data.append((i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name,1 if i.declared else 0, 1 if i.followOn else 0, ))
-    placeholders=",".join(["?"]*len(data[0]))
-    self.ctx.bot.crsr.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
-    placeholders=",".join(["?"]*len(self.ballsData[0]))
-    self.ctx.bot.crsr.executemany(f"INSERT INTO deliveries VALUES ({placeholders})", self.ballsData)
-    self.ctx.bot.db.commit()
+  async def saveData(self):
+    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,))
+    data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,) for i in self.innings]
+    placeholders = ",".join(["?"] * len(data[0]))
+    await self.ctx.bot.db.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
+    placeholders = ",".join(["?"] * len(self.ballsData[0]))
+    await self.ctx.bot.db.executemany(f"INSERT INTO deliveries VALUES ({placeholders})", self.ballsData)
+    await self.ctx.bot.db.commit()
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   
   @property
@@ -879,7 +877,7 @@ class Game():
       mvp= self.calculateMvp()
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
       formatted=f"MVP: {mvp.name}\n{hours} hours {minutes} minutes {seconds} seconds"
-      self.saveData()
+      await self.saveData()
       await self.ctx.send(f"This game took {formatted}")
       self.ctx.bot.games.pop(self.ctx.channel.id)
     except Exception as e:

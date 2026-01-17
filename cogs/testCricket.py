@@ -141,7 +141,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Invalid Team Name', description='Team name must only be 20 characters or less and can only consist of alphabets and whitespace.', color=Color.from_str('#b30707')))
     elif teamIndex > 2 or teamIndex <1:
       return await ctx.send(embed= Embed(title='Invalid Team Index', description='Team index must only be 1 or 2.', color=Color.from_str('#b30707')))
-    team = g.teama teamIndex == 1 else g.teamb
+    team = g.teama if teamIndex == 1 else g.teamb
     if team.captain.id != ctx.author.id and g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Invalid Team', description='You can\'t change the name of other team.', color=Color.from_str('#b30707')))
     oldTeamName = team.name 

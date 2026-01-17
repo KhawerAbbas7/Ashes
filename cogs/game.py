@@ -11,6 +11,7 @@ BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 class customCtx():
   def __init__(self,ctx):
     self.ctx = ctx
+    self.guild = ctx.guild
     for key, value in vars(ctx).items ():setattr(self, key, value)
   async def send(self,content=None, **kwargs):
     for _ in range(3):

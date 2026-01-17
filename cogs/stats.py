@@ -32,6 +32,14 @@ class Statistics(commands.Cog, name= "Statistics"):
     cr.execute("SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)", (uid,))
     bb=cr.fetchone()
     best_bowling=f"{bb[0]}/{bb[1]} ({self.ballsToOvers(bb[2])})" if bb else "—"
+    cr.execute("SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", (uid,))
+    fifties,hundreds=cr.fetchone()
+    cr.execute("SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?", (uid,))
+    top_scores=cr.fetchone()[0]
+    cr.execute("SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL AND d.battingTeam=i.battingTeam GROUP BY d.inningId)", (uid,))
+    team_pct=cr.fetchone()[0] or 0
+    cr.execute("SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", (uid,))
+    threefers,fivefers=cr.fetchone()
     nums=[0,1,2,3,4,6]
     bat_pct={}
     bowl_pct={}
@@ -53,7 +61,12 @@ class Statistics(commands.Cog, name= "Statistics"):
       "Innings":innings,
       "Runs":total_runs,
       "Balls Played":balls_faced,
+      "Batting Avg": bat_avg,
       "Strike Rate":bat_sr,
+      "Team Runs %": f"{team_pct}",
+      "50s": fifties,
+      "100s": hundreds,
+      "Top Scored": top_scores,
       "BBI": best_batting,
       "Best Partner": f"{ctx.bot.get_user(best_partner[0])} ({best_partner[1]} Runs)",
       "Bunny Of": bunny
@@ -66,8 +79,11 @@ class Statistics(commands.Cog, name= "Statistics"):
       "wickets": wkts,
       "Balls Bowled": balls_bowled,
       "Runs Conceded": conceded,
+      "3fers": threefers,
+      "5fers": fivefers,
       "Bowling Avg": bowl_avg,
       "Bowling SR": bowl_sr,
+      "Economy": bowl_econ,
       "Best Bowling": best_bowling
     }
     bowltxt = "\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
@@ -75,7 +91,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bat_pct.items())
     container.add_item(ui.TextDisplay(f"**Batting Num %:**\n```py\n{b}\n```"))
-    b  = "\n".join(f"{str(k).ljust(7)}{v}" for k,v in bowl_pct.items())
+    b  = "\n".join(f"{str(k).ljust(7)}{v}" for k,v in bowl_pct.items() if k != 0)
     container.add_item(ui.TextDisplay(f"**Bowling Num %:**\n```py\n{b}\n```"))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     view.add_item(container)

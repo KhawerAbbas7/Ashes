@@ -840,9 +840,7 @@ class Game():
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.selectBowler()
-  async def battingCardAsync(self):return await asyncio.to_thread(self.battingCard)
-  async def bowlingCardAsync(self):return await asyncio.to_thread(self.bowlingCard)
-  async def matchSummaryCardAsync(self):return await asyncio.to_thread(self.matchSummaryCard)
+  
   async def start(self):
     try:
       self.started = True 
@@ -860,7 +858,7 @@ class Game():
           await self.ctx.send(view=self.v)
           w = self.checkForWinner()
           if g != None or w:
-            bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
+            bat,bowl=self.battingCard(), self.bowlingCard()
             await self.ctx.send(files=[bat,bowl])
             await asyncio.sleep(3)
             await self.checkFollowOn()
@@ -868,14 +866,13 @@ class Game():
           if self.currentInning.declared:
             await self.ctx.send("**Inning Declared**")
             await asyncio.sleep(1)
-            bat = await self.battingCardAsync()
-            bowl =await self.bowlingCardAsync()
+            bat,bowl=self.battingCard(), self.bowlingCard()
             await self.ctx.send(files=[bat,bowl])
             await asyncio.sleep(0.3)
             await self.checkFollowOn()
             await asyncio.sleep(3)
             break
-      summary=await self.matchSummaryCardAsync()
+      summary=self.matchSummaryCard()
       await self.ctx.send(file=summary)
       duration= time.time() - self.startedAt
       mvp= self.calculateMvp()

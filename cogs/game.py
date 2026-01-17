@@ -252,6 +252,7 @@ class Game():
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),180)
     inningScore = f"{inn.runs}/{inn.wickets} ({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
     draw.text(((5000-font.getlength(inningScore))/2,4582+54.5),inningScore,font=font,fill=darkVoilet)
+    img=img.convert("RGB").resize((1200,1200),Image.LANCZOS)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
@@ -286,6 +287,7 @@ class Game():
     font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"), 180)
     inningScore = f"{inn.runs}/{inn.wickets}({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
     draw.text(((5000-font.getlength(inningScore))/2, 4582+54.5), inningScore, font=font, fill=darkVoilet)
+    img=img.convert("RGB").resize((1200,1200),Image.LANCZOS)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
@@ -329,6 +331,7 @@ class Game():
     footer = self.matchStatus().upper()
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120)
     draw.text(((5000-font.getlength(footer))/2,4582+79.5),footer,font=font,fill=darkVoilet)
+    img=img.convert("RGB").resize((1200,1200),Image.LANCZOS)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
@@ -865,7 +868,8 @@ class Game():
           if self.currentInning.declared:
             await self.ctx.send("**Inning Declared**")
             await asyncio.sleep(1)
-            bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
+            bat = await self.battingCardAsync()
+            bowl =await self.bowlingCardAsync()
             await self.ctx.send(files=[bat,bowl])
             await asyncio.sleep(0.3)
             await self.checkFollowOn()

@@ -13,8 +13,8 @@ class Ashes(commands.Bot):
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     await self.db.execute("PRAGMA foreign_keys = ON")
     await self.db.execute("PRAGMA journal_mode = WAL")
-    async with self.db.executescript(open("schema.sql").read()) as _:
-      pass
+    script = open("schema.sql").read()
+    await self.db.executescript(script)
     await self.load_extension('jishaku')
     for file in os.listdir('cogs'):
       if file.endswith('py') and file not in ['game.py', 'views.py']:await self.load_extension('cogs.' + file[:-3])

@@ -8,11 +8,9 @@ class Statistics(commands.Cog, name= "Statistics"):
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.command(aliases= ['me'])
   async def profile(self, ctx, target: discord.User = None):
-    cr = self.bot.crsr
     if not target: target=ctx.author
     uid=target.id
-    await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?", (uid,uid))
-    row=cr.fetchone()
+    row=await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?", (uid,uid))
     if not row or row[0]==0: return await ctx.send(f"{target} has not played any games yet.")
     view=ui.LayoutView(timeout=30)
     container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))

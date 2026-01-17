@@ -93,8 +93,9 @@ class Game():
     self.followOnTeam=None
     self.followOnLimit=75
     self.winner = None
+    self.mvp = None
   def saveData(self):
-    self.ctx.bot.crsr.execute("INSERT INTO matches VALUES (?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id,self.teama.name,self.teamb.name, self.winner, ))
+    self.ctx.bot.crsr.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id,self.teama.name,self.teamb.name, self.winner, self.mvp.id))
     data = []
     for i in self.innings:
       data.append((i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name,1 if i.declared else 0, 1 if i.followOn else 0, ))
@@ -474,6 +475,23 @@ class Game():
     pid=view.value or random.choice(options)['id']
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
     inn.cantBat.append(pid)
+  def calculateMvp(self):
+    stats = {}
+    for inn in self.innings:
+      for p, b in inn.batters.items():
+        if p.id not in stats: stats[p.id] = {'p': p, 'pts': 0}
+        stats[p.id]['pts'] += b.runs
+      for p, b in inn.bowlers.items():
+        if p.id not in stats: stats[p.id] = {'p': p, 'pts': 0}
+        stats[p.id]['pts'] += b.wickets * 12
+    winner = next((t for t in [self.teama, self.teamb] if t.name == self.winner), None)
+    if winner:
+      for p in winner.players:
+        if p.id in stats: 
+          stats[p.id]['pts']*= 1.2
+    best = max(stats.values(), key=lambda x: x['pts'])
+    self.mvp = best['p']
+    return best['p']
   async def startInning(self):
     no=len(self.innings)+1
     bat=self.nextBattingTeam()
@@ -855,12 +873,12 @@ class Game():
             await self.checkFollowOn()
             await asyncio.sleep(3)
             break
-      bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
-      await self.ctx.send(files=[bat,bowl])
       summary=await self.matchSummaryCardAsync()
       await self.ctx.send(file=summary)
       duration= time.time() - self.startedAt
-      hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
+      mvp= self.calculateMvp()
+      hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
+      formatted=f"MVP: {mvp.name}\n{hours} hours {minutes} minutes {seconds} seconds"
       self.saveData()
       await self.ctx.send(f"This game took {formatted}")
       self.ctx.bot.games.pop(self.ctx.channel.id)

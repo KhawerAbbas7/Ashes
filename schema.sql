@@ -5,7 +5,8 @@ CREATE TABLE IF NOT EXISTS matches(
   guildId INTEGER NOT NULL,
   teamAName TEXT NOT NULL,
   teamBName TEXT NOT NULL,
-  winner TEXT
+  winner TEXT,
+  mvpId INTEGER,
 );
 CREATE TABLE IF NOT EXISTS innings(
   inningId TEXT PRIMARY KEY,

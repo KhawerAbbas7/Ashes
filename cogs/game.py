@@ -26,6 +26,8 @@ class BattingInning():
     self.consecutiveDots=0
     self.BoundaryThisOver= False
     self.AFKs = 0
+    self.dismissed = False
+    self.timeline = deque(maxlen=13)
   @property
   def sr(self): return round((self.runs/self.balls)*100,2) if self.balls else 0.0
 class BowlingInning():
@@ -35,6 +37,7 @@ class BowlingInning():
     self.runsConceded=0
     self.wickets=0
     self.balls=0
+    self.timeline = deque(maxlen=13)
     self.AFKs = 0
 class Inning():
   def __init__(self):
@@ -561,6 +564,7 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          striker_p.dismissed = True 
           self.ballsData.append((
             ballId,
             self.gameId,
@@ -639,6 +643,7 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          striker_p.dismissed = True 
           self.ballsData.append((
             ballId,
             self.gameId,
@@ -727,10 +732,14 @@ class Game():
     striker_p.balls+=1
     bowler_p.balls+=1
     inn.currentPartnership[1] +=1
+    striker_p.timeline.append(str(bat))
+    bowler_p.timeline.append(str(bowl))
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
+      striker_p.dismissed = True 
       inn.wickets+=1
+      
       self.ballsData.append((
             ballId,
             self.gameId,

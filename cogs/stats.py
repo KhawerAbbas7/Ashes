@@ -36,7 +36,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     fifties,hundreds=cr.fetchone()
     cr.execute("SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?", (uid,))
     top_scores=cr.fetchone()[0]
-    cr.execute("SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL AND d.inningId=i.inningId GROUP BY d.inningId)", (uid,))
+    cr.execute("SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL GROUP BY d.inningId)", (uid,))
     team_pct=cr.fetchone()[0] or 0
     cr.execute("SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", (uid,))
     threefers,fivefers=cr.fetchone()

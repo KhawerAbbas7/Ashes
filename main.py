@@ -1,7 +1,7 @@
 import discord, os
 from discord.ext import commands
 from dotenv import load_dotenv
-import os, sqlite3
+import os, aiosqlite
 load_dotenv()
 token=os.getenv("TOKEN")
 os.environ['JISHAKU_NO_UNDERSCORE'] = 'true'

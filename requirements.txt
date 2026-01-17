@@ -3,3 +3,4 @@ dotenv
 jishaku
 pillow
 uuid6
+aiosqlite

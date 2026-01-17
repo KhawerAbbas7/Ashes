@@ -821,7 +821,9 @@ class Game():
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.selectBowler()
-
+  async def battingCardAsync(self):return await asyncio.to_thread(self.battingCard)
+  async def bowlingCardAsync(self):return await asyncio.to_thread(self.bowlingCard)
+  async def matchSummaryCardAsync(self):return await asyncio.to_thread(self.matchSummaryCard)
   async def start(self):
     try:
       self.started = True 
@@ -839,20 +841,24 @@ class Game():
           await self.ctx.send(view=self.v)
           w = self.checkForWinner()
           if g != None or w:
-            await self.ctx.send(files=[self.battingCard(), self.bowlingCard()])
+            bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
+            await self.ctx.send(files=[bat,bowl])
             await asyncio.sleep(3)
             await self.checkFollowOn()
             break
           if self.currentInning.declared:
             await self.ctx.send("**Inning Declared**")
             await asyncio.sleep(1)
-            await self.ctx.send(files=[self.battingCard(), self.bowlingCard()])
+            bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
+            await self.ctx.send(files=[bat,bowl])
             await asyncio.sleep(0.3)
             await self.checkFollowOn()
             await asyncio.sleep(3)
             break
-      await self.ctx.send(files=[self.battingCard(), self.bowlingCard()])
-      await self.ctx.send(file=self.matchSummaryCard())
+      bat,bowl=await asyncio.gather(self.battingCardAsync(),self.bowlingCardAsync())
+      await self.ctx.send(files=[bat,bowl])
+      summary=await self.matchSummaryCardAsync()
+      await self.ctx.send(file=summary)
       duration= time.time() - self.startedAt
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60);formatted=f"{hours} hours {minutes} minutes {seconds} seconds"
       self.saveData()

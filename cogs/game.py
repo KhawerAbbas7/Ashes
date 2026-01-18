@@ -333,7 +333,7 @@ class Game():
       y += offset
     footer = self.matchStatus().upper()
     font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
-    draw.text((((5000*0.256)-font.getlength(footer))/2,(4582*0.256)+79.5),footer,font=font,fill=darkVoilet)
+    draw.text((((5000*0.256)-font.getlength(footer))/2,(4582*0.256)+(79.5*0.256)),footer,font=font,fill=darkVoilet)
     
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
@@ -880,9 +880,9 @@ class Game():
       duration= time.time() - self.startedAt
       mvp= self.calculateMvp()
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-      formatted=f"MVP: {mvp.name}\n{hours} hours {minutes} minutes {seconds} seconds"
+      formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
       await self.saveData()
-      await self.ctx.send(f"This game took {formatted}")
+      await self.ctx.send(f"{formatted}")
       self.ctx.bot.games.pop(self.ctx.channel.id)
     except Exception as e:
       traceback.print_exc()

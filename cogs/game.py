@@ -261,7 +261,7 @@ class Game():
       return discord.File(fp=image_binary, filename='battingSC.png')
   def bowlingCard(self):
     inn = self.currentInning
-    img = Image.open(os.path.join11(BASE_DIR,"templates","bowlingSummary.png")).convert("RGBA")
+    img = Image.open(os.path.join(BASE_DIR,"templates","bowlingSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
     font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
     darkVoilet = "#32267B"

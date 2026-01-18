@@ -70,6 +70,7 @@ class Team():
 class Player():
   def __init__(self):
     self.user,self.name, self.id, self.mention= 0,0,0,0
+  def __str__(self): return self.name
   async def send(self,content=None, **kwargs):
     for _ in range(3):
       try:

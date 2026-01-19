@@ -133,7 +133,9 @@ class Game():
     combined=self.players
     if idx1<0 or idx2<0 or idx1>=len(combined) or idx2>=len(combined):return False
     combined[idx1],combined[idx2]=combined[idx2],combined[idx1]
-    self.mitigatePlayers()
+    total=len(combined);mid=total//2;extra=total%2
+    self.teama.players=combined[:mid+extra];self.teamb.players=combined[mid+extra:]
+    self.teama.checkForCaptain();self.teamb.checkForCaptain()
     return True
   async def checkFollowOn(self):
     if len(self.innings)==2:
@@ -511,6 +513,11 @@ class Game():
     for p in bowl.players: inn.bowlers[p]=BowlingInning(p)
     self.innings.append(inn)
     await asyncio.gather(self.selectBowler(),self.selectOpeners())
+  async def sendToNonStriker(self, content= None, **kwargs):
+    if len(inn.currentBatters) == 2:
+      p = striker=inn.currentBatters[1]
+      await asyncio.sleep(1)
+      await p.send(content, **kwargs)
   async def getInputs(self):
     bowlerExtraTXT = ""
     batterExtraTXT = ""
@@ -609,6 +616,7 @@ class Game():
             DaysAndSessions[0], DaysAndSessions[1],
           ))
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
+          await self.sendToNonStriker("Striker was declared out because of being AFK.")
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter(); inn.currentPartnership = [0,0]
           elif not inn.currentBatters:return 'Inning Over'
@@ -687,6 +695,7 @@ class Game():
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
+          await self.sendToNonStriker("Striker was declared out because of being AFK.")
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):await self.selectNextBatter();inn.currentPartnership = [0,0]
@@ -796,6 +805,7 @@ class Game():
       await asyncio.sleep(0.3)
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}")
       await asyncio.sleep(0.3)
+      await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**They are out!!**\nBowler -> {bowl}")
       inn.timeline.append("W")
       
       bowler_p.wicketsDigits.append(f"{bowl}")
@@ -834,12 +844,16 @@ class Game():
       bowler_p.runsConceded+=bat
       inn.currentPartnership[0] += bat
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}")
+      
       await asyncio.sleep(0.3)
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}")
+      await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}")
       inn.timeline.append(f"{bat}")
       if bat%2==1 and len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
     if inn.balls%6==0:
+      self.v = self.score()
+      await self.ctx.send(view=self.v)
       for b in inn.currentBatters:
         inn.batters[b].BoundaryThisOver = False
       if len(inn.currentBatters) > 1:
@@ -858,8 +872,9 @@ class Game():
           g = await self.getInputs()
           if self.v:
             self.v.stop()
-          self.v = self.score()
-          await self.ctx.send(view=self.v)
+          if self.currentInning.balls%6 !=0:
+            self.v = self.score()
+            await self.ctx.send(view=self.v)
           w = self.checkForWinner()
           if g != None or w:
             bat,bowl=self.battingCard(), self.bowlingCard()

@@ -514,8 +514,8 @@ class Game():
     self.innings.append(inn)
     await asyncio.gather(self.selectBowler(),self.selectOpeners())
   async def sendToNonStriker(self, content= None, **kwargs):
-    if len(inn.currentBatters) == 2:
-      p = striker=inn.currentBatters[1]
+    if len(self.currentInning.currentBatters) == 2:
+      p = striker=self.currentInning.currentBatters[1]
       await asyncio.sleep(1)
       await p.send(content, **kwargs)
   async def getInputs(self):

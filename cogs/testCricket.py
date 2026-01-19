@@ -192,7 +192,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif g.started:
       return await ctx.send(embed= Embed(title='Game has already started', description='Game has already commenced, you can\'t start it twice, it is not your relationship.', color=Color.from_str('#b30707')))
     elif g.batFirstTeam is None:return await ctx.send(embed= Embed(title='Toss Not Done', description='Toss has not taken place yet', color=Color.from_str('#b30707')))
-    elif len(g.players)%2 != 0:return await ctx.send(embed= Embed(title='Unequal Teams', description='Teams are unequal. Just like your love for them vs their love for you.', color=Color.from_str('#b30707')))
+    elif len(g.players)%2 != 0 or len(g.players) < 4:return await ctx.send(embed= Embed(title='Unequal Teams', description='Teams are unequal. Just like your love for them vs their love for you.', color=Color.from_str('#b30707')))
     await g.start()
     #await ctx.send(view=g.showPlayers())
 async def setup(bot):await bot.add_cog(TestCricket(bot))

@@ -191,6 +191,11 @@ class Selection(ui.Select):
       view.add_item(ui.TextDisplay(f"Selected {' & '.join(selected) if isinstance(selected,list) else selected}"))
       await self.view.m.edit(view= view)
     self.view.stop()
+class Last5BTN(ui.Button):
+  def __init__(self):
+    super().__init__(label='Last 5 Innings', style=discord.ButtonStyle.green)
+  async def callback(self, i):
+    c = i.client
 class DeclareBTN(ui.Button):
   def __init__(self):
     super().__init__(label='Declare', style=discord.ButtonStyle.danger)

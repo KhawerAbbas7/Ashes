@@ -6,6 +6,7 @@ load_dotenv()
 token=os.getenv("TOKEN")
 os.environ['JISHAKU_NO_UNDERSCORE'] = 'true'
 async def get_pre(bot, message):
+  if not message.guild:return commands.when_mentioned_or(*["", "."])(bot, message) 
   async with bot.settingsdb.execute("SELECT prefix FROM settings WHERE guildId =?", (message.guild.id,)) as cursor:
     p = await cursor.fetchone()
     prefix_return = [p[0] if p else "as!"]

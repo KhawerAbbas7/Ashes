@@ -204,6 +204,12 @@ class Game():
         if (batTotal- bowlTotal) < 0:
           self.winner = bowl.name
           return f"{bowl.name} have won by an innings and {lead} runs"
+      elif len(self.innings)==4:
+        batPrev=batTotal-last.runs
+        target=(bowlTotal-batPrev)+1
+        elif last.runs==target-1:
+          self.winner = "Tied"
+          return "Match Tied"
       if len(self.innings)==4:
         self.winner = bowl.name
         return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
@@ -213,9 +219,6 @@ class Game():
       if last.runs>=target:
         self.winner = bat.name
         return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
-      elif last.runs==target-1:
-        self.winner = "Tied"
-        return "Match Tied"
     return None
   def mitigatePlayers(self):
     combined= self.players

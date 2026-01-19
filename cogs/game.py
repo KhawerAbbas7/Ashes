@@ -39,6 +39,7 @@ class BowlingInning():
     self.wickets=0
     self.balls=0
     self.timeline = deque(maxlen=13)
+    self.wicketsDigits = []
     self.AFKs = 0
 class Inning():
   def __init__(self):
@@ -755,13 +756,12 @@ class Game():
     bowler_p.balls+=1
     inn.currentPartnership[1] +=1
     striker_p.timeline.append(str(bat))
-    bowler_p.timeline.append(str(bowl))
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
       striker_p.dismissed = True 
       inn.wickets+=1
-      
+      bowler_p.timeline.append("W")
       self.ballsData.append((
             ballId,
             self.gameId,
@@ -798,6 +798,7 @@ class Game():
       await asyncio.sleep(0.3)
       inn.timeline.append("W")
       
+      bowler_p.wicketsDigits.append(f"{bowl}")
       bowler_p.wickets+=1
       inn.currentBatters.pop(0)
       if len(inn.cantBat) < len(inn.battingTeam.players):
@@ -805,6 +806,7 @@ class Game():
       elif not inn.currentBatters:
         return 'Inning Over'
     else:
+      bowler_p.timeline.append(str(bowl))
       inn.runs+=bat
       self.ballsData.append((
             ballId,
@@ -852,7 +854,6 @@ class Game():
         w = self.checkForWinner()
         if w: break
         await self.startInning()
-        print('Started')
         while True:
           g = await self.getInputs()
           if self.v:

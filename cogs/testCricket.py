@@ -95,14 +95,17 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     bat=[]
     bowl=[]
     timeline=[]
+    tookWickets = []
     player = next(p for p in g.players if p.id == user.id)
     for inn in g.innings:
       if player in inn.batters:
+        tookWickets = []
         i=inn.batters[player]
         timeline = i.timeline
         if i.balls>0: bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
       if player in inn.bowlers:
         i=inn.bowlers[player]
+        tookWickets = i.wicketsDigits
         timeline = i.timeline
         if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
@@ -111,6 +114,9 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     container.add_item(ui.TextDisplay(f"**Batting:** {bat}\n**Bowling:**{bowl}"))
     if timeline:
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))
+    if tookWickets:
+      w = " • ".join([f'**{t}**' for t in tookWickets])
+      container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases= ['pl'])

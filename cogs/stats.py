@@ -85,5 +85,48 @@ class Statistics(commands.Cog, name= "Statistics"):
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     view.add_item(container)
     await ctx.send(view=view)
-      
+  @commands.command(aliases= [])
+  async def vs(self, ctx, player1: discord.User = None, player2: discord.User = None):
+    if not player1:
+      return await ctx.send("You have provide at least one player to have VS statistics.")
+    elif not player2:
+      player2 = ctx.author
+    if player2.id == player1.id:
+      return await ctx.send("You have provide two distinct players to have VS statistics.")
+    view=ui.LayoutView(timeout=30)
+    container=ui.Container(accent_color=discord.Colour.from_str("#0a939b"))
+    row=await ctx.bot.fetchrow("SELECT EXISTS(SELECT 1 FROM deliveries WHERE (batterId=? AND bowlerId=?) OR (batterId=? AND bowlerId=?))", (player1.id,player2.id,player2.id,player1.id))
+    if not row or row[0] != 1:
+      container.add_item(ui.TextDisplay(f"They both are yet to face delivery from each other."))
+      container.accent_color = discord.Colour.from_str("#e70e0e")
+    else:
+      innings,total_runs,balls_faced,wickets= await ctx.bot.fetchrow("SELECT COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=? AND bowlerId=?", (player1.id, player2.id))
+      bat_avg = round(total_runs/wickets,2) if wickets else total_runs
+      bat_sr = round((total_runs*100/balls_faced),2) if balls_faced else 0.00
+      d = {
+        "Innings": innings,
+        "Runs": total_runs,
+        "Balls": balls_faced,
+        "Outs": wickets,
+        "AVG": bat_avg,
+        "SR": bat_sr
+      }
+      txt = "\n".join(f"{k.ljust(12)}{v}" for k,v in d.items())
+      container.add_item(ui.TextDisplay(f"**{player1} VS {player2}**\n```py\n{txt}\n```"))
+      container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+      innings,total_runs,balls_faced,wickets= await ctx.bot.fetchrow("SELECT COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=? AND bowlerId=?", (player2.id, player1.id))
+      bat_avg = round(total_runs/wickets,2) if wickets else total_runs
+      bat_sr = round((total_runs*100/balls_faced),2) if balls_faced else 0.00
+      d = {
+        "Innings": innings,
+        "Runs": total_runs,
+        "Balls": balls_faced,
+        "Outs": wickets,
+        "AVG": bat_avg,
+        "SR": bat_sr
+      }
+      txt = "\n".join(f"{k.ljust(12)}{v}" for k,v in d.items())
+      container.add_item(ui.TextDisplay(f"**{player2} VS {player1}**\n```py\n{txt}\n```"))
+    view.add_item(container)
+    await ctx.send(view=view)
 async def setup(bot):await bot.add_cog(Statistics(bot))

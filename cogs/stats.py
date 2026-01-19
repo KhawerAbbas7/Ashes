@@ -1,7 +1,9 @@
 import discord
 from discord import Embed, Color
 from discord import ui 
+from prettytable import PrettyTable
 from discord.ext import commands, tasks
+from cogs.views import *
 class Statistics(commands.Cog, name= "Statistics"):
   def __init__(self, bot):
     self.bot = bot
@@ -129,4 +131,21 @@ class Statistics(commands.Cog, name= "Statistics"):
       container.add_item(ui.TextDisplay(f"**{player2} VS {player1}**\n```py\n{txt}\n```"))
     view.add_item(container)
     await ctx.send(view=view)
+  @commands.command(aliases= ['lb'])
+  async def leaderboard(self, ctx):
+    table = PrettyTable(padding_width=5)
+    table.field_names = ["Player", "Runs", "Balls"]
+    table.align = "l"
+    table.border=False
+    table.header=True
+    table.hrules=0
+    table.vrules=0
+    table.left_padding_width=0
+    rows=await ctx.bot.fetchall("SELECT batterId,SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY batterId ORDER BY runs DESC LIMIT 10", ())
+    for i,r in enumerate(rows,1):
+      batterId, runs, balls = r
+      batter = ctx.bot.get_user(batterId ) or batterId 
+      table.add_row([f"{i}. {batter}", runs,balls])
+    v = LBview(ctx, table)
+    v.m =await ctx.send(view=v)
 async def setup(bot):await bot.add_cog(Statistics(bot))

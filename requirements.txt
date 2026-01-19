@@ -4,3 +4,4 @@ jishaku
 pillow
 uuid6
 aiosqlite
+prettytable

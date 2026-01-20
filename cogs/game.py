@@ -207,7 +207,7 @@ class Game():
       elif len(self.innings)==4:
         batPrev=batTotal-last.runs
         target=(bowlTotal-batPrev)+1
-        elif last.runs==target-1:
+        if last.runs==target-1:
           self.winner = "Tied"
           return "Match Tied"
       if len(self.innings)==4:

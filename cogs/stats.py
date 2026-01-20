@@ -8,7 +8,7 @@ class Statistics(commands.Cog, name= "Statistics"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
-  @commands.command(aliases= ['me'])
+  @commands.command(aliases= ['me'], description= 'View statistics for yourself or others.')
   async def profile(self, ctx, target: discord.User = None):
     if not target: target=ctx.author
     uid=target.id
@@ -87,8 +87,8 @@ class Statistics(commands.Cog, name= "Statistics"):
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     view.add_item(container)
     await ctx.send(view=view)
-  @commands.command(aliases= [])
-  async def vs(self, ctx, player1: discord.User = None, player2: discord.User = None):
+  @commands.command(aliases= ['vs'], description= 'View statistics for any individual versus another.')
+  async def matchup(self, ctx, player1: discord.User = None, player2: discord.User = None):
     if not player1:
       return await ctx.send("You have provide at least one player to have VS statistics.")
     elif not player2:
@@ -131,7 +131,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       container.add_item(ui.TextDisplay(f"**{player2} VS {player1}**\n```py\n{txt}\n```"))
     view.add_item(container)
     await ctx.send(view=view)
-  @commands.command(aliases= ['lb'])
+  @commands.command(aliases= ['lb'], description= 'View the leading performer across different categories.')
   async def leaderboard(self, ctx):
     table = PrettyTable(padding_width=5)
     table.field_names = ["Player", "Runs", "Balls"]

@@ -7,7 +7,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
-  @commands.command(aliases= ['c'])
+  @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.channel.id in self.bot.games:
       return await ctx.send(embed= Embed(title='There is already a game in this channel', description='Looks like this channel is already hosting a game.', color=Color.from_str('#b30707')))
@@ -18,7 +18,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.join(ctx.author)
     self.bot.games[ctx.channel.id] = g
     return await ctx.channel.send(embed=e)
-  @commands.command(aliases= ['j'])
+  @commands.command(aliases= ['j'], description= 'Join an existing match.')
   async def join(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -29,7 +29,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif len(g.players) == 22:return await ctx.send(embed= Embed(title='22 Players.', description='22 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
-  @commands.command(aliases= ['l'])
+  @commands.command(aliases= ['l'], description= 'Leave a game.')
   async def leave(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -45,7 +45,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{ctx.author} has decided to be a prick and left the game')
-  @commands.command(aliases= [])
+  @commands.command(aliases= ['delete'], description= 'Delete a game, cannot be used if gane has started.',extras={'usableBy': 'Host only.'})
   async def yeet(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -67,6 +67,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if view.value in [None, 'No']: return 
     ctx.bot.games.pop(ctx.channel.id)
     await ctx.send("Game yeeted!")
+  @commands.command(aliases= ['fuck'],extras={'usableBy': 'Host only.'}, description= 'Kick a player from the lobby, only usable before start.')
   async def kick(self, ctx, user: discord.User):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -83,7 +84,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{user} has been kicked off from the game')
-  @commands.command(aliases= ['userscore'])
+  @commands.command(aliases= ['userscore'], description= 'View the performance of yourself or someone in the current game.')
   async def score(self, ctx, user: discord.User= None):
     if not user: user = ctx.author
     if ctx.channel.id not in self.bot.games:
@@ -119,23 +120,23 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
     view.add_item(container)
     await ctx.send(view=view)
-  @commands.command(aliases= ['pl'])
+  @commands.command(aliases= ['pl'], description= 'View the roster for each team.')
   async def playersList(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     await ctx.send(view=g.showPlayers())
-  @commands.command(aliases= ['t'])
+  @commands.command(aliases= ['t'], description= 'Call the toss.', extras={'usableBy': 'Host or Captains only.'})
   async def toss(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if g.batFirstTeam is not None:return await ctx.send(embed= Embed(title='Toss Done', description='Toss had already been done', color=Color.from_str('#b30707')))
-    if g.hostId != ctx.author.id:
-      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    if g.hostId != ctx.author.id and ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Host or Captain Only', description='This command is only intended to be run by host or captains.', color=Color.from_str('#b30707')))
     await g.toss()
     #await ctx.send(view=g.showPlayers())
-  @commands.command(aliases= ['ctn'])
+  @commands.command(aliases= ['ctn'],description= 'Change the name of a team.', extras={'usableBy': 'Host or Captains only.'})
   async def changeteamname(self, ctx, teamIndex:int,*, teamName: str):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -154,7 +155,18 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     team.name = teamName
     await ctx.send(f"{oldTeamName} will now be called as **{team.name}**")
     #await ctx.send(view=g.showPlayers())
-  @commands.command(aliases= ['cc'])
+  @commands.command(aliases= ['ch'],description= 'Change the host.', extras={'usableBy': 'Host.'})
+  async def changehost(self, ctx, host:discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    if host.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='New host not in Game.', description='New host must have joined .', color=Color.from_str('#b30707')))
+    g.hostId = host.id
+    await ctx.send(f"{host} is the new host.")
+    #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['cc'],description= 'Change the captain of a team.', extras={'usableBy': 'Host or Captains only.'})
   async def changecap(self, ctx, cap:discord.User):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -166,7 +178,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     team.captain = next(p for p in team.players if p.id == cap.id)
     await ctx.send(f"{cap} will be captaining {team.name}")
     #await ctx.send(view=g.showPlayers())
-  @commands.command(aliases= ['sp'])
+  @commands.command(aliases= ['sp'],description= 'Swap between two players.', extras={'usableBy': 'Host only.'})
   async def swap(self, ctx, idx: int, idx2: int):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -182,7 +194,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       await ctx.send(f"Couldn't swap, perhaps wrong indexes?")
       
     #await ctx.send(view=g.showPlayers())
-  @commands.command(aliases= ['s'])
+  @commands.command(aliases= ['s'],description= 'Start the game.', extras={'usableBy': 'Host only.'})
   async def start(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))

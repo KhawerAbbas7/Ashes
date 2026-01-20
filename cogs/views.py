@@ -232,6 +232,49 @@ class Button(ui.Button):
     await i.response.defer()
     self.view.value = self.lab
     self.view.stop()
+class HelpButton(ui.Button):
+  def __init__(self,lab, disabledd: bool):
+    self.lab = lab
+    super().__init__(label= lab, style=discord.ButtonStyle.green, disabled= disabledd)
+  async def callback(self, i):
+    if self.lab == 'Prev':
+      self.view.page -= 1 
+      self.view.makePage()
+      await i.response.edit_message(content=None,view=self.view)
+    elif self.lab == 'Next':
+      self.view.page += 1 
+      self.view.makePage()
+      await i.response.edit_message(content=None,view=self.view)
+class Helpview(ui.LayoutView):
+  def __init__(self,ctx) -> None:
+    self.ctx = ctx = ctx 
+    self.perPage = 10
+    self.page = 0 
+    super().__init__(timeout= 60)
+    self.makePage()
+  def makePage(self):
+    self.clear_items()
+    commands = [c for c in self.ctx.bot.commands if c.hidden is False]
+    start=self.page*self.perPage 
+    end=start+self.perPage
+    container = ui.Container(accent_color = discord.Colour.from_str("#a50ee7"))
+    container.add_item(ui.TextDisplay(f"### Help"))
+    if self.page == 0:
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"Ashes is a fun bot inspired by Hand Cricket and enhanced with elements of Test cricket. While it follows the basic idea of Test cricket, a few special rules apply:\n• The digit 5 is not used in the game\nA batter can score only one boundary (either 4 or 6) in an over\n• Bowlers are not allowed to bowl 0\n• A batter can play at most three 0s in a row\nThese rules make the game simple, balanced, and more strategic to play."))
+    container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+    for command in commands[start:end]:
+      canOnlyBeUsedBy = f"\n**Only Usable By:{command.extras['usableBy']}**" if command.extras else ""
+      extraTxt = f"\n**Description:** {command.description}" if command.description else ""
+      extraTxt += canOnlyBeUsedBy
+      container.add_item(ui.TextDisplay(f"{self.ctx.clean_prefix}{command.qualified_name} {command.signature}\n**Aliases:** {' • '.join(command.aliases)}{extraTxt}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+    actionRow = ui.ActionRow()
+    actionRow.add_item(HelpButton('Prev', True if self.page == 0 else False))
+    actionRow.add_item(HelpButton('Next', True if end >= len(commands) else False))
+    container.add_item(actionRow)
+    self.add_item(container)
+  async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class LBview(ui.LayoutView):
   def __init__(self,ctx,table, title: str= "Most Runs") -> None:
     super().__init__(timeout= 40)
@@ -247,4 +290,9 @@ class LBview(ui.LayoutView):
     #for b in buttons: actionRow.add_item(b)
     container.add_item(actionRow)
     self.add_item(container)
+  async def on_timeout(self, i):
+    for child in self.walk_children():
+      if hasattr(child, "disabled"):
+        child.disabled = True
+    #await self.ctx.message.edit(content=None, view=self.view)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id

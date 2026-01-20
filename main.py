@@ -44,8 +44,8 @@ bot = Ashes()
 async def help(ctx):
   v = Helpview(ctx)
   await ctx.send(view= v)
-@bot.command()
-@commands.has_permissions(manage_messages=True, description= "Change the way you can call bot in your guild.", extras={'usableBy': 'Anyone with manage_messages permission.'})
+@bot.command(description= "Change the way you can call bot in your guild.", extras={'usableBy': 'Anyone with manage_messages permission.'})
+@commands.has_permissions(manage_messages=True)
 async def prefix(ctx, newPrefix: str):
   if len(newPrefix) > 3: return await ctx.send("The length of prefix must not exceed 3 characters.")
   await bot.settingsdb.execute("INSERT INTO settings (guildId,prefix) VALUES (?,?) ON CONFLICT(guildId) DO UPDATE SET prefix=excluded.prefix", (ctx.guild.id, newPrefix))

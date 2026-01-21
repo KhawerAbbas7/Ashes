@@ -141,9 +141,9 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT CASE WHEN batterId<nonStrikerId THEN batterId ELSE nonStrikerId END AS batter1, CASE WHEN batterId>nonStrikerId THEN batterId ELSE nonStrikerId END AS batter2, SUM(runs) AS partnershipRuns, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE nonStrikerId IS NOT NULL GROUP BY CASE WHEN batterId<nonStrikerId THEN batterId ELSE nonStrikerId END, CASE WHEN batterId>nonStrikerId THEN batterId ELSE nonStrikerId END ORDER BY partnershipRuns DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT inningId,CASE WHEN batterId<nonStrikerId THEN batterId ELSE nonStrikerId END AS batter1,CASE WHEN batterId>nonStrikerId THEN batterId ELSE nonStrikerId END AS batter2,SUM(runs) partnershipRuns,SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) balls FROM deliveries WHERE nonStrikerId IS NOT NULL GROUP BY inningId,CASE WHEN batterId<nonStrikerId THEN batterId ELSE nonStrikerId END,CASE WHEN batterId>nonStrikerId THEN batterId ELSE nonStrikerId END ORDER BY partnershipRuns DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
-        batterId, batterId2, runs, balls = r
+        _,batterId, batterId2, runs, balls = r
         batter1 = bot.get_user(batterId ) or batterId 
         batter2 = bot.get_user(batterId2) or batterId2
         batter = f"{batter1} & {batter2}"
@@ -178,7 +178,7 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT bowlerId,w,r,b FROM (SELECT bowlerId,SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 10)", ())
+      rows=await bot.fetchall("SELECT bowlerId,w,r,b FROM (SELECT bowlerId,SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId,inningId ORDER BY w DESC,r ASC,b ASC LIMIT 10)", ())
       for i,r in enumerate(rows,1):
         batterId, w, r, b = r
         batter = bot.get_user(batterId ) or batterId 

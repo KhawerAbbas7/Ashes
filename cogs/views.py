@@ -277,7 +277,7 @@ class Helpview(ui.LayoutView):
     container.add_item(ui.TextDisplay(f"### Help"))
     if self.page == 0:
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(f"Ashes is a fun bot inspired by Hand Cricket and enhanced with elements of Test cricket. While it follows the basic idea of Test cricket, a few special rules apply:\n• The digit 5 is not used in the game\nA batter can score only one boundary (either 4 or 6) in an over\n• Bowlers are not allowed to bowl 0\n• A batter can play at most three 0s in a row\nThese rules make the game simple, balanced, and more strategic to play."))
+      container.add_item(ui.TextDisplay(f"Ashes is a fun bot inspired by Hand Cricket and enhanced with elements of Test cricket. While it follows the basic idea of Test cricket, a few special rules apply:\n• The digit 5 is not used in the game\nA batter can score only one boundary (either 4 or 6) in an over\n• Bowlers are not allowed to bowl 0\n• A batter can play at most three 0s in a row\nThese rules make the game simple, balanced, and more strategic to play.\nJoin the **[Official Server](https://discord.gg/uxchR7sKd2)**\n-# Only if you can bear pings and want to play more else fuck off."))
     container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
     for command in commands[start:end]:
       canOnlyBeUsedBy = f"\n**Only Usable By:{command.extras['usableBy']}**" if command.extras else ""

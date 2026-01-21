@@ -93,12 +93,12 @@ class Game():
     self.innings = []
     self.ballsData = []
     self.v = None
+    self.maxBalls = 540
     self.followOnTeam=None
-    self.followOnLimit=75
     self.winner = None
     self.mvp = None
   async def saveData(self):
-    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,))
+    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,) for i in self.innings]
     placeholders = ",".join(["?"] * len(data[0]))
     await self.ctx.bot.db.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
@@ -106,7 +106,14 @@ class Game():
     await self.ctx.bot.db.executemany(f"INSERT INTO deliveries VALUES ({placeholders})", self.ballsData)
     await self.ctx.bot.db.commit()
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
-  
+  @property
+  def followOnLimit(self):
+    if self.maxBalls == 540:
+      return 75
+    elif self.maxBalls == 360:
+      return 50
+    else:
+      return 30
   @property
   def matchTotalBalls(self):
     return sum([i.balls for i in self.innings])
@@ -115,17 +122,13 @@ class Game():
   @property 
   def players(self): return self.teama.players + self.teamb.players
   def getDaysAndSessions(self):
-    total_overs = float(self.ballsToOvers(self.matchTotalBalls))
-    if total_overs < 1: return 1, 1
-    days=(total_overs+19)//20
-    rem=total_overs%20
-    if rem==0:
-      return int(days),3
-    if rem<=6:
-      return int(days),1
-    if rem<=12:
-      return int(days),2
-    return int(days),3
+    ball = self.matchTotalBalls 
+    if ball == 0: return 1,1
+    balls_per_day = self.maxBalls/5
+    balls_per_session = balls_per_day/3
+    day = int((ball-1)//balls_per_day)+1
+    session = int(((ball-1)%balls_per_day)//balls_per_session)+1
+    return day,session
   def teamTotal(self,team):return sum(i.runs for i in self.innings if i.battingTeam==team)
   def inningsByTeam(self,team):return [i for i in self.innings if i.battingTeam==team]
   def swap(self,idx1,idx2):
@@ -184,7 +187,7 @@ class Game():
     if need>0:return f"{bat.name} need {need} runs to win"
     return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
-    if self.matchTotalBalls >= 600:
+    if self.matchTotalBalls >= self.maxBalls:
       self.winner = 'Drawn'
       return "Match Drawn"
     if len(self.innings)<2:return None
@@ -352,6 +355,11 @@ class Game():
     for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
     view = ui.LayoutView(timeout= None)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
+    container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
+    actionRow = ui.ActionRow()
+    actionRow.add_item(OversSelection())
+    container.add_item(actionRow)
+    container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
     container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
@@ -405,7 +413,7 @@ class Game():
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
-    Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/100)"
+    Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
     if returnContainer is False:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
@@ -543,18 +551,18 @@ class Game():
         allowed={'1','2','3','4','6'}
       def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
       def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
-      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) within 20s"
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) **within 13s**"
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
       batview.add_item(ui.TextDisplay(battxt))
       bowlview = ui.LayoutView(timeout=None)
       bowlview.add_item(self.score(True))
-      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) within 20s"))
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) **within 13s**"))
       await striker.send(view=batview)
       await bowler.send(view=bowlview)
       bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
       bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
-      done,pending=await asyncio.wait([bat_task,bowl_task],timeout=20)
+      done,pending=await asyncio.wait([bat_task,bowl_task],timeout=13)
       bat_ok=bat_task in done and not bat_task.cancelled()
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:
@@ -855,12 +863,12 @@ class Game():
       if bat%2==1 and len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
     if inn.balls%6==0:
-      self.v = self.score()
-      await self.ctx.send(view=self.v)
       for b in inn.currentBatters:
         inn.batters[b].BoundaryThisOver = False
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
+      self.v = self.score()
+      await self.ctx.send(view=self.v)
       await self.selectBowler()
   
   async def start(self):

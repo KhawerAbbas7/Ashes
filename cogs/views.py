@@ -2,6 +2,21 @@ import discord
 from discord import ui
 from prettytable import PrettyTable
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
+class OversSelection(ui.Select):
+  def __init__(self):
+    options = [
+      discord.SelectOption(label= "90 Overs", description= 'Follow-on: 75', value = 90),
+      discord.SelectOption(label= "60 Overs", description= 'Follow-on: 50', value = 60),
+      discord.SelectOption(label= "30 Overs", description= 'Follow-on: 25', value = 30),
+      ]
+    super().__init__(placeholder= "Select Overs", min_values=1, max_values=1, options=options)
+  async def callback(self, interaction: discord.Interaction):
+    g = interaction.client.games[interaction.channel.id]
+    if interaction.user.id != g.hostId:
+      return await interaction.response.send_message("Only usable by host.", ephemeral= True)
+    elif g.started: return
+    g.maxBalls = int(self.values[0])*6
+    await interaction.response.edit_message(view= g.showPlayers(), ephemeral= True)
 class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
@@ -11,6 +26,7 @@ class LBSelection(ui.Select):
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=[o for o in options if o.label != currentlySelected])
   async def callback(self, interaction: discord.Interaction):
+    if self.view.ctx.author.id != interaction.user.id: return
     await interaction.response.defer()
     bot = interaction.client
     v = self.values[0]
@@ -74,7 +90,7 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId, CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 else ELSE 100.0*(SUM(runs)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)) END AS AVG FROM deliveries GROUP BY batterId ORDER BY AVG DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_avg FROM deliveries GROUP BY batterId ORDER BY batting_avg DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs = r
         batter = bot.get_user(batterId ) or batterId 
@@ -108,7 +124,7 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT bowlerId, CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0)=0 THEN SUM(runs) ELSE 1.0*SUM(runs)/(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)/6) AS AVG, COUNT(DISTINCT inningId) as Inns FROM deliveries GROUP BY bowlerId ORDER BY AVG ASC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT bowlerId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 6.0*SUM(runs)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS economy,COUNT(DISTINCT inningId) AS Inns FROM deliveries GROUP BY bowlerId ORDER BY economy ASC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs, balls = r
         batter = bot.get_user(batterId ) or batterId 
@@ -275,6 +291,7 @@ class Helpview(ui.LayoutView):
     container.add_item(actionRow)
     self.add_item(container)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
+
 class LBview(ui.LayoutView):
   def __init__(self,ctx,table, title: str= "Most Runs") -> None:
     super().__init__(timeout= 40)

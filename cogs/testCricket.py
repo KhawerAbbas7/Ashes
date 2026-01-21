@@ -201,8 +201,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g = self.bot.games[ctx.channel.id]
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
-    elif g.started:
-      return await ctx.send(embed= Embed(title='Game has already started', description='Game has already commenced, you can\'t start it twice, it is not your relationship.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Game has already started', description='Game has already commenced, you can\'t start it twice, it is not your relationship.', color=Color.from_str('#b30707')))
     elif g.batFirstTeam is None:return await ctx.send(embed= Embed(title='Toss Not Done', description='Toss has not taken place yet', color=Color.from_str('#b30707')))
     elif len(g.players)%2 != 0 or len(g.players) < 4:return await ctx.send(embed= Embed(title='Unequal Teams', description='Teams are unequal. Just like your love for them vs their love for you.', color=Color.from_str('#b30707')))
     await g.start()

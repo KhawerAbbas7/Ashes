@@ -16,7 +16,7 @@ class OversSelection(ui.Select):
       return await interaction.response.send_message("Only usable by host.", ephemeral= True)
     elif g.started: return
     g.maxBalls = int(self.values[0])*6
-    await interaction.response.edit_message(view= g.showPlayers(), ephemeral= True)
+    await interaction.response.edit_message(view= g.showPlayers())
 class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType

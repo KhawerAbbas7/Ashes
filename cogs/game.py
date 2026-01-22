@@ -488,7 +488,7 @@ class Game():
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Next Batter'))
     view.add_item(ui.TextDisplay(f"{captain.mention} select next batter"))
     view.add_item(actionRow)
-    await self.ctx.send(view=view)
+    view.m =await self.ctx.send(view=view)
     await view.wait()
     pid=view.value or random.choice(options)['id']
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))

@@ -21,7 +21,7 @@ class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
     options = [
-      "Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning"
+      "Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning", "Highest Match Aggregates", "Highest SR in an Inning"
       ]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=[o for o in options if o.label != currentlySelected])
@@ -97,6 +97,23 @@ class LBSelection(ui.Select):
         table.add_row([f"{i}. {batter}", round(runs,2)])
       self.view.stop()
       v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Highest SR in an Inning':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "SR"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_sr FROM deliveries GROUP BY batterId,inningId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 10 ORDER BY batting_avg DESC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        batterId, runs = r
+        batter = bot.get_user(batterId ) or batterId 
+        table.add_row([f"{i}. {batter}", round(runs,2)])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v, 'Minimum 10 Balls')
       v.m = await self.view.m.edit(view=v)
     elif v == 'Best Bowling AVG':
       table = PrettyTable(padding_width=5)
@@ -184,6 +201,23 @@ class LBSelection(ui.Select):
         batter = bot.get_user(batterId ) or batterId 
         score = f"{w}/{r} ({ballsToOvers(b)})"
         table.add_row([f"{i}. {batter}",score])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Highest Match Aggregates':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Match", "Aggregate"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT m.matchId, m.teamAName, m.teamBName, SUM(i.runs) AS totalRuns FROM matches m JOIN innings i ON m.matchId = i.matchId GROUP BY m.matchId ORDER BY totalRuns DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        matchId, teamAName, teamBName, runs= r
+        batter = f"{teamAName} VS {teamBName}"
+        table.add_row([f"{i}. {batter}",runs])
       self.view.stop()
       v = LBview(self.view.ctx, table, v)
       v.m = await self.view.m.edit(view=v)
@@ -293,7 +327,7 @@ class Helpview(ui.LayoutView):
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 
 class LBview(ui.LayoutView):
-  def __init__(self,ctx,table, title: str= "Most Runs") -> None:
+  def __init__(self,ctx,table, title: str= "Most Runs", footer: str = None) -> None:
     super().__init__(timeout= 40)
     self.bot = bot = ctx.bot
     self.ctx = ctx = ctx
@@ -304,6 +338,8 @@ class LBview(ui.LayoutView):
     container.add_item(ui.TextDisplay(f"### {title}"))
     container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
     actionRow = ui.ActionRow().add_item(LBSelection(self))
+    if footer:
+      container.add_item(ui.TextDisplay(f"-# {footer}"))
     #for b in buttons: actionRow.add_item(b)
     container.add_item(actionRow)
     self.add_item(container)

@@ -414,7 +414,7 @@ class Game():
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
     Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
-    if returnContainer is False:
+    if returnContainer is False and self.currentInning.inningNo != 4:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"

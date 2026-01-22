@@ -21,7 +21,7 @@ class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
     options = [
-      "Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning", "Highest Match Aggregates", "Highest SR in an Inning"
+      "Most Matches","Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning", "Highest Match Aggregates", "Highest SR in an Inning"
       ]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=[o for o in options if o.label != currentlySelected])
@@ -46,6 +46,23 @@ class LBSelection(ui.Select):
         table.add_row([f"{i}. {batter}", runs,balls])
       self.view.stop()
       v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Matches':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Matches"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId,COUNT(DISTINCT matchId) as matches  FROM deliveries GROUP BY bowlerId ORDER BY matches DESC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        batterId, runs = r
+        batter = bot.get_user(batterId ) or batterId 
+        table.add_row([f"{i}. {batter}", runs])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, "Most Matches")
       v.m = await self.view.m.edit(view=v)
     elif v == 'Most Wickets':
       table = PrettyTable(padding_width=5)
@@ -254,6 +271,7 @@ class DeclareBTN(ui.Button):
     if i.channel.id not in c.games:
       return 
     g = c.games[i.channel.id]
+    cid = g.currentInning.inningNo
     if i.user.id != g.currentInning.battingTeam.captain.id: 
       return await i.response.send_message("This can only be used by current batting captain", ephemeral= True)
     await i.response.defer(ephemeral=True)
@@ -268,7 +286,7 @@ class DeclareBTN(ui.Button):
     view.add_item(container)
     await i.followup.send(view=view, ephemeral= True)
     await view.wait()
-    if view.value in ['No', None]:
+    if view.value in ['No', None] and g.currentInning.inningNo == cid:
       return
     else:
       g.currentInning.declared = True

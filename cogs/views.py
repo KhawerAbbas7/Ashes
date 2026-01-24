@@ -1,7 +1,205 @@
 import discord
 from discord import ui
 from prettytable import PrettyTable
+from datetime import datetime, timezone, timedelta
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
+def timestampToPKT(ts):
+  return (datetime.fromtimestamp(ts,timezone(timedelta(hours=5))).strftime('%-H:%M %d-%b-%y'))
+async def build_filters(uid,lastNMatches=0,lastNInnings=0,fromTs=0,toTs=0):
+  where_main=[]
+  params_main=[]
+  where_d=[]
+  params_d=[]
+  footer=[]
+  if lastNInnings>0:
+    where_main.append("inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE (batterId=? OR bowlerId=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    where_d.append("d.inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE (batterId=? OR bowlerId=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    params_main+=[uid,uid,lastNInnings]
+    params_d+=[uid,uid,lastNInnings]
+    footer.append(f"Last {lastNInnings} innings")
+  if lastNMatches>0:
+    where_main.append("matchId IN (SELECT matchId FROM deliveries WHERE (batterId=? OR bowlerId=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    where_d.append("d.matchId IN (SELECT matchId FROM deliveries WHERE (batterId=? OR bowlerId=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    params_main+=[uid,uid,lastNMatches]
+    params_d+=[uid,uid,lastNMatches]
+    footer.append(f"Last {lastNMatches} matches")
+  if fromTs and toTs:
+    where_main.append("timestamp BETWEEN ? AND ?")
+    where_d.append("d.timestamp BETWEEN ? AND ?")
+    params_main+=[fromTs,toTs]
+    params_d+=[fromTs,toTs]
+    footer.append(f"From <t:{fromTs}:d> to <t:{toTs}:d>")
+  elif fromTs:
+    where_main.append("timestamp>=?")
+    where_d.append("d.timestamp>=?")
+    params_main+=[fromTs]
+    params_d+=[fromTs]
+    footer.append(f"From <t:{fromTs}:d>")
+  elif toTs:
+    where_main.append("timestamp<=?")
+    where_d.append("d.timestamp<=?")
+    params_main+=[toTs]
+    params_d+=[toTs]
+    footer.append(f"Up to <t:{toTs}:d>")
+  filter_sql=" AND ".join(where_main) if where_main else ""
+  filter_sql_d=" AND ".join(where_d) if where_d else ""
+  footer_txt=" | ".join(footer) if footer else "All-time"
+  return filter_sql,params_main,filter_sql_d,params_d,footer_txt
+async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,fromTs=0,toTs=0):
+  uid=target.id
+  row=await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?",(uid,uid))
+  ogEmoji="<:OG:1463581581984792669>"
+  if not row or row[0]==0: return "No Games"
+  row=await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?",(uid,uid,1768935600))
+  og=row[0]!=0
+  filter_sql,filter_params,filter_sql_d,filter_params_d,footer_txt=await build_filters(uid,lastNMatches,lastNInnings,fromTs,toTs)
+  view=ui.LayoutView(timeout=30)
+  view.target=target
+  view.ctx=ctx
+  container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
+  if og or uid in [882988325810614353]:
+    container.add_item(ui.TextDisplay(f"{ogEmoji}\n-# I have played a key role in the development and success of this bot."))
+    container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=?"
+  q_params=[uid]
+  if filter_sql:
+    q += " AND "+filter_sql
+    q_params += filter_params
+  matches,innings,total_runs,balls_faced,wickets= await ctx.bot.fetchrow(q, tuple(q_params))
+  q="SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+    q_params=[uid]+filter_params
+  bb=await ctx.bot.fetchrow(q, tuple(q_params))
+  best_batting=f"{bb[0]}({bb[1]}){'*' if bb[2]==1 else ''}" if bb else "—"
+  q="SELECT bowlerId, SUM(isWicket) w, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY w DESC, b ASC LIMIT 1"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT bowlerId, SUM(isWicket) w, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY bowlerId ORDER BY w DESC, b ASC LIMIT 1"
+    q_params=[uid]+filter_params
+  bo=await ctx.bot.fetchrow(q, tuple(q_params))
+  bunny=f"{ctx.bot.get_user(bo[0])} ({bo[1]} times in {bo[2]} balls)" if bo else "—"
+  q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)"
+  q_params=[uid,uid,uid]
+  if filter_sql:
+    q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL AND "+filter_sql+" GROUP BY partnerId)"
+    q_params=[uid,uid,uid]+filter_params
+  best_partner= await ctx.bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL)"
+  q_params=[uid,uid,uid]
+  if filter_sql:
+    q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL AND "+filter_sql+")"
+    q_params=[uid,uid,uid]+filter_params
+  unique_partners = await ctx.bot.fetchrow(q, tuple(q_params))
+  unique_partners = unique_partners[0] if unique_partners else 0
+  q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=? AND "+filter_sql
+    q_params=[uid]+filter_params
+  bowl_matches,bowl_innings,wkts,conceded,balls_bowled=await ctx.bot.fetchrow(q, tuple(q_params))
+  q="SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)"
+    q_params=[uid]+filter_params
+  bb=await ctx.bot.fetchrow(q, tuple(q_params))
+  best_bowling=f"{bb[0]}/{bb[1]} ({ballsToOvers(bb[2])})" if bb else "—"
+  q="SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId)"
+    q_params=[uid]+filter_params
+  fifties,hundreds=await ctx.bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?"
+    q_params=filter_params+filter_params+[uid] if filter_params else [uid]
+  top_scores=await ctx.bot.fetchrow(q, tuple(q_params))
+  top_scores = top_scores[0]
+  q="SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL GROUP BY d.inningId)"
+  q_params=[uid]
+  if filter_sql_d:
+    q="SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL AND "+filter_sql_d+" GROUP BY d.inningId)"
+    q_params=[uid]+filter_params_d
+  team_pct=await ctx.bot.fetchrow(q, tuple(q_params))
+  team_pct=team_pct[0] or 0
+  q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+  q_params=[uid]
+  if filter_sql:
+    q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql+" GROUP BY inningId)"
+    q_params=[uid]+filter_params
+  threefers,fivefers=await ctx.bot.fetchrow(q, tuple(q_params))
+  nums=[0,1,2,3,4,6]
+  bat_pct={}
+  bowl_pct={}
+  for n in nums:
+    q="SELECT COUNT(*) FROM deliveries WHERE batterId=? AND batterNum=? AND bowlerNum IS NOT NULL"
+    q_params=[uid,n]
+    if filter_sql:
+      q="SELECT COUNT(*) FROM deliveries WHERE batterId=? AND batterNum=? AND bowlerNum IS NOT NULL AND "+filter_sql
+      q_params=[uid,n]+filter_params
+    c= await ctx.bot.fetchrow(q, tuple(q_params))
+    c=c[0]
+    bat_pct[n]=round((c/balls_faced)*100,2) if balls_faced else 0
+    q="SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL"
+    q_params=[uid,n]
+    if filter_sql:
+      q="SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL AND "+filter_sql
+      q_params=[uid,n]+filter_params
+    c=await ctx.bot.fetchrow(q, tuple(q_params))
+    c=c[0]
+    bowl_pct[n]=round((c/balls_bowled)*100,2) if balls_bowled else 0
+  bat_sr=round((total_runs*100/balls_faced),2) if balls_faced else 0.00
+  bat_avg=round((total_runs/wickets),2) if wickets else total_runs
+  overs=balls_bowled/6
+  bowl_econ=round((conceded/overs),2) if overs else 0
+  bowl_avg = round((conceded/wkts),2) if wkts else 0.00
+  bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
+  battingStatsDict={
+    "Matches":matches,
+    "Innings":innings,
+    "Runs":total_runs,
+    "Balls Played":balls_faced,
+    "Batting Avg": bat_avg,
+    "Strike Rate":bat_sr,
+    "Body Count": unique_partners,
+    "Team Runs %": f"{team_pct}",
+    "50s": fifties,
+    "100s": hundreds,
+    "Top Scored": top_scores,
+    "BBI": best_batting,
+    "Best Partner": f"{ctx.bot.get_user(best_partner[0])} ({best_partner[1]} Runs)",
+    "Bunny Of": bunny
+  }
+  battxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
+  container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  bowlStatsDict={
+    "Innings": bowl_innings,
+    "wickets": wkts,
+    "Balls Bowled": balls_bowled,
+    "Runs Conceded": conceded,
+    "3fers": threefers,
+    "5fers": fivefers,
+    "Bowling Avg": bowl_avg,
+    "Bowling SR": bowl_sr,
+    "Economy": bowl_econ,
+    "Best Bowling": best_bowling
+  }
+  bowltxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
+  container.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bat_pct.items())
+  container.add_item(ui.TextDisplay(f"**Batting Num %:**\n```py\n{b}\n```"))
+  b="\n".join(f"{str(k).ljust(7)}{v}" for k,v in bowl_pct.items() if k != 0)
+  container.add_item(ui.TextDisplay(f"**Bowling Num %:**\n```py\n{b}\n```"))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  container.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {footer_txt}"),accessory=FiltersBtn(ctx.author.id)))
+  view.add_item(container)
+  return view
 class OversSelection(ui.Select):
   def __init__(self):
     options = [
@@ -17,6 +215,124 @@ class OversSelection(ui.Select):
     elif g.started: return
     g.maxBalls = int(self.values[0])*6
     await interaction.response.edit_message(view= g.showPlayers())
+class ShamefulLBSelection(ui.Select):
+  def __init__(self, v):
+    currentlySelected = v.statType
+    options = ["Most AFKs", "Most Ducks","Most Pairs", "Most Runs Conceded In An Inning", "Most Wickets Taken Off A Single Batter", "Most Consecutive Innings Without Scoring 10"]
+    options = [discord.SelectOption(label= b, value = b) for b in options]
+    super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=[o for o in options if o.label != currentlySelected])
+  async def callback(self, interaction: discord.Interaction):
+    if self.view.ctx.author.id != interaction.user.id: return
+    await interaction.response.defer()
+    bot = interaction.client
+    v = self.values[0]
+    if v == 'Most AFKs':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "AFKs"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT playerId, SUM(batter_afk+bowler_afk) AS total_afks FROM (SELECT batterId AS playerId, CASE WHEN batterNum IS NULL THEN 1 ELSE 0 END AS batter_afk, 0 AS bowler_afk FROM deliveries WHERE batterId IS NOT NULL UNION ALL SELECT bowlerId AS playerId, 0 AS batter_afk, CASE WHEN bowlerNum IS NULL THEN 1 ELSE 0 END AS bowler_afk FROM deliveries WHERE bowlerId IS NOT NULL) t GROUP BY playerId ORDER BY total_afks DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table,self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Ducks':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Ducks"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("WITH inning_totals AS (SELECT matchId, inningId, batterId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId IS NOT NULL GROUP BY matchId, inningId, batterId) SELECT batterId, COUNT(*) AS ducks FROM inning_totals WHERE total_runs=0 AND got_out=1 GROUP BY batterId ORDER BY ducks DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Pairs':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Pairs"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("WITH inning_totals AS (SELECT matchId, inningId, batterId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId IS NOT NULL GROUP BY matchId, inningId, batterId), ducks AS (SELECT matchId, batterId FROM inning_totals WHERE total_runs=0 AND got_out=1) SELECT batterId, COUNT(*) AS numop FROM (SELECT matchId, batterId FROM ducks GROUP BY matchId, batterId HAVING COUNT(*)>=2) t GROUP BY batterId ORDER BY numop DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Wickets Taken Off A Single Batter':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Bowler", "Batter", "Outs"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId,batterId,COUNT(*) AS wickets FROM deliveries WHERE isWicket=1 GROUP BY bowlerId,batterId ORDER BY wickets DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x, y = r
+        player = bot.get_user(playerId ) or playerId 
+        player2 = bot.get_user(x ) or x 
+        table.add_row([f"{i}. {player}", player2, y])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Runs Conceded In An Inning':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Score"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId, SUM(isWicket),SUM(runs) AS r, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY inningId, bowlerId ORDER BY r DESC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        playerId, x,y,z = r
+        score = f"{y}/{x} ({ballsToOvers(z)})"
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", score])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Consecutive Innings Without Scoring 10':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Inns", "Start", "End"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("WITH bi AS (SELECT batterId,inningId,SUM(runs) r,MIN(timestamp) ts FROM deliveries GROUP BY batterId,inningId), ord AS (SELECT batterId,r,ts,MAX(ts) OVER (PARTITION BY batterId) lts,ROW_NUMBER() OVER (PARTITION BY batterId ORDER BY ts) rn,SUM(CASE WHEN r<10 THEN 1 ELSE 0 END) OVER (PARTITION BY batterId ORDER BY ts) rc FROM bi), isl AS (SELECT batterId,ts,lts,rn-rc grp FROM ord WHERE r<10), grp AS (SELECT batterId,COUNT(*) cnt,MIN(ts) start_ts,MAX(ts) end_ts,MAX(lts) gl_end FROM isl GROUP BY batterId,grp) SELECT batterId,cnt,start_ts,CASE WHEN end_ts=gl_end THEN NULL ELSE end_ts END end_ts FROM grp ORDER BY cnt DESC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        playerId, x,y,z = r
+        player = bot.get_user(playerId ) or playerId 
+        st = f"{timestampToPKT(y)}"
+        en = f"{timestampToPKT(z)}" if z else "*"
+        table.add_row([f"{i}. {player}", x,st, en])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0], 'All times are in Pakistan Standard Time')
+      v.m = await self.view.m.edit(view=v)
+   
 class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
@@ -124,7 +440,7 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_sr FROM deliveries GROUP BY batterId,inningId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 10 ORDER BY batting_avg DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_sr FROM deliveries GROUP BY batterId,inningId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 10 ORDER BY batting_sr DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs = r
         batter = bot.get_user(batterId ) or batterId 
@@ -258,11 +574,42 @@ class Selection(ui.Select):
       view.add_item(ui.TextDisplay(f"Selected {' & '.join(selected) if isinstance(selected,list) else selected}"))
       await self.view.m.edit(view= view)
     self.view.stop()
-class Last5BTN(ui.Button):
-  def __init__(self):
-    super().__init__(label='Last 5 Innings', style=discord.ButtonStyle.green)
+class ProfileFilters(ui.Modal, title="Profile Filters"):
+  lastNMatches = ui.Label(text= "Insert the number of last N games to filter ",description= "0 = All Time", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)
+  lastNInnings = ui.Label(text= "Insert the number of last N innings to filter ",description= "0 = All Time, Must not be used with Last N matches", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)
+  fromTime = ui.Label(text= "Insert the from time to filter ",description= "Must be strictly as placeholder suggests", component= ui.TextInput(placeholder="i.e DD/MM/YYYY", required= False, default = 0,style=discord.TextStyle.short,max_length=10),)
+  toTime = ui.Label(text= "Insert the to time to filter ",description= "Must be strictly as placeholder suggests", component= ui.TextInput(placeholder="i.e DD/MM/YYYY", required= False, default = 0,style=discord.TextStyle.short,max_length=10),)
+  def __init__(self, target, ctx):
+    self.target = target
+    self.ctx = ctx
+    super().__init__()
+  async def on_submit(self, interaction: discord.Interaction):
+    lastNMatches = int(self.lastNMatches.component.value) if self.lastNMatches.component.value else 0
+    lastNInnings = int(self.lastNInnings.component.value) if self.lastNInnings.component.value != '' else 0
+    if lastNInnings > 0 and lastNMatches > 0:
+      lastNInnings = 0
+    fromTime = self.fromTime.component.value if self.fromTime.component.value != '' else 0
+    toTime = self.toTime.component.value if self.toTime.component.value != '' else 0
+    if str(fromTime) != "0":
+      try:
+        dt=datetime.strptime(fromTime,"%d/%m/%Y").replace(tzinfo=timezone.utc)
+        fromTime=int(dt.timestamp())
+      except: fromTime = 0
+    if str(toTime) != "0":
+      try:
+        dt=datetime.strptime(fromTime,"%d/%m/%Y").replace(tzinfo=timezone.utc)
+        toTime=int(dt.timestamp())
+      except: toTime = 0
+    v = await makeProfileView(self.target, self.ctx,lastNMatches, lastNInnings, fromTime, toTime)
+    await interaction.response.edit_message(view=v)
+  async def on_error(self, interaction, error):await interaction.response.send_message(f'Oops! Something went wrong, {error}.', ephemeral=True)
+class FiltersBtn(ui.Button):
+  def __init__(self, userId):
+    self.userId = userId
+    super().__init__(label='Apply Filters', style=discord.ButtonStyle.green)
   async def callback(self, i):
-    c = i.client
+    if i.user.id != self.userId: return
+    await i.response.send_modal(ProfileFilters(self.view.target, self.view.ctx))
 class DeclareBTN(ui.Button):
   def __init__(self):
     super().__init__(label='Declare', style=discord.ButtonStyle.danger)
@@ -344,6 +691,29 @@ class Helpview(ui.LayoutView):
     self.add_item(container)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 
+class ShamefulLBview(ui.LayoutView):
+  def __init__(self,ctx,table, title: str= "Most Runs", footer: str = None) -> None:
+    super().__init__(timeout= 40)
+    self.bot = bot = ctx.bot
+    self.ctx = ctx = ctx
+    self.m = None
+    self.guild = guild = ctx.guild
+    self.statType = title
+    container = ui.Container(accent_color = discord.Colour.from_str("#0ebce7"))
+    container.add_item(ui.TextDisplay(f"### {title}"))
+    container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
+    actionRow = ui.ActionRow().add_item(ShamefulLBSelection(self))
+    if footer:
+      container.add_item(ui.TextDisplay(f"-# {footer}"))
+    #for b in buttons: actionRow.add_item(b)
+    container.add_item(actionRow)
+    self.add_item(container)
+  async def on_timeout(self, i):
+    for child in self.walk_children():
+      if hasattr(child, "disabled"):
+        child.disabled = True
+    #await self.ctx.message.edit(content=None, view=self.view)
+  async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class LBview(ui.LayoutView):
   def __init__(self,ctx,table, title: str= "Most Runs", footer: str = None) -> None:
     super().__init__(timeout= 40)

@@ -113,7 +113,7 @@ class Game():
     elif self.maxBalls == 360:
       return 50
     else:
-      return 30
+      return 25
   @property
   def matchTotalBalls(self):
     return sum([i.balls for i in self.innings])
@@ -155,7 +155,7 @@ class Game():
         view.add_item(ui.TextDisplay(f"{captain.mention}"))
         actionRow = ui.ActionRow()
         for b in buttons: actionRow.add_item(b)
-        container.add_item(ui.TextDisplay(f"Follow on is currently available, **{inn.bowlingTeam.name}** Lead by {Lead} runs. Would you like to enforce follow-on?"))
+        container.add_item(ui.TextDisplay(f"Follow on is currently available, **{inn.bowlingTeam.name}** Lead by {lead} runs. Would you like to enforce follow-on?"))
         container.add_item(actionRow)
         view.add_item(container)
         await self.ctx.send(view=view)
@@ -414,7 +414,15 @@ class Game():
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
     Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
-    if returnContainer is False and self.currentInning.inningNo != 4:
+    showDeclareBtn = True
+    if self.currentInning.inningNo >= 2:
+      last=self.currentInning
+      bat=last.battingTeam
+      bowl=last.bowlingTeam
+      batTotal=self.teamTotal(bat)
+      bowlTotal=self.teamTotal(bowl)
+      showDeclareBtn = batTotal > bowlTotal
+    if returnContainer is False and showDeclareBtn and self.currentInning.inningNo != 4:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"
@@ -551,18 +559,18 @@ class Game():
         allowed={'1','2','3','4','6'}
       def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
       def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
-      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) **within 13s**"
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) **within 15s**"
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
       batview.add_item(ui.TextDisplay(battxt))
       bowlview = ui.LayoutView(timeout=None)
       bowlview.add_item(self.score(True))
-      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) **within 13s**"))
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) **within 15s**"))
       await striker.send(view=batview)
       await bowler.send(view=bowlview)
       bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
       bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
-      done,pending=await asyncio.wait([bat_task,bowl_task],timeout=13)
+      done,pending=await asyncio.wait([bat_task,bowl_task],timeout=15)
       bat_ok=bat_task in done and not bat_task.cancelled()
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:

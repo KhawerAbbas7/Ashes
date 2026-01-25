@@ -1,4 +1,4 @@
-import random, traceback,os, time
+import random, traceback,os, time,json
 from cogs.views import *
 from discord import ui 
 from collections import deque
@@ -878,7 +878,61 @@ class Game():
       self.v = self.score()
       await self.ctx.send(view=self.v)
       await self.selectBowler()
-  
+  def rawStats(self):
+    return {
+      "meta": {
+        "id": self.gameId,
+        "host": self.hostId,
+        "startTime": self.startedAt,
+        "endTime": time.time(),
+        "settings": {"maxBalls": self.maxBalls},
+        "guild": self.ctx.guild.id,
+        "channel": self.ctx.channel.id
+      },
+      "result": {
+        "winner": self.winner,
+        "mvp": self.mvp.id if self.mvp else None,
+        "status": self.matchStatus()
+      },
+      "teams": {
+        "A": {"name": self.teama.name, "captain": self.teama.captain.id if self.teama.captain else None, "players": [{"id": p.id, "name": p.name} for p in self.teama.players]},
+        "B": {"name": self.teamb.name, "captain": self.teamb.captain.id if self.teamb.captain else None, "players": [{"id": p.id, "name": p.name} for p in self.teamb.players]}
+      },
+      "innings": [
+        {
+          "id": i.inningId,
+          "number": i.inningNo,
+          "battingTeam": i.battingTeam.name,
+          "bowlingTeam": i.bowlingTeam.name,
+          "totals": {"runs": i.runs, "wickets": i.wickets, "balls": i.balls},
+          "flags": {"declared": i.declared, "followOn": i.followOn},
+          "batting": [
+            {
+              "id": p.id,
+              "name": p.name,
+              "runs": b.runs,
+              "balls": b.balls,
+              "sr": b.sr,
+              "dismissed": b.dismissed,
+            } for p, b in i.batters.items()
+          ],
+          "bowling": [
+            {
+              "id": p.id,
+              "name": p.name,
+              "runs": b.runsConceded,
+              "wickets": b.wickets,
+              "balls": b.balls,
+              "economy": round((b.runsConceded / b.balls) * 6, 2) if b.balls else 0.0
+            } for p, b in i.bowlers.items()
+          ]
+        } for i in self.innings
+      ]
+    }
+  async def sendRawStats(self):
+    buf=BytesIO(json.dumps(self.rawStats(),indent=2).encode())
+    buf.seek(0)
+    await self.ctx.send(file= discord.File(fp=buf, filename=f'{self.gameId}.json'))
   async def start(self):
     try:
       self.started = True 
@@ -919,5 +973,9 @@ class Game():
       await self.saveData()
       await self.ctx.send(f"{formatted}")
       self.ctx.bot.games.pop(self.ctx.channel.id)
+      try: 
+        await self.sendRawStats()
+      except Exception as e: 
+        traceback.print_exc()
     except Exception as e:
       traceback.print_exc()

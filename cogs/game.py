@@ -862,11 +862,18 @@ class Game():
       striker_p.runs+=bat
       bowler_p.runsConceded+=bat
       inn.currentPartnership[0] += bat
-      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}")
-      
+      overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
+      youRemainOffStrike = ''
+      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")
+      if bat%2==1 and inn.balls%6!=0:
+        youRemainOffStrike = '\nYou are now on strike.'
+      elif bat%2!=1 and inn.balls%6!=0:
+        youRemainOffStrike = '\nYou stay on non-strike for the next ball.'
+      elif bat%2!=1 and inn.balls%6==0:
+        youRemainOffStrike = '\nYou are now on strike.'
       await asyncio.sleep(0.3)
-      await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}")
-      await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}")
+      await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}")
+      await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
       inn.timeline.append(f"{bat}")
       if bat%2==1 and len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]

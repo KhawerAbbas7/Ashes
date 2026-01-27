@@ -28,6 +28,7 @@ class Ashes(commands.Bot):
     await self.db.executescript(script)
     await self.settingsdb.executescript(settingsscript)
     await self.load_extension('jishaku')
+    await self.load_extension('api')
     for file in os.listdir('cogs'):
       if file.endswith('py') and file not in ['game.py', 'views.py']:await self.load_extension('cogs.' + file[:-3])
   async def fetchrow(self, query, params=()):

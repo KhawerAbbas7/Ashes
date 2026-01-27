@@ -28,6 +28,7 @@ class BattingInning():
     self.BoundaryThisOver= False
     self.AFKs = 0
     self.dismissed = False
+    self.dismissedBy = ""
     self.timeline = deque(maxlen=13)
   @property
   def sr(self): return round((self.runs/self.balls)*100,2) if self.balls else 0.0
@@ -41,6 +42,8 @@ class BowlingInning():
     self.timeline = deque(maxlen=13)
     self.wicketsDigits = []
     self.AFKs = 0
+    self.maidens = 0 
+    self.currentOverRuns = 0
 class Inning():
   def __init__(self):
     self.inningId = str(uuid7())
@@ -59,12 +62,14 @@ class Inning():
     self.wickets = 0
     self.balls = 0
     self.currentPartnership= [0,0]
+    self.fallOfWickets = []
 class Team():
   def __init__(self, name: str = 'Team A', id: int = 1):
     self.name = name
     self.id = id
     self.captain = None 
     self.players = []
+    self.color = "#14f67c" if id == 1 else "#05a9e6"
   def checkForCaptain(self):
     if self.players and (self.captain is None or self.captain not in self.players):
       self.captain = random.choice(self.players)
@@ -97,6 +102,7 @@ class Game():
     self.followOnTeam=None
     self.winner = None
     self.mvp = None
+    self.DEBUG = False
   async def saveData(self):
     await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,) for i in self.innings]
@@ -108,6 +114,7 @@ class Game():
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @property
   def followOnLimit(self):
+    if self.DEBUG: return 5
     if self.maxBalls == 540:
       return 75
     elif self.maxBalls == 360:
@@ -197,7 +204,7 @@ class Game():
     batTotal=self.teamTotal(bat)
     bowlTotal=self.teamTotal(bowl)
     if not last.currentBatters and len(last.cantBat)==len(bat.players):
-      if self.followOnTeam==bat:
+      if self.followOnTeam==bat and last.inningNo == 3:
         lead=bowlTotal-batTotal
         if lead>0:
           self.winner = bowl.name
@@ -236,118 +243,149 @@ class Game():
     self.mitigatePlayers()
   def battingCard(self):
     inn = self.currentInning
-    img=Image.open(os.path.join(BASE_DIR,"templates","battingSummary.png")).convert("RGBA")
-    draw=ImageDraw.Draw(img)
-    font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
-    darkVoilet = "#32267B"
-    white= "#EAEDF2"
-    inningNum = f"INNING {inn.inningNo}"
+    img = Image.open(os.path.join(BASE_DIR, "templates", "BattingSummary.png")).convert("RGBA")
+    draw = ImageDraw.Draw(img)
+    S = 1.3325714286
+    font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(65 * S))
+    font2 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowRegular.woff2"), int(32.7 * S))
+    font3 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowRegular.woff2"), int(27 * S))
+    font4 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(40 * S))
+    vividGreen = "#14f67c"
     battingTeam = inn.battingTeam.name.upper()
-    bowlingTeam= inn.bowlingTeam.name.upper()
-    draw.text((((5000*0.256)-font.getlength(inningNum))/2,554.5*0.256),inningNum,font=font,fill=white)
-    draw.text((300*0.256,554.5*0.256),battingTeam,font=font,fill=darkVoilet)
-    draw.text((3171.7*0.256,554.5*0.256),bowlingTeam,font=font,fill=darkVoilet)
-    font2=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),110*0.256)
-    font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),150*0.256)
-    y = 1017*0.256
-    offset = 303*0.256
-    for p,i in inn.batters.items():
-      draw.text((300*0.256,y),p.name.upper()[:18],font=font,fill=darkVoilet)
-      batterRuns = f"{i.runs}"
-      batterBalls = f"{i.balls}"
-      l = font.getlength(batterRuns)
-      b = font2.getlength(batterBalls)+(20*0.256)
-      draw.text(((4700*0.256)-(l+b),y),batterRuns,font=font,fill=darkVoilet)
-      draw.text((((4700*0.256)-b),y+(30*0.256)),batterBalls,font=font2,fill=darkVoilet)
+    draw.text((210, 15), battingTeam, font=font, fill=inn.battingTeam.color)
+    y = 210.3
+    offset = 91.1
+    for p, b in inn.batters.items():
+      name = p.name.upper()[:15]
+      runs = str(b.runs)
+      balls = str(b.balls)
+      is_not_out = not b.dismissed
+      status_text = "NOT OUT" if is_not_out else b.dismissedBy
+      r_w = font3.getlength(runs)
+      b_w = font3.getlength(balls)
+      if is_not_out:
+        overlay = Image.open(os.path.join(BASE_DIR, "templates", "NotOutLine.png")).convert("RGBA")
+        img.paste(overlay, (74, int(y - 20)), overlay)
+        draw.text((121, y), name, font=font2, fill="black", stroke_width=1)
+        draw.text((645, y), status_text, font=font2, fill="black")
+        draw.text((975.7 + 63.1 / 2 - r_w / 2, y + 5), runs, font=font3, fill="black", stroke_width=0.5)
+        draw.text((1075.9 + 69.4 / 2 - b_w / 2, y + 5), balls, font=font3, fill="black", stroke_width=0)
+      else:
+        draw.text((121, y), name, font=font2, fill="white", stroke_width=1)
+        draw.text((645, y), status_text, font=font2, fill="white")
+        draw.text((975.7 + 63.1 / 2 - r_w / 2, y + 5), runs, font=font3, fill="white", stroke_width=0.5)
+        draw.text((1075.9 + 69.4 / 2 - b_w / 2, y + 5), balls, font=font3, fill="white", stroke_width=0)
       y += offset
-    font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),180*0.256)
-    inningScore = f"{inn.runs}/{inn.wickets} ({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
-    draw.text((((5000*0.256)-font.getlength(inningScore))/2,(4582*0.256)+(54.5*0.256)),inningScore,font=font,fill=darkVoilet)
-    
+    overs = str(self.ballsToOvers(inn.balls))
+    score = f"{inn.runs}-{inn.wickets}"
+    draw.text((781.5, 1177.9), overs, font=font4, fill="white")
+    draw.text((1050.1, 1177.9), score, font=font4, fill=inn.battingTeam.color)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='battingSC.png')
   def bowlingCard(self):
     inn = self.currentInning
-    img = Image.open(os.path.join(BASE_DIR,"templates","bowlingSummary.png")).convert("RGBA")
+    img = Image.open(os.path.join(BASE_DIR, "templates", "BowlingSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
-    font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
-    darkVoilet = "#32267B"
-    white = "#EAEDF2"
-    inningNum = f"INNING {inn.inningNo}"
-    battingTeam = inn.battingTeam.name.upper()
+    S = 1.3325714286
+    font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(65*S))
+    font2 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowRegular.woff2"), int(32.7*S))
+    font3 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowRegular.woff2"), int(27*S))
+    font4 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(40*S))
+    font6 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(20*S))
+    vividGreen = "#14f67c"
     bowlingTeam = inn.bowlingTeam.name.upper()
-    draw.text((((5000*0.256)-font.getlength(inningNum))/2, 554.5*0.256), inningNum, font=font, fill=white)
-    draw.text((300*0.256, 554.5*0.256), battingTeam, font=font, fill=darkVoilet)
-    draw.text((3171.7*0.256, 554.5*0.256), bowlingTeam, font=font, fill=darkVoilet)
-    y = 1225*0.256
-    offset = 303*0.256
-    for p, i in inn.bowlers.items():
-      bowler = p.name.upper()[:18]
-      w = str(i.wickets)
-      o = str(self.ballsToOvers(i.balls))
-      r = str(i.runsConceded)
-      eo = str(round((i.runsConceded/i.balls)*6, 2)) if i.balls else "0.0"
-      draw.text((350*0.256, y), bowler, font=font, fill=darkVoilet)
-      draw.text(((3023.2*0.256)+(98.4*0.256)/2-font.getlength(w)/2, y), w, font=font, fill=darkVoilet)
-      draw.text(((3398.1*0.256)+(81.9*0.256)/2-font.getlength(o)/2, y), o, font=font, fill=darkVoilet)
-      draw.text(((3761.9*0.256)+(70.3*0.256)/2-font.getlength(r)/2, y), r, font=font, fill=darkVoilet)
-      draw.text(((4175.2*0.256)+(145.5*0.256)/2-font.getlength(eo)/2, y), eo, font=font, fill=darkVoilet)
-      y += offset
-    font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"), 180*0.256)
-    inningScore = f"{inn.runs}/{inn.wickets}({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
-    draw.text((((5000*0.256)-font.getlength(inningScore))/2, (4582*0.256)+(54.5*0.256)), inningScore, font=font, fill=darkVoilet)
-    
+    draw.text((210, 15), bowlingTeam, font=font, fill=inn.bowlingTeam.color)
+    y = 210.3
+    offsets = [91.1, 91.1, 88, 88, 84, 84, 86, 84]
+    bowlers_list = sorted(
+        inn.bowlers.items(), 
+        key=lambda x: (-x[1].wickets, x[1].runsConceded)
+    )[:8]
+    for index, (p, b) in enumerate(bowlers_list):
+      name = p.name.upper()[:15]
+      overs = str(self.ballsToOvers(b.balls))
+      maidens = str(b.maidens)
+      runs = str(b.runsConceded)
+      wickets = str(b.wickets)
+      economy = str(round((b.runsConceded / b.balls) * 6, 2)) if b.balls else "0.00"
+      
+      draw.text((121, y), name, font=font2, fill="white", stroke_width=1)
+      draw.text((500.8 + 130 / 2 - font3.getlength(overs) / 2, y + 5), overs, font=font3, fill="white", stroke_width=0)
+      draw.text((628.8 + 145 / 2 - font3.getlength(maidens) / 2, y + 5), maidens, font=font3, fill="white", stroke_width=0)
+      draw.text((800.4 + 63.1 / 2 - font3.getlength(runs) / 2, y + 5), runs, font=font3, fill="white", stroke_width=0)
+      draw.text((877 + 153 / 2 - font3.getlength(wickets) / 2, y + 5), wickets, font=font3, fill="white", stroke_width=0.5)
+      draw.text((1029.4 + 163.7 / 2 - font3.getlength(economy) / 2, y + 5), economy, font=font3, fill="white", stroke_width=0)
+      
+      y += offsets[index]
+    xs = [412.7, 480.1, 547.6, 621.9, 692.2, 760.6, 826.4, 899.7, 968, 1047.1, 1131.7]
+    for i, f in enumerate(inn.fallOfWickets):
+      if i >= len(xs): break
+      draw.text((xs[i] + 30 / 2 - font6.getlength(str(f)) / 2, 1084), str(f), font=font6, fill="black", stroke_width=0.5)
+    totalOvers = str(self.ballsToOvers(inn.balls))
+    totalScore = f"{inn.runs}-{inn.wickets}"
+    draw.text((781.5, 1177.9), totalOvers, font=font4, fill="white")
+    draw.text((1050.1, 1177.9), totalScore, font=font4, fill=inn.bowlingTeam.color)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='bowlingSC.png',)
+      return discord.File(fp=image_binary, filename='bowlingSC.png')
   def matchSummaryCard(self):
-    img = Image.open(os.path.join(BASE_DIR, "templates","matchSummary.png")).convert("RGBA")
+    img = Image.open(os.path.join(BASE_DIR, "templates", "matchSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
-  
-    font = ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
-    darkVoilet = "#32267B"
-    white = "#EAEDF2"
-    y = 588.4*0.256
-    offset = 966.2*0.256
-    for inn in self.innings:
-      battingTeam = inn.battingTeam.name.upper() 
-      if inn.inningNo == 3 and self.followOnTeam:
-        battingTeam += " (f/o)"
-      score = f"{inn.runs}/{inn.wickets} ({self.ballsToOvers(inn.balls)}) {'d' if inn.declared else ''}"
-      draw.text((300*0.256, y + (54.5*0.256)), battingTeam, font=font, fill=white)
-      draw.text(((4700*0.256) - font.getlength(score), y + (54.5*0.256)), score, font=font, fill=white)
+    S = 1.3325714286
+    font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(40*S))
+    font2 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(30*S))
+    font3 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(23*S))
+    font4 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(28*S))
+    font5 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansBold.woff2"), int(28*S))
+    font6 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(24*S))
+    font7 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(31*S))
+    vividGreen = "#14f67c"
+    vividAzure = "#05a9e6"
+    draw.text((203.3, 139.4), f"{self.teama.name.upper()} VS {self.teamb.name.upper()}", font=font2, fill='White')
+    y = 260
+    offset = 215.7
+    for i, inn in enumerate(self.innings):
+      battingTeam = f"{inn.battingTeam.name.upper()} {inn.runs}/{inn.wickets}{'d' if inn.declared else ''}"
+      if inn.inningNo == 3 and self.followOnTeam: battingTeam += " (f/o)"
+      color = inn.battingTeam.color
+      draw.text((100, y), battingTeam, font=font, fill=color)
+      ord_s = "th" if 10 <= inn.inningNo % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(inn.inningNo % 10, "th")
+      innLabel = f"{inn.inningNo}{ord_s} Inning".upper()
+      draw.text((1200 - font3.getlength(innLabel), y + 10), innLabel, font=font3, fill='White')
       topBat = sorted(inn.batters.items(), key=lambda x: x[1].runs, reverse=True)[:2]
       topBowl = sorted(inn.bowlers.items(), key=lambda x: x[1].wickets, reverse=True)[:2]
-      y2 = y + (262*0.256)
-      offset2 = 303*0.256
+      y2 = y
+      offset2 = 50
       for k in range(2):
         if k < len(topBat):
-          p, i = topBat[k]
-          if i.balls > 0:
-            batter = p.name.upper()[:15]
-            batterScore = f"{i.runs} ({i.balls})"
-            draw.text((320*0.256, y2 + (70.5*0.256)), batter, font=font, fill=darkVoilet)
-            draw.text(((2180*0.256) - font.getlength(batterScore), y2 + (70.5*0.256)), batterScore, font=font, fill=darkVoilet)
+          p, b = topBat[k]
+          name = p.name.upper()[:15]
+          runs = str(b.runs)
+          balls = f"{b.balls}"
+          draw.text((100, y2 + 60), name, font=font4, fill='White')
+          draw.text((475.8, y2 + 60), runs, font=font5, fill='White')
+          l = font5.getlength(runs) + 5
+          draw.text(((475.8 + l), y2 + 65), balls, font=font6, fill='White')
         if k < len(topBowl):
-          p, i = topBowl[k]
-          if i.balls > 0:
-            bowler = p.name.upper()[:15]
-            bowlerScore = f"{i.wickets}/{i.runsConceded} ({self.ballsToOvers(i.balls)})"
-            draw.text((2820*0.256, y2 + (70.5*0.256)), bowler, font=font, fill=darkVoilet)
-            draw.text(((4680*0.256) - font.getlength(bowlerScore), y2 + (70.5*0.256)), bowlerScore, font=font, fill=darkVoilet)
+          p, b = topBowl[k]
+          name = p.name.upper()[:15]
+          fig = f"{b.wickets}-{b.runsConceded}"
+          draw.text((750, y2 + 60), name, font=font4, fill='White')
+          draw.text((1190 - font5.getlength(fig), y2 + 60), fig, font=font5, fill='White')
         y2 += offset2
+      if i > 0: offset = 230
+      if i == 2: offset = 240
       y += offset
     footer = self.matchStatus().upper()
-    font=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","Helvetica-Bold.ttf"),120*0.256)
-    draw.text((((5000*0.256)-font.getlength(footer))/2,(4582*0.256)+(79.5*0.256)),footer,font=font,fill=darkVoilet)
-    
+    draw.text(((1280 - font7.getlength(footer)) / 2, 1190), footer, font=font7, fill="black")
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='matchSummary.png')
+      
   def showPlayers(self):
     teamaP = ""
     teambP = ""
@@ -447,7 +485,7 @@ class Game():
   def nextBattingTeam(self):
     if not self.innings: return self.batFirstTeam
     if self.followOnTeam is not None and self.innings[-1].inningNo == 2:
-      return 
+      return self.followOnTeam
     return self.teamb if self.innings[-1].battingTeam == self.teama else self.teama
   async def selectBowler(self):
     inn=self.currentInning
@@ -574,7 +612,6 @@ class Game():
       bat_ok=bat_task in done and not bat_task.cancelled()
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:
-        
         for t in pending: t.cancel()
         bowler_p.AFKs += 1; striker_p.AFKs += 1
         await self.ctx.send(f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: 3/{bowler_p.AFKs}\nBatter AFKs: 6/{striker_p.AFKs}")
@@ -613,7 +650,9 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
-          striker_p.dismissed = True 
+          striker_p.dismissedBy = "AFK"
+          striker_p.dismissed = True
+          inn.fallOfWickets.append(str(inn.runs))
           self.ballsData.append((
             ballId,
             self.gameId,
@@ -693,6 +732,8 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          striker_p.dismissedBy = "AFK"
+          inn.fallOfWickets.append(str(inn.runs))
           striker_p.dismissed = True 
           self.ballsData.append((
             ballId,
@@ -821,8 +862,10 @@ class Game():
       await self.ctx.send(view=v)
       await asyncio.sleep(0.3)
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
+      inn.fallOfWickets.append(str(inn.runs))
       await asyncio.sleep(0.3)
       await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}")
+      striker_p.dismissedBy = f"b. {bowler.name[:14]}"
       await asyncio.sleep(0.3)
       await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**They are out!!**\nBowler -> {bowl}")
       inn.timeline.append("W")
@@ -835,6 +878,7 @@ class Game():
       elif not inn.currentBatters:
         return 'Inning Over'
     else:
+      bowler_p.currentOverRuns += 1
       bowler_p.timeline.append(str(bowl))
       inn.runs+=bat
       self.ballsData.append((
@@ -878,6 +922,8 @@ class Game():
       if bat%2==1 and len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
     if inn.balls%6==0:
+      if bowler_p.currentOverRuns == 0:
+        bowler_p.maidens += 1
       for b in inn.currentBatters:
         inn.batters[b].BoundaryThisOver = False
       if len(inn.currentBatters) > 1:
@@ -958,7 +1004,13 @@ class Game():
           w = self.checkForWinner()
           if g != None or w:
             bat,bowl=self.battingCard(), self.bowlingCard()
-            await self.ctx.send(files=[bat,bowl])
+            c =  ui.LayoutView(timeout= 60)
+            container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+            gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False),discord.MediaGalleryItem(bowl, spoiler = False))
+            container.add_item(gallery)
+            container.add_item(ui.TextDisplay("-# Graphics: zuhair_asif"))
+            c.add_item(container)
+            await self.ctx.send(view=c, files=[bat, bowl])
             await asyncio.sleep(3)
             await self.checkFollowOn()
             break
@@ -966,7 +1018,13 @@ class Game():
             await self.ctx.send("**Inning Declared**")
             await asyncio.sleep(1)
             bat,bowl=self.battingCard(), self.bowlingCard()
-            await self.ctx.send(files=[bat,bowl])
+            c =  ui.LayoutView(timeout= 60)
+            container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+            gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False),discord.MediaGalleryItem(bowl, spoiler = False))
+            container.add_item(gallery)
+            container.add_item(ui.TextDisplay("-# Graphics: zuhair_asif"))
+            c.add_item(container)
+            await self.ctx.send(view=c, files= [bat, bowl])
             await asyncio.sleep(0.3)
             await self.checkFollowOn()
             await asyncio.sleep(3)
@@ -977,7 +1035,7 @@ class Game():
       mvp= self.calculateMvp()
       hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
       formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
-      await self.saveData()
+      if not self.DEBUG:await self.saveData()
       await self.ctx.send(f"{formatted}")
       self.ctx.bot.games.pop(self.ctx.channel.id)
       try: 

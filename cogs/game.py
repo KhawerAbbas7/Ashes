@@ -268,12 +268,12 @@ class Game():
       if is_not_out:
         overlay = Image.open(os.path.join(BASE_DIR, "templates", "NotOutLine.png")).convert("RGBA")
         img.paste(overlay, (74, int(y - 20)), overlay)
-        draw.text((121, y), name, font=font2, fill="black", stroke_width=1)
+        draw.text((121, y), name, font=font2, fill="black", stroke_width=0)
         draw.text((645, y), status_text, font=font2, fill="black")
         draw.text((975.7 + 63.1 / 2 - r_w / 2, y + 5), runs, font=font3, fill="black", stroke_width=0.5)
         draw.text((1075.9 + 69.4 / 2 - b_w / 2, y + 5), balls, font=font3, fill="black", stroke_width=0)
       else:
-        draw.text((121, y), name, font=font2, fill="white", stroke_width=1)
+        draw.text((121, y), name, font=font2, fill="white", stroke_width=0)
         draw.text((645, y), status_text, font=font2, fill="white")
         draw.text((975.7 + 63.1 / 2 - r_w / 2, y + 5), runs, font=font3, fill="white", stroke_width=0.5)
         draw.text((1075.9 + 69.4 / 2 - b_w / 2, y + 5), balls, font=font3, fill="white", stroke_width=0)
@@ -313,7 +313,7 @@ class Game():
       wickets = str(b.wickets)
       economy = str(round((b.runsConceded / b.balls) * 6, 2)) if b.balls else "0.00"
       
-      draw.text((121, y), name, font=font2, fill="white", stroke_width=1)
+      draw.text((121, y), name, font=font2, fill="white", stroke_width=0)
       draw.text((500.8 + 130 / 2 - font3.getlength(overs) / 2, y + 5), overs, font=font3, fill="white", stroke_width=0)
       draw.text((628.8 + 145 / 2 - font3.getlength(maidens) / 2, y + 5), maidens, font=font3, fill="white", stroke_width=0)
       draw.text((800.4 + 63.1 / 2 - font3.getlength(runs) / 2, y + 5), runs, font=font3, fill="white", stroke_width=0)
@@ -370,7 +370,7 @@ class Game():
           draw.text((100, y2 + 60), name, font=font4, fill='White')
           draw.text((475.8, y2 + 60), runs, font=font5, fill='White')
           l = font5.getlength(runs) + 5
-          draw.text(((475.8 + l), y2 + 65), balls, font=font6, fill='White')
+          draw.text(((475.8 + l), y2 + 70), balls, font=font6, fill='White')
         if k < len(topBowl):
           p, b = topBowl[k]
           name = p.name.upper()[:15]
@@ -577,7 +577,7 @@ class Game():
       p = striker=self.currentInning.currentBatters[1]
       await asyncio.sleep(1)
       await p.send(content, **kwargs)
-  async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE):
+  async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None):
     img=Image.open(os.path.join(os.getcwd(), "templates/wicket.png")).convert("RGBA")
     draw=ImageDraw.Draw(img)
     font=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),60*1.3325714286)
@@ -585,7 +585,7 @@ class Game():
     fontw=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),26*1.3325714286)
     font3=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),80*1.3325714286)
     font4=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),50*1.3325714286)
-    draw.text((246.6,27.3),batterName.upper(),font=font,fill="White",stroke_width=1)
+    draw.text((246.6,27.3),batterName.upper()[:12],font=font,fill="White",stroke_width=1)
     draw.text((250,115.3),bowlerName.upper(),font=fontw,fill=self.currentInning.bowlingTeam.color,stroke_width=1)
     draw.text((1095-font3.getlength(str(runsScored)),27.3),str(runsScored),font=font3,fill=self.currentInning.battingTeam.color,stroke_width=1)
     x = 1095-font3.getlength(str(runsScored))
@@ -597,7 +597,14 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      await self.ctx.send(file= discord.File(fp=image_binary, filename='wicket.png'))
+      i = discord.File(fp=image_binary, filename='wicket.png')
+      c =  ui.LayoutView(timeout= 60)
+      container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+      gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(i, spoiler = False))
+      if text:container.add_item(ui.TextDisplay(text))
+      container.add_item(gallery)
+      c.add_item(container)
+      await self.ctx.send(file= i, view= c)
   async def getInputs(self):
     bowlerExtraTXT = ""
     batterExtraTXT = ""
@@ -676,7 +683,8 @@ class Game():
           striker_p.dismissedBy = "AFK"
           striker_p.dismissed = True
           inn.fallOfWickets.append(str(inn.runs))
-          await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr))
+          pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
+          await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           self.ballsData.append((
             ballId,
             self.gameId,
@@ -697,6 +705,7 @@ class Game():
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
+          inn.wickets+=1
           await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
           await self.sendToNonStriker("Striker was declared out because of being AFK.")
           inn.currentBatters.pop(0)
@@ -756,8 +765,10 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          inn.wickets+=1
           striker_p.dismissedBy = "AFK"
-          await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr))
+          pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
+          await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           inn.fallOfWickets.append(str(inn.runs))
           striker_p.dismissed = True 
           self.ballsData.append((
@@ -878,7 +889,9 @@ class Game():
           ))
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
-      await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr))
+      pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**\n" if len(inn.currentBatters) == 2 else ""
+      txt = f"{pship}**The Protagonist -> {bat}**"
+      await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt)
       inn.currentPartnership = [0,0]
       await asyncio.sleep(0.3)
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")

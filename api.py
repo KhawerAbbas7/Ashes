@@ -9,7 +9,7 @@ class RankingCog(commands.Cog):
     self.bot = bot
     self.site = None
     self.runner = None
-
+    
   async def cog_load(self):
     app = web.Application()
     app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/', self.health_check)])
@@ -52,7 +52,7 @@ class RankingCog(commands.Cog):
       limit = min(50, max(1, limit))
       offset = (page - 1) * limit
       cutoff_end_ts, cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT batterId AS playerId, SUM((runs-CASE WHEN isWicket=1 THEN 10 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END) AS rating FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY batterId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      sql = f"SELECT batterId AS playerId, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END) AS rating FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY batterId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:
@@ -69,7 +69,7 @@ class RankingCog(commands.Cog):
       limit = min(50, max(1, limit))
       offset = (page - 1) * limit
       cutoff_end_ts,cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT bowlerId AS playerId, SUM((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END) AS rating FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY bowlerId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      sql = f"SELECT bowlerId AS playerId,SUM((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)-SUM(runs*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)/5.0 AS rating FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY bowlerId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:
@@ -86,7 +86,7 @@ class RankingCog(commands.Cog):
       limit = min(50, max(1, limit))
       offset = (page - 1) * limit
       cutoff_end_ts, cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT playerId, SQRT(battingScore*bowlingScore) AS rating FROM (SELECT playerId, SUM(bat)*1.0 AS battingScore, SUM(bowl)*1.0 AS bowlingScore FROM (SELECT batterId AS playerId, (runs-CASE WHEN isWicket=1 THEN 10 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END AS bat, 0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} UNION ALL SELECT bowlerId AS playerId, 0 AS bat, (CASE WHEN isWicket=1 THEN 25 ELSE 0 END+0.2)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts}) GROUP BY playerId) WHERE battingScore>0 AND bowlingScore>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      sql = f"SELECT playerId,SQRT(battingScore*bowlingScore) AS rating FROM (SELECT playerId,SUM(bat)*1.0 AS battingScore,SUM(bowl)*1.0 AS bowlingScore FROM (SELECT batterId AS playerId,(runs-CASE WHEN isWicket=1 THEN 10 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END AS bat,0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} UNION ALL SELECT bowlerId AS playerId,0 AS bat,((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)-(runs*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)/5.0 AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts}) GROUP BY playerId) WHERE battingScore>0 AND bowlingScore>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:

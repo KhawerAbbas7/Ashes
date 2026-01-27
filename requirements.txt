@@ -5,6 +5,3 @@ pillow
 uuid6
 aiosqlite
 prettytable
-uvicorn
-fastapi
-pydantic

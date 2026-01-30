@@ -174,6 +174,30 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.hostId = host.id
     await ctx.send(f"{host} is the new host.")
     #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
+  async def nextplayer(self, ctx, nextP:discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
+    elif not g.started:return await ctx.send(embed= Embed(title='Can\'t be used before start.', description='This command can\'t be used before the commencement of the game.', color=Color.from_str('#b30707')))
+    if nextP.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Player didn\'t join.', description='They must have joined .', color=Color.from_str('#b30707')))
+    team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
+    inn = g.currentInning
+    if inn.battingTeam.id == team.id:
+      if nextP.id in inn.cantBat or nextP.id in [b.id for b in inn.currentBatters]:
+        return await ctx.send(f"**{nextP}** is either currently batting or has been dismissed, in both cases you have failed ad a captain.")
+      inn.nextBatterId = nextP.id
+      await ctx.send(f"**{nextP}** will be batting next.")
+    else:
+      if not inn.currentBowlers:
+        return await ctx.send(f"**Hold on a sec**.")
+      if nextP.id == inn.currentBowlers[0].id:
+        return await ctx.send(f"**{nextP}** is currently bowling bozo.")
+      inn.nextBowlerId = nextP.id
+      return await ctx.send(f"**{nextP}** will be bowling next over.")
+    
   @commands.command(aliases= ['cc'],description= 'Change the captain of a team.', extras={'usableBy': 'Host or Captains only.'})
   async def changecap(self, ctx, cap:discord.User):
     if ctx.channel.id not in self.bot.games:

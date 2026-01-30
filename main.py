@@ -60,6 +60,8 @@ class Ashes(commands.Bot):
   async def execute(self, query, params=()):
     await self.db.execute(query, params)
     await self.db.commit()
+  async def on_command_error(self, ctx, error):
+    if isinstance(error,commands.commandNotFound): pass
 bot = Ashes()
 @bot.command()
 async def ping( ctx):

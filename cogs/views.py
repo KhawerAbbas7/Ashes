@@ -557,7 +557,7 @@ class Selection(ui.Select):
   def __init__(self, userId, options, maxselect, placeholder: str= 'Select'):
     self.userId = userId 
     self.opts = options
-    options = [discord.SelectOption(label= b['name'], value = b['id']) for b in options]
+    options = [discord.SelectOption(label= b['name'], value = b['id'], description = b.get('description')) for b in options]
     super().__init__(placeholder= placeholder, min_values=maxselect, max_values=maxselect, options=options)
   async def callback(self, interaction: discord.Interaction):
     if interaction.user.id != self.userId: return

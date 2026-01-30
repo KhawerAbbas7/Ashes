@@ -417,21 +417,37 @@ class Game():
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='matchSummary.png')
   def showPlayers(self):
-    teamaP = ""
-    teambP = ""
-    for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
-    for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
-    view = ui.LayoutView(timeout= None)
-    container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-    container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
-    actionRow = ui.ActionRow()
-    actionRow.add_item(OversSelection())
-    container.add_item(actionRow)
-    container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-    container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
-    container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-    container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
-    view.add_item(container)
+    if not self.started:
+      teamaP = ""
+      teambP = ""
+      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
+      view = ui.LayoutView(timeout= None)
+      container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
+      container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
+      actionRow = ui.ActionRow()
+      actionRow.add_item(OversSelection())
+      container.add_item(actionRow)
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
+      view.add_item(container)
+    else:
+      teamaP = ""
+      teambP = ""
+      for i,p in enumerate(self.teama.players,1):teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}{self.giveDescription(p.id, True, True).rjust(25)}`**\n"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"**'{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}{self.giveDescription(p.id, True, True).rjust(25)}`**\n"
+      view = ui.LayoutView(timeout= None)
+      container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
+      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(f"-# [{self.matchStatus()}]({self.updateMsg.jump_url})"))
+      view.add_item(container)
     return view
   async def toss(self):
     if not self.teamb.captain: return 
@@ -517,10 +533,28 @@ class Game():
     if self.followOnTeam is not None and self.innings[-1].inningNo == 2:
       return self.followOnTeam
     return self.teamb if self.innings[-1].battingTeam == self.teama else self.teama
+  def giveDescription(self, playerId, bating= False, bowling= False):
+    bati=[]
+    bowli=[]
+    player = next(p for p in self.players if p.id == playerId)
+    for inn in self.innings:
+      if player in inn.batters:
+        i=inn.batters[player]
+        if i.balls>0: bati.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
+      if player in inn.bowlers:
+        i=inn.bowlers[player]
+        if i.balls>0: bowli.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+    bat, bowl = " & ".join(bati), " & ".join(bowli)
+    if bat and bowl: return " | ".join([bat, bowl])
+    if bating:
+      return bat if bati else None 
+    elif bowling:
+      return bowl if bowli else None 
+    return None
   async def selectBowler(self):
     inn=self.currentInning
     captain=inn.bowlingTeam.captain
-    options=[{'name':p.name,'id':p.id} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
@@ -535,10 +569,11 @@ class Game():
     await view.wait()
     pid=view.value or random.choice(options)['id']
     inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+  
   async def selectOpeners(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
-    options=[{'name':p.name,'id':p.id} for p in inn.battingTeam.players]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bating= True)} for p in inn.battingTeam.players]
     view=ui.LayoutView(timeout=60)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,2,'Select Openers'))
@@ -553,7 +588,7 @@ class Game():
     inn=self.currentInning
     captain=inn.battingTeam.captain
     used={p.id for p in inn.currentBatters}
-    options=[{'name':p.name,'id':p.id} for p in inn.battingTeam.players if p.id not in inn.cantBat]
+    options=[{'name':p.name,'id':p.id, 'bating': self.giveDescription(p.id, bowling= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
@@ -632,6 +667,7 @@ class Game():
       if text:container.add_item(ui.TextDisplay(text))
       container.add_item(gallery)
       if achievement:
+        container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
         container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
         container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']), spoiler = False)))
       c.add_item(container)
@@ -974,11 +1010,11 @@ class Game():
         if bat == 6: striker_p.sixes += 1
         striker_p.BoundaryThisOver = True
       if striker_p.runs < 30 and striker_p.runs + bat >= 30:
-        await self.ctx.send(f"**It is a 30 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Bowling']})**")
+        await self.ctx.send(f"**It is a 30 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})**")
       elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
-        await self.ctx.send(f"**It is a 50 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']})**")
+        await self.ctx.send(f"**It is a 50 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})**")
       elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
-        await self.ctx.send(f"**It is a HUNDRED for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']})**")
+        await self.ctx.send(f"**It is a HUNDRED for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})**")
       striker_p.runs+=bat
       bowler_p.runsConceded+=bat
       inn.currentPartnership[0] += bat

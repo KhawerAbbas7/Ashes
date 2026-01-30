@@ -496,7 +496,7 @@ class Game():
         else:self.batFirstTeam = other
   def score(self, returnContainer=False):
     view = ui.LayoutView(timeout=30)
-    container = ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
+    container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
     DaysAndSessions = self.getDaysAndSessions()
     container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
     t = {}
@@ -550,10 +550,10 @@ class Game():
     for inn in self.innings:
       if player in inn.batters:
         i=inn.batters[player]
-        if i.balls>0: bati.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
+        bati.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
       if player in inn.bowlers:
         i=inn.bowlers[player]
-        if i.balls>0: bowli.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+        bowli.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bati), " & ".join(bowli)
     if bating and bowling:
       if bat and bowl: return " | ".join([bat,bowl])

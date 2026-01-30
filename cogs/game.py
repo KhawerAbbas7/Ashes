@@ -28,7 +28,7 @@ class BattingInning():
     self.BoundaryThisOver= False
     self.AFKs = 0
     self.dismissed = False
-    self.dismissedBy = ""
+    self.dismissedBy = "DNB"
     self.fours = 0
     self.sixes = 0
     self.timeline = deque(maxlen=13)
@@ -105,6 +105,28 @@ class Game():
     self.winner = None
     self.mvp = None
     self.DEBUG = False
+    self.updateMsg = None
+  async def editGracefully(self, m, content= None, **kwargs):
+    for _ in range(3):
+      try:
+        return await m.edit(content=content, **kwargs)
+      except Exception as e:
+        print(e)
+        await asyncio.sleep(1)
+  async def updateMessage(self, newMsg= False):
+    if not self.updateMsg or (self.updateMsg.created_at.timestamp()+60) < time.time() or newMsg:
+      if self.updateMsg:
+        s = self.score(True)
+        m = await self.ctx.send(view= self.score())
+        s.add_item(ui.TextDisplay(f"-# Update Moved To [New Message]({m.jump_url})"))
+        view = ui.LayoutView(timeout=30)
+        view.add_item(s)
+        await self.editGracefully(self.updateMsg, view = view)
+        self.updateMsg = m
+      else:
+        self.updateMsg = await self.ctx.send(view= self.score())
+    else:
+      await self.editGracefully(self.updateMsg, view = self.score())
   async def saveData(self):
     await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,) for i in self.innings]
@@ -185,6 +207,11 @@ class Game():
     innsBat=len(self.inningsByTeam(bat))
     innsBowl=len(self.inningsByTeam(bowl))
     if len(self.innings)==1:return f"{bat.name} are batting"
+    if inn.inningNo == 2:
+      lead=bowlTotal-batTotal
+      if lead>=self.followOnLimit:
+        avoidFO = (lead - self.followOnLimit)+1 
+        return f"{bat.name} need {avoidFO} runs to avoid follow-on."
     if len(self.innings)<4:
       diff=batTotal-bowlTotal
       if diff>0:return f"{bat.name} lead by {diff} runs"
@@ -261,7 +288,7 @@ class Game():
       name = p.name.upper()[:15]
       runs = str(b.runs)
       balls = str(b.balls)
-      is_not_out = not b.dismissed
+      is_not_out = not b.dismissed and b.balls > 0
       status_text = "NOT OUT" if is_not_out else b.dismissedBy
       r_w = font3.getlength(runs)
       b_w = font3.getlength(balls)
@@ -342,6 +369,8 @@ class Game():
     font3 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(23*S))
     font4 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(28*S))
     font5 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansBold.woff2"), int(28*S))
+    fonts=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/archivo.woff2"),28*1.3325714286)
+    fontb=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),24*1.3325714286)
     font6 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(24*S))
     font7 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(31*S))
     vividGreen = "#14f67c"
@@ -368,9 +397,9 @@ class Game():
           runs = str(b.runs)
           balls = f"{b.balls}"
           draw.text((100, y2 + 60), name, font=font4, fill='White')
-          draw.text((475.8, y2 + 60), runs, font=font5, fill='White')
-          l = font5.getlength(runs) + 5
-          draw.text(((475.8 + l), y2 + 70), balls, font=font6, fill='White')
+          draw.text((475.8, y2 + 60), runs, font=fonts, fill='White')
+          l = fonts.getlength(runs) + 5
+          draw.text(((475.8 + l), y2 + 60), balls, font=fontb, fill='White')
         if k < len(topBowl):
           p, b = topBowl[k]
           name = p.name.upper()[:15]
@@ -387,7 +416,6 @@ class Game():
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='matchSummary.png')
-      
   def showPlayers(self):
     teamaP = ""
     teambP = ""
@@ -577,7 +605,7 @@ class Game():
       p = striker=self.currentInning.currentBatters[1]
       await asyncio.sleep(1)
       await p.send(content, **kwargs)
-  async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None):
+  async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None, achievement= None):
     img=Image.open(os.path.join(os.getcwd(), "templates/wicket.png")).convert("RGBA")
     draw=ImageDraw.Draw(img)
     font=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),60*1.3325714286)
@@ -603,6 +631,9 @@ class Game():
       gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(i, spoiler = False))
       if text:container.add_item(ui.TextDisplay(text))
       container.add_item(gallery)
+      if achievement:
+        container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
+        container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']), spoiler = False)))
       c.add_item(container)
       await self.ctx.send(file= i, view= c)
   async def getInputs(self):
@@ -891,7 +922,11 @@ class Game():
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
       pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**\n" if len(inn.currentBatters) == 2 else ""
       txt = f"{pship}**The Protagonist -> {bat}**"
-      await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt)
+      achievement= None
+      if bowler_p.wickets < 3 and bowler_p.wickets+1 == 3:achievement = "3fer"
+      elif bowler_p.wickets < 5 and bowler_p.wickets+1 == 5:achievement = "5fer"
+      elif bowler_p.wickets < 7 and bowler_p.wickets+1 == 7:achievement = "7fer"
+      await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, achievement)
       inn.currentPartnership = [0,0]
       await asyncio.sleep(0.3)
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
@@ -938,6 +973,12 @@ class Game():
         if bat == 4: striker_p.fours += 1
         if bat == 6: striker_p.sixes += 1
         striker_p.BoundaryThisOver = True
+      if striker_p.runs < 30 and striker_p.runs + bat >= 30:
+        await self.ctx.send(f"**It is a 30 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Bowling']})**")
+      elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
+        await self.ctx.send(f"**It is a 50 for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']})**")
+      elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
+        await self.ctx.send(f"**It is a HUNDRED for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']})**")
       striker_p.runs+=bat
       bowler_p.runsConceded+=bat
       inn.currentPartnership[0] += bat
@@ -963,8 +1004,7 @@ class Game():
         inn.batters[b].BoundaryThisOver = False
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
-      self.v = self.score()
-      await self.ctx.send(view=self.v)
+      await self.updateMessage(True)
       await self.selectBowler()
   def rawStats(self):
     return {
@@ -1034,8 +1074,7 @@ class Game():
           if self.v:
             self.v.stop()
           if self.currentInning.balls%6 !=0:
-            self.v = self.score()
-            await self.ctx.send(view=self.v)
+            await self.updateMessage()
           w = self.checkForWinner()
           if g != None or w:
             bat,bowl=self.battingCard(), self.bowlingCard()

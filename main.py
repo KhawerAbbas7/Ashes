@@ -3,9 +3,16 @@ from discord.ext import commands
 from dotenv import load_dotenv
 import os, aiosqlite
 from cogs.views import *
+import psutil
+from psutil import cpu_percent
 load_dotenv()
 token=os.getenv("TOKEN")
 os.environ['JISHAKU_NO_UNDERSCORE'] = 'true'
+def human_readable_size(size_bytes):
+  if size_bytes < 1024:return f"{size_bytes} bytes"
+  elif size_bytes < 1024**2:return f"{size_bytes / 1024:.2f} KB"
+  elif size_bytes < 1024**3:return f"{size_bytes / 1024**2:.2f} MB"
+  else:return f"{size_bytes / 1024**3:.2f} GB"
 async def get_pre(bot, message):
   if not message.guild:return commands.when_mentioned_or(*["", "."])(bot, message) 
   async with bot.settingsdb.execute("SELECT prefix FROM settings WHERE guildId =?", (message.guild.id,)) as cursor:
@@ -16,6 +23,19 @@ class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
     super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None)
     self.games = {}
+    self.Gifs = {
+      "Batting": [
+        "https://khawigifs.vercel.app/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
+        "https://khawigifs.vercel.app/gifs/Younis%20Khan%20celebrates%20his%20100%20vs%20England%20at%20Lords.gif",
+        "https://khawigifs.vercel.app/gifs/stokes%20celebrates%20vs%20england.gif"
+        ],
+      "Bowling": [
+        "https://khawigifs.vercel.app/gifs/Travis%20Head%20wicket%20celebration%20v%20Rishab%20Pant.gif",
+        "https://khawigifs.vercel.app/gifs/Dale%20Steyn%20Celebrates%20After%20dismissing%20Katich%20MCG%202008.gif",
+        "https://khawigifs.vercel.app/gifs/Jasprit%20Bumrah%20Celebrates%20After%20dismissing%20Travis%20Head%202024.gif",
+        "https://khawigifs.vercel.app/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
+        ]
+    }
   async def setup_hook(self):
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
@@ -41,6 +61,16 @@ class Ashes(commands.Bot):
     await self.db.execute(query, params)
     await self.db.commit()
 bot = Ashes()
+@bot.command()
+async def ping( ctx):
+  duration= bot.latency * 1000 
+  duration = round(duration, 2)
+  embed = discord.Embed(title= 'Pong', color= discord.Color.from_str('#42f5a1'))
+  matches=await bot.fetchrow("SELECT COUNT(DISTINCT matchId) as matches  FROM deliveries", ())
+  players=await bot.fetchrow("SELECT COUNT(DISTINCT playerId) FROM (SELECT batterId AS playerId FROM deliveries WHERE batterId IS NOT NULL UNION SELECT nonStrikerId FROM deliveries WHERE nonStrikerId IS NOT NULL UNION SELECT bowlerId FROM deliveries WHERE bowlerId IS NOT NULL) t", ())
+  botstats = f"Guilds: {len(ctx.bot.guilds)}\nCurrent Games: {len(ctx.bot.games)}\nMatches so far: {matches[0]}\nPlayers: {players[0]}\nCPU Usage: {cpu_percent()}%\nLatency: {duration}ms\nDatabase size: {human_readable_size(os.path.getsize(os.path.join(os.getcwd(), 'databases', 'ashes.db')))}"
+  embed.description = botstats
+  return await ctx.send(embed=embed, content="")
 @bot.command()
 async def help(ctx):
   v = Helpview(ctx)

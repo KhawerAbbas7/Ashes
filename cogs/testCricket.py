@@ -26,7 +26,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
-    elif len(g.players) == 22:return await ctx.send(embed= Embed(title='22 Players.', description='22 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
+    elif len(g.players) == 18:return await ctx.send(embed= Embed(title='18 Players.', description='18 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
   @commands.command(aliases= ['l'], description= 'Leave a game.')
@@ -126,6 +126,14 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= [''], description= 'Get the link for live score message.')
+  async def live(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if not g.started or not g.updateMsg:
+      return await ctx.send(embed= Embed(title='Waiting for Game to Start', description='Game is yet to begin.', color=Color.from_str('#b30707')))
+    await ctx.send(f"**[Update Message]({g.updateMsg.jump_url})**")
   @commands.command(aliases= ['t'], description= 'Call the toss.', extras={'usableBy': 'Host or Captains only.'})
   async def toss(self, ctx):
     if ctx.channel.id not in self.bot.games:

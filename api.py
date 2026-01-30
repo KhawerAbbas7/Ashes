@@ -36,7 +36,7 @@ class RankingCog(commands.Cog):
     return {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'GET, OPTIONS','Access-Control-Allow-Headers': 'Content-Type'}
 
   def get_cutoff_end(self):
-    now = datetime.utcnow() + timedelta(hours=5)  # PKT
+    now = datetime.utcnow() + timedelta(hours=5)
     days_since_wed = (now.weekday() - 2) % 7
     cutoff_end = (now - timedelta(days=days_since_wed)).replace(hour=0, minute=0, second=0, microsecond=0)
     cutoff_end_utc = cutoff_end -timedelta(hours=5)
@@ -48,11 +48,11 @@ class RankingCog(commands.Cog):
   async def get_batting(self, request):
     try:
       page = int(request.query.get('page', 1))
-      limit = int(request.query.get('limit', 10))
-      limit = min(50, max(1, limit))
+      limit = min(50, max(1, int(request.query.get('limit', 10))))
       offset = (page - 1) * limit
       cutoff_end_ts, cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT batterId AS playerId, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END) AS rating FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY batterId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      min_ts = cutoff_end_ts - 2419200
+      sql = f"SELECT batterId AS playerId, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rating FROM deliveries WHERE batterId IS NOT NULL AND timestamp >= {min_ts} AND timestamp < {cutoff_end_ts} GROUP BY batterId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:
@@ -65,11 +65,11 @@ class RankingCog(commands.Cog):
   async def get_bowling(self, request):
     try:
       page = int(request.query.get('page', 1))
-      limit = int(request.query.get('limit', 10))
-      limit = min(50, max(1, limit))
+      limit = min(50, max(1, int(request.query.get('limit', 10))))
       offset = (page - 1) * limit
-      cutoff_end_ts,cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT bowlerId AS playerId,SUM((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)-SUM(runs*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)/5.0 AS rating FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts} GROUP BY bowlerId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      cutoff_end_ts, cutoff_end_utc = self.get_cutoff_end()
+      min_ts = cutoff_end_ts - 2419200
+      sql = f"SELECT bowlerId AS playerId, SUM(((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)-runs/5.0)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rating FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp >= {min_ts} AND timestamp < {cutoff_end_ts} GROUP BY bowlerId HAVING rating>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:
@@ -82,11 +82,11 @@ class RankingCog(commands.Cog):
   async def get_allrounder(self, request):
     try:
       page = int(request.query.get('page', 1))
-      limit = int(request.query.get('limit', 10))
-      limit = min(50, max(1, limit))
+      limit = min(50, max(1, int(request.query.get('limit', 10))))
       offset = (page - 1) * limit
       cutoff_end_ts, cutoff_end_utc = self.get_cutoff_end()
-      sql = f"SELECT playerId,SQRT(battingScore*bowlingScore) AS rating FROM (SELECT playerId,SUM(bat)*1.0 AS battingScore,SUM(bowl)*1.0 AS bowlingScore FROM (SELECT batterId AS playerId,(runs-CASE WHEN isWicket=1 THEN 10 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END AS bat,0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp < {cutoff_end_ts} UNION ALL SELECT bowlerId AS playerId,0 AS bat,((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)-(runs*CASE WHEN timestamp>={cutoff_end_ts-7*86400} THEN 1 WHEN timestamp>={cutoff_end_ts-14*86400} THEN 0.8 WHEN timestamp>={cutoff_end_ts-21*86400} THEN 0.6 WHEN timestamp>={cutoff_end_ts-28*86400} THEN 0.4 ELSE 0 END)/5.0 AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp < {cutoff_end_ts}) GROUP BY playerId) WHERE battingScore>0 AND bowlingScore>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
+      min_ts = cutoff_end_ts - 2419200
+      sql = f"SELECT playerId,SQRT(SUM(bat)*SUM(bowl)) AS rating FROM (SELECT batterId AS playerId,(runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bat,0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp >= {min_ts} AND timestamp < {cutoff_end_ts} UNION ALL SELECT bowlerId AS playerId,0 AS bat,((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)-runs/5.0)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp >= {min_ts} AND timestamp < {cutoff_end_ts}) GROUP BY playerId HAVING SUM(bat)>0 AND SUM(bowl)>0 ORDER BY rating DESC LIMIT {limit} OFFSET {offset}"
       rows = await self.bot.fetchall(sql)
       data = []
       for row in rows:

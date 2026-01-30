@@ -5,3 +5,4 @@ pillow
 uuid6
 aiosqlite
 prettytable
+psutil

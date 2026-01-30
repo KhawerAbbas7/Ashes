@@ -318,7 +318,7 @@ class LBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
     options = [
-      "Most Matches","Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning", "Highest Match Aggregates", "Highest SR in an Inning"
+      "Most Matches","Most Runs", "Highest Batting AVG", "Highest Batting SR","Most Wickets",'Best Bowling AVG', 'Best Bowling ECO', 'Best Partnerships', "Best Batting Inning","Best Bowling Inning", "Best Bowling SR","Highest Match Aggregates", "Highest SR in an Inning"
       ]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=[o for o in options if o.label != currentlySelected])
@@ -387,13 +387,13 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId, CASE WHEN SUM(isWicket)=0 THEN SUM(runs) ELSE 1.0*SUM(runs)/SUM(isWicket) END AS AVG, COUNT(DISTINCT inningId) as Inns FROM deliveries GROUP BY batterId ORDER BY AVG DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT batterId, CASE WHEN SUM(isWicket)=0 THEN SUM(runs) ELSE 1.0*SUM(runs)/SUM(isWicket) END AS AVG, COUNT(DISTINCT inningId) as Inns FROM deliveries GROUP BY batterId HAVING COUNT(DISTINCT inningId) >= 10 ORDER BY AVG DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs, balls = r
         batter = bot.get_user(batterId ) or batterId 
         table.add_row([f"{i}. {batter}", round(runs,2),balls])
       self.view.stop()
-      v = LBview(self.view.ctx, table, v)
+      v = LBview(self.view.ctx, table, v, "MINIMUM 10 INNINGS")
       v.m = await self.view.m.edit(view=v)
     elif v == 'Highest Batting SR':
       table = PrettyTable(padding_width=5)
@@ -404,28 +404,29 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_avg FROM deliveries GROUP BY batterId ORDER BY batting_avg DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_avg FROM deliveries GROUP BY batterId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 100 ORDER BY batting_avg DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs = r
         batter = bot.get_user(batterId ) or batterId 
         table.add_row([f"{i}. {batter}", round(runs,2)])
       self.view.stop()
-      v = LBview(self.view.ctx, table, v)
+      v = LBview(self.view.ctx, table, v, "MINIMUM 100 BALLS")
       v.m = await self.view.m.edit(view=v)
     elif v == 'Highest SR in an Inning':
       table = PrettyTable(padding_width=5)
-      table.field_names = ["Player", "SR"]
+      table.field_names = ["Player", "SR", "Inning"]
       table.align = "l"
       table.border=False
       table.header=True
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_sr FROM deliveries GROUP BY batterId,inningId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 10 ORDER BY batting_sr DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT batterId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 100.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN runs ELSE 0 END)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS batting_sr, SUM(runs), SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY batterId,inningId HAVING SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) >= 10 ORDER BY batting_sr DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
-        batterId, runs = r
+        batterId, runs, x,y = r
+        inn = f"{x} ({y})"
         batter = bot.get_user(batterId ) or batterId 
-        table.add_row([f"{i}. {batter}", round(runs,2)])
+        table.add_row([f"{i}. {batter}", round(runs,2), inn])
       self.view.stop()
       v = LBview(self.view.ctx, table, v, 'Minimum 10 Balls')
       v.m = await self.view.m.edit(view=v)
@@ -438,13 +439,13 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT bowlerId, CASE WHEN SUM(isWicket)=0 THEN SUM(runs) ELSE 1.0*SUM(runs)/SUM(isWicket) END AS AVG, SUM(isWicket) as wkts FROM deliveries GROUP BY bowlerId HAVING SUM(isWicket)>= 1 ORDER BY AVG ASC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT bowlerId, CASE WHEN SUM(isWicket)=0 THEN SUM(runs) ELSE 1.0*SUM(runs)/SUM(isWicket) END AS AVG, SUM(isWicket) as wkts FROM deliveries GROUP BY bowlerId HAVING COUNT(DISTINCT inningId)>= 10 ORDER BY AVG ASC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs, balls = r
         batter = bot.get_user(batterId ) or batterId 
         table.add_row([f"{i}. {batter}", round(runs,2),balls])
       self.view.stop()
-      v = LBview(self.view.ctx, table, v)
+      v = LBview(self.view.ctx, table, v, "MINIMUM 10 INNINGS")
       v.m = await self.view.m.edit(view=v)
     elif v == 'Best Bowling ECO':
       table = PrettyTable(padding_width=5)
@@ -455,13 +456,30 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT bowlerId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 6.0*SUM(runs)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS economy,COUNT(DISTINCT inningId) AS Inns FROM deliveries GROUP BY bowlerId ORDER BY economy ASC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT bowlerId,CASE WHEN SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 6.0*SUM(runs)/SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) END AS economy,COUNT(DISTINCT inningId) AS Inns FROM deliveries GROUP BY bowlerId HAVING COUNT(DISTINCT inningId) >= 10 ORDER BY economy ASC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs, balls = r
         batter = bot.get_user(batterId ) or batterId 
         table.add_row([f"{i}. {batter}", round(runs,2),balls])
       self.view.stop()
-      v = LBview(self.view.ctx, table, v)
+      v = LBview(self.view.ctx, table, v, "MINIMUM 10 INNINGS")
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Best Bowling SR':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "SR", "Inns"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId,CASE WHEN SUM(CASE WHEN isWicket=1 THEN 1 ELSE 0 END)=0 THEN 0.0 ELSE 1.0*SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END)/SUM(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) END AS strikeRate,COUNT(DISTINCT inningId) AS Inns FROM deliveries GROUP BY bowlerId HAVING COUNT(DISTINCT inningId)>=10 AND SUM(CASE WHEN isWicket=1 THEN 1 ELSE 0 END)>0 ORDER BY strikeRate ASC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        batterId, runs, balls = r
+        batter = bot.get_user(batterId ) or batterId 
+        table.add_row([f"{i}. {batter}", round(runs,2),balls])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v, "MINIMUM 10 INNINGS")
       v.m = await self.view.m.edit(view=v)
     elif v == 'Best Partnerships':
       table = PrettyTable(padding_width=5)

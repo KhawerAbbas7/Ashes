@@ -438,8 +438,16 @@ class Game():
     else:
       teamaP = ""
       teambP = ""
-      for i,p in enumerate(self.teama.players,1):teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**\n`{self.giveDescription(p.id, True, True)}`\n"
-      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**\n`{self.giveDescription(p.id, True, True)}`\n"
+      for i,p in enumerate(self.teama.players,1):
+        s =self.giveDescription(p.id, True, True)
+        if s != "":sc = f"\n`{s}`\n"
+        else: sc = "\n"
+        teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
+        s =self.giveDescription(p.id, True, True)
+        if s != "":sc = f"\n`{s}`\n"
+        else: sc = "\n"
+        teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
@@ -1056,6 +1064,7 @@ class Game():
       if bat%2==1 and len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
     if inn.balls%6==0:
+      inn.timeline.append("|")
       if bowler_p.currentOverRuns == 0:
         bowler_p.maidens += 1
       for b in inn.currentBatters:

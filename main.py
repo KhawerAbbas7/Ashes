@@ -25,15 +25,17 @@ class Ashes(commands.Bot):
     self.games = {}
     self.Gifs = {
       "Batting": [
-        "https://khawigifs.vercel.app/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
-        "https://khawigifs.vercel.app/gifs/Younis%20Khan%20celebrates%20his%20100%20vs%20England%20at%20Lords.gif",
-        "https://khawigifs.vercel.app/gifs/stokes%20celebrates%20vs%20england.gif"
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Younis%20Khan%20celebrates%20his%20100%20vs%20England%20at%20Lords.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/stokes%20celebrates%20vs%20england.gif"
         ],
       "Bowling": [
-        "https://khawigifs.vercel.app/gifs/Travis%20Head%20wicket%20celebration%20v%20Rishab%20Pant.gif",
-        "https://khawigifs.vercel.app/gifs/Dale%20Steyn%20Celebrates%20After%20dismissing%20Katich%20MCG%202008.gif",
-        "https://khawigifs.vercel.app/gifs/Jasprit%20Bumrah%20Celebrates%20After%20dismissing%20Travis%20Head%202024.gif",
-        "https://khawigifs.vercel.app/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Noman%20Ali%20Celebrates%20After%20dismissing%20Mulder%202025.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Sajid%20Khan%20Celebrates%20After%20dismissing%20Jamie%20Smith%202024.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Travis%20Head%20wicket%20celebration%20v%20Rishab%20Pant.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Dale%20Steyn%20Celebrates%20After%20dismissing%20Katich%20MCG%202008.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Jasprit%20Bumrah%20Celebrates%20After%20dismissing%20Travis%20Head%202024.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
         ]
     }
   async def setup_hook(self):
@@ -70,7 +72,8 @@ async def ping( ctx):
   embed = discord.Embed(title= 'Pong', color= discord.Color.from_str('#42f5a1'))
   matches=await bot.fetchrow("SELECT COUNT(DISTINCT matchId) as matches  FROM deliveries", ())
   players=await bot.fetchrow("SELECT COUNT(DISTINCT playerId) FROM (SELECT batterId AS playerId FROM deliveries WHERE batterId IS NOT NULL UNION SELECT nonStrikerId FROM deliveries WHERE nonStrikerId IS NOT NULL UNION SELECT bowlerId FROM deliveries WHERE bowlerId IS NOT NULL) t", ())
-  botstats = f"Guilds: {len(ctx.bot.guilds)}\nCurrent Games: {len(ctx.bot.games)}\nMatches so far: {matches[0]}\nPlayers: {players[0]}\nCPU Usage: {cpu_percent()}%\nLatency: {duration}ms\nDatabase size: {human_readable_size(os.path.getsize(os.path.join(os.getcwd(), 'databases', 'ashes.db')))}"
+  dbsize = await bot.fetchrow("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size();",())
+  botstats = f"Guilds: {len(ctx.bot.guilds)}\nCurrent Games: {len(ctx.bot.games)}\nMatches so far: {matches[0]}\nPlayers: {players[0]}\nCPU Usage: {cpu_percent()}%\nLatency: {duration}ms\nDatabase size: {human_readable_size(dbsize[0])}"
   embed.description = botstats
   return await ctx.send(embed=embed, content="")
 @bot.command()

@@ -569,6 +569,7 @@ class Game():
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+      await self.updateMessage()
       return
     if inn.nextBowlerId and inn.nextBowlerId in [b['id'] for b in options]:
       pid = inn.nextBowlerId 
@@ -602,7 +603,6 @@ class Game():
     ids=view.value or random.sample([i['id'] for i in options], k= 2)
     inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
     inn.cantBat.extend(ids)
-    await self.updateMessage()
   async def selectNextBatter(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
@@ -663,6 +663,7 @@ class Game():
     for p in bowl.players: inn.bowlers[p]=BowlingInning(p)
     self.innings.append(inn)
     await asyncio.gather(self.selectBowler(),self.selectOpeners())
+    await self.updateMessage(True)
   async def sendToNonStriker(self, content= None, **kwargs):
     if len(self.currentInning.currentBatters) == 2:
       p = striker=self.currentInning.currentBatters[1]
@@ -1079,7 +1080,6 @@ class Game():
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.updateMessage(True)
       await self.selectBowler()
-      await self.updateMessage()
   def rawStats(self):
     return {
       "meta": {

@@ -574,6 +574,7 @@ class Game():
       pid = inn.nextBowlerId 
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
       inn.nextBowlerId = None 
+      await self.updateMessage()
       return 
     view=ui.LayoutView(timeout=60)
     view.value=None
@@ -585,7 +586,8 @@ class Game():
     await view.wait()
     pid=view.value or random.choice(options)['id']
     inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
-  
+    if inn.balls != 0:
+      await self.updateMessage()
   async def selectOpeners(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
@@ -600,6 +602,7 @@ class Game():
     ids=view.value or random.sample([i['id'] for i in options], k= 2)
     inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
     inn.cantBat.extend(ids)
+    await self.updateMessage()
   async def selectNextBatter(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
@@ -609,12 +612,14 @@ class Game():
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
+      await self.updateMessage()
       return
     if inn.nextBatterId and inn.nextBatterId in [b['id'] for b in options]:
       pid=inn.nextBatterId
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
       inn.nextBatterId = None
+      await self.updateMessage()
       return
     view=ui.LayoutView(timeout=60)
     view.value=None
@@ -626,6 +631,7 @@ class Game():
     pid=view.value or random.choice(options)['id']
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
     inn.cantBat.append(pid)
+    await self.updateMessage()
   def calculateMvp(self):
     stats = {}
     for inn in self.innings:
@@ -1073,6 +1079,7 @@ class Game():
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.updateMessage(True)
       await self.selectBowler()
+      await self.updateMessage()
   def rawStats(self):
     return {
       "meta": {

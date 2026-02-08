@@ -185,6 +185,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if nextP.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Player didn\'t join.', description='They must have joined .', color=Color.from_str('#b30707')))
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
     inn = g.currentInning
+    if nextP.id not in [p.id for p in team.players]:
+      return await ctx.send(f"Bud is so disgusted with his team that he decided to send a player from another team.")
     if inn.battingTeam.id == team.id:
       if nextP.id in inn.cantBat or nextP.id in [b.id for b in inn.currentBatters]:
         return await ctx.send(f"**{nextP}** is either currently batting or has been dismissed, in both cases you have failed ad a captain.")

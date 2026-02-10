@@ -47,7 +47,7 @@ class Ashes(commands.Bot):
       await self.games[channel.id].saveData()
       self.games[channel.id].forceYeet = True
       self.games.pop(channel.id)
-  await def on_guild_remove(self, guild):
+  async def on_guild_remove(self, guild):
     games = [g for g in self.games.copy().values() if g.ctx.guild.id == guild.id]
     if games:
       for g in games:

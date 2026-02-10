@@ -133,8 +133,12 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g = self.bot.games[ctx.channel.id]
     if g.started or len(g.players) >= 6:
       return await ctx.send(embed= Embed(title='Bot won\'t delete this', description='Either the games has commenced or lobby has 6 or more players, in both cases, it won\'t be deleted.', color=Color.from_str('#b30707')))
-    inSeconds = 1800 - (time.time() - g.lobbyCreatedAt)
-    await ctx.send(f'This game will be deleted <t:{int(g.lobbyCreatedAt + 1800)}:R> (in {inSeconds} seconds)')
+    inSeconds = int(1800 - (time.time() - g.lobbyCreatedAt))
+    if inSeconds >= 60:
+      humanReadable = f"in {int(inSeconds//60)} minutes & {int(inSeconds % 60)} seconds"
+    else:
+      humanReadable  = f"in {inSeconds} seconds"
+    await ctx.send(f'This game will be deleted at <t:{int(g.lobbyCreatedAt + 1800)}:F> ({humanReadable})')
   @commands.command(aliases= [''], description= 'Get the link for live score message.')
   async def live(self, ctx):
     if ctx.channel.id not in self.bot.games:

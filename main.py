@@ -1,5 +1,5 @@
 import discord, os
-from discord.ext import commands
+from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import os, aiosqlite
 from cogs.views import *
@@ -38,6 +38,28 @@ class Ashes(commands.Bot):
         "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
         ]
     }
+  @tasks.loop(seconds= 30)
+  async def gamesDeletionCheck(self):
+    for g in self.games.copy().values():
+      await g.checkIfDeletable()
+  async def on_guild_channel_delete(self, channel):
+    if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:
+      await self.games[channel.id].saveData()
+      self.games[channel.id].forceYeet = True
+      self.games.pop(channel.id)
+  await def on_guild_remove(self, guild):
+    games = [g for g in self.games.copy().values() if g.ctx.guild.id == guild.id]
+    if games:
+      for g in games:
+        await g.saveData()
+        g.forceYeet = True
+        self.games.pop(g.ctx.channel.id)
+  async def on_member_remove(self, member):
+    guild = member.guild
+    for game in self.games.copy().values():
+      if guild.id == game.ctx.guild.id:
+        if member.id in [p.id for p in game.players]:
+          await game.ctx.send(f'**{member.name}** has left the guild.')
   async def setup_hook(self):
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
@@ -64,6 +86,8 @@ class Ashes(commands.Bot):
     await self.db.commit()
   async def on_command_error(self, ctx, error):
     if isinstance(error,commands.CommandNotFound): pass
+  async def on_ready(self):
+    self.gamesDeletionCheck.start()
 bot = Ashes()
 @bot.command()
 async def ping( ctx):

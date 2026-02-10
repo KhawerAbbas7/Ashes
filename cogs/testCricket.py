@@ -1,4 +1,4 @@
-import discord
+import discord, time
 from discord import Embed, Color,ui
 from discord.ext import commands, tasks
 from cogs.game import Game
@@ -126,6 +126,15 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['hltma', 'tl'], description= 'Check how much time is left before bot automatically clears this lobby.')
+  async def timeleft(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.started or len(g.players) >= 6:
+      return await ctx.send(embed= Embed(title='Bot won\'t delete this', description='Either the games has commenced or lobby has 6 or more players, in both cases, it won\'t be deleted.', color=Color.from_str('#b30707')))
+    inSeconds = 1800 - (time.time() - g.lobbyCreatedAt)
+    await ctx.send(f'This game will be deleted <t:{int(g.lobbyCreatedAt + 1800)}:R> (in {inSeconds} seconds)')
   @commands.command(aliases= [''], description= 'Get the link for live score message.')
   async def live(self, ctx):
     if ctx.channel.id not in self.bot.games:
@@ -134,6 +143,55 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if not g.started or not g.updateMsg:
       return await ctx.send(embed= Embed(title='Waiting for Game to Start', description='Game is yet to begin.', color=Color.from_str('#b30707')))
     await ctx.send(f"**[Update Message]({g.updateMsg.jump_url})**")
+  #@commands.command(aliases= ['fo'], description= 'Forfiet the game.', extras={'usableBy': 'Captains only.'})
+  async def forfiet(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if not g.started:return await ctx.send(embed= Embed(title='Match not started', description='Bro wants to forfiet it before start.', color=Color.from_str('#b30707')))
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
+    requestingTeam = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
+    buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam.captain.id), Button('No',discord.ButtonStyle.red ,otherTeam.captain.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"<@{requestingTeam.captain.id}> **are you in your senses to forfiet the game??**\n-# Stats will be counted anyways."))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      g.forfietedById = requestingTeam.id
+      await ctx.send("**Match forfieted**")
+    #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['dr'], description= 'Offer the draw to the opposing captain.', extras={'usableBy': 'Captains only.'})
+  async def drawrequest(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if not g.started:return await ctx.send(embed= Embed(title='Match not started', description='Bro wants to draw it before start.', color=Color.from_str('#b30707')))
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
+    requestingTeam = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
+    otherTeam = g.teamb if ctx.author.id == g.teama.captain.id else g.teama
+    buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam.captain.id), Button('No',discord.ButtonStyle.red ,otherTeam.captain.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"<@{otherTeam.captain.id}> **{requestingTeam.name}** is requesting for a draw, do you agree?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      g.drawnByAgreement = True
+      await ctx.send("**Draw request accepted**")
+    #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['t'], description= 'Call the toss.', extras={'usableBy': 'Host or Captains only.'})
   async def toss(self, ctx):
     if ctx.channel.id not in self.bot.games:

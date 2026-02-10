@@ -91,7 +91,10 @@ class Player():
     return self
 class Game():
   def __init__(self, ctx):
+    self.lobbyCreatedAt = time.time()
     self.gameId = str(uuid7())
+    self.drawnByAgreement = False
+    self.forfeitedById = None
     self.ctx = customCtx(ctx)
     self.hostId = ctx.author.id
     self.teama = Team('Team A')
@@ -108,6 +111,12 @@ class Game():
     self.mvp = None
     self.DEBUG = False
     self.updateMsg = None
+    self.forceYeet = False
+  async def checkIfDeletable(self):
+    if self.started or len(self.players) >= 6: return 
+    if (time.time() - self.lobbyCreatedAt) >= 1800:
+      self.ctx.bot.games.pop(self.ctx.channel.id)
+      return await self.ctx.send("30 Minutes, Less than 6 players, ig it's time yeet this.")
   async def editGracefully(self, m, content= None, **kwargs):
     for _ in range(3):
       try:
@@ -130,7 +139,7 @@ class Game():
     else:
       await self.editGracefully(self.updateMsg, view = self.score())
   async def saveData(self):
-    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls))
+    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls, 1 if self.drawnByAgreement else 0,))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,) for i in self.innings]
     placeholders = ",".join(["?"] * len(data[0]))
     await self.ctx.bot.db.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
@@ -225,9 +234,12 @@ class Game():
     if need>0:return f"{bat.name} need {need} runs to win"
     return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
-    if self.matchTotalBalls >= self.maxBalls:
+    if self.forfeitedById:
+      self.winner = self.teama.name if self.forfeitedById == 2 else self.teamb.name 
+      return f"{self.winner} won by forfiet"
+    if self.matchTotalBalls >= self.maxBalls or self.drawnByAgreement:
       self.winner = 'Drawn'
-      return "Match Drawn"
+      return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
     if len(self.innings)<2:return None
     last=self.currentInning
     bat=last.battingTeam
@@ -650,6 +662,7 @@ class Game():
     self.mvp = best['p']
     return best['p']
   async def startInning(self):
+    if self.checkForWinner() or self.forceYeet: return
     no=len(self.innings)+1
     bat=self.nextBattingTeam()
     bowl=self.teamb if bat==self.teama else self.teama
@@ -705,6 +718,7 @@ class Game():
     bowlerExtraTXT = ""
     batterExtraTXT = ""
     while True:
+      if self.checkForWinner() or self.currentInning.declared or self.forceYeet: return
       ballId = str(uuid7())
       inn=self.currentInning
       striker=inn.currentBatters[0]
@@ -1140,17 +1154,21 @@ class Game():
       self.started = True 
       self.startedAt = time.time()
       for i in range(4):
+        if self.forceYeet: return
         w = self.checkForWinner()
         if w: break
         await self.startInning()
         while True:
+          if self.forceYeet: return
           g = await self.getInputs()
+          if self.forceYeet: return
           if self.v:
             self.v.stop()
           if self.currentInning.balls%6 !=0:
             await self.updateMessage()
           w = self.checkForWinner()
           if g != None or w:
+            if self.drawnByAgreement or self.forfeitedById: break
             bat,bowl=self.battingCard(), self.bowlingCard()
             c =  ui.LayoutView(timeout= 60)
             container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
@@ -1160,7 +1178,7 @@ class Game():
             c.add_item(container)
             await self.ctx.send(view=c, files=[bat, bowl])
             await asyncio.sleep(3)
-            await self.checkFollowOn()
+            if not self.drawnByAgreement:await self.checkFollowOn()
             break
           if self.currentInning.declared:
             await self.ctx.send("**Inning Declared**")
@@ -1180,11 +1198,18 @@ class Game():
       summary=self.matchSummaryCard()
       await self.ctx.send(file=summary)
       duration= time.time() - self.startedAt
-      mvp= self.calculateMvp()
-      hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-      formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
-      if not self.DEBUG:await self.saveData()
-      await self.ctx.send(f"{formatted}")
+      if not self.drawnByAgreement and not self.forfeitedById:
+        mvp= self.calculateMvp()
+        hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
+        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
+        if not self.DEBUG:await self.saveData()
+        await self.ctx.send(f"{formatted}")
+      else:
+        hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
+        formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
+        if not self.DEBUG:await self.saveData()
+        await self.ctx.send(f"{formatted}")
+      
       self.ctx.bot.games.pop(self.ctx.channel.id)
       try: 
         await self.sendRawStats()

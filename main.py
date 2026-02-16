@@ -60,7 +60,13 @@ class Ashes(commands.Bot):
       if guild.id == game.ctx.guild.id:
         if member.id in [p.id for p in game.players]:
           await game.ctx.send(f'**{member.name}** has left the guild.')
+  async def checkIfAllowedCategory(self, ctx):
+    if ctx.guild and ctx.guild.id == 1459434908932902914 and ctx.channel and ctx.channel.category_id != 1472116180666941534 and ctx.author.id != self.owner_id: 
+      await ctx.send("Commands are only usable in <#1472116180666941534>", delete_after=4)
+      return False
+    return True
   async def setup_hook(self):
+    self.add_check(self.checkIfAllowedCategory)
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
     await self.db.execute("PRAGMA foreign_keys = ON")

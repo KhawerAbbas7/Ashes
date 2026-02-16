@@ -105,7 +105,7 @@ class Game():
     self.innings = []
     self.ballsData = []
     self.v = None
-    self.maxBalls = 540
+    self.maxBalls = 180
     self.followOnTeam=None
     self.winner = None
     self.mvp = None

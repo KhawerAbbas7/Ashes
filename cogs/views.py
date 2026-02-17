@@ -834,10 +834,12 @@ class DeclareBTN(ui.Button):
     view.add_item(container)
     await i.followup.send(view=view, ephemeral= True)
     await view.wait()
-    if view.value in ['No', None] and g.currentInning.inningNo == cid:
-      return
-    else:
-      g.currentInning.declared = True
+    if view.value != 'Yes':return
+    if g.currentInning.inningNo != cid:return
+    if g.currentInning.declared:return
+    if g.currentInning.balls == 0:return
+    g.currentInning.declared = True
+    await i.followup.send(content="Inning declared", ephemeral= True)
 class Button(ui.Button):
   def __init__(self, label: str, style, userId: int):
     self.userId = userId

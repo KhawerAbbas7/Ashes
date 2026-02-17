@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS innings(
   bowlingTeam TEXT,
   isDeclared INTEGER,
   isFollowOn INTEGER,
+  inningNo INTEGER,
   FOREIGN KEY(matchId) REFERENCES matches(matchId) ON DELETE CASCADE
 );
 CREATE TABLE IF NOT EXISTS deliveries(

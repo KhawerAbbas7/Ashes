@@ -298,6 +298,7 @@ class Game():
     draw.text((210, 15), battingTeam, font=font, fill=inn.battingTeam.color)
     y = 210.3
     offset = 91.1
+    overlay = Image.open(os.path.join(BASE_DIR, "templates", "NotOutLine.png")).convert("RGBA")
     for p, b in inn.batters.items():
       name = p.name.upper()[:15]
       runs = str(b.runs)
@@ -307,7 +308,6 @@ class Game():
       r_w = font3.getlength(runs)
       b_w = font3.getlength(balls)
       if is_not_out:
-        overlay = Image.open(os.path.join(BASE_DIR, "templates", "NotOutLine.png")).convert("RGBA")
         img.paste(overlay, (74, int(y - 20)), overlay)
         draw.text((121, y), name, font=font2, fill="black", stroke_width=0)
         draw.text((645, y), status_text, font=font2, fill="black")

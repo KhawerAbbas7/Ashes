@@ -270,9 +270,17 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if g.hostId != ctx.author.id and ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
       return await ctx.send(embed= Embed(title='Host or Captain Only', description='This command is only intended to be run by host or captains.', color=Color.from_str('#b30707')))
     if cap.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='New Captain not in Game.', description='New captain must have joined .', color=Color.from_str('#b30707')))
-    team = g.teama if cap.id in [p.id for p in g.teama.players] else g.teamb
-    team.captain = next(p for p in team.players if p.id == cap.id)
-    await ctx.send(f"{cap} will be captaining {team.name}")
+    if g.hostId == ctx.author.id:
+      team = g.teama if cap.id in [p.id for p in g.teama.players] else g.teamb
+      team.captain = next(p for p in team.players if p.id == cap.id)
+      await ctx.send(f"{cap} will be captaining {team.name}")
+    else:
+      team = g.teama if ctx.author.id in [p.id for p in g.teama.players] else g.teamb
+      if cap.id not in [p.id for p in team.players]:
+        return await ctx.send(embed= Embed(title='New Captain not in your team.', description='New captain must be in your  team.', color=Color.from_str('#b30707')))
+      team.captain = next(p for p in team.players if p.id == cap.id)
+      await ctx.send(f"{cap} will be captaining {team.name}")
+    
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['sp'],description= 'Swap between two players.', extras={'usableBy': 'Host only.'})
   async def swap(self, ctx, idx: int, idx2: int):

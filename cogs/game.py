@@ -139,7 +139,7 @@ class Game():
     else:
       await self.editGracefully(self.updateMsg, view = self.score())
   async def saveData(self):
-    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id,self.maxBalls, 1 if self.drawnByAgreement else 0,))
+    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id if self.mvp else None,self.maxBalls, 1 if self.drawnByAgreement else 0,))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,i.inningNo,) for i in self.innings]
     placeholders = ",".join(["?"] * len(data[0]))
     await self.ctx.bot.db.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
@@ -1032,6 +1032,7 @@ class Game():
         await self.selectNextBatter()
       elif not inn.currentBatters:
         return 'Inning Over'
+
     else:
       bowler_p.currentOverRuns += 1
       bowler_p.timeline.append(str(bowl))
@@ -1093,6 +1094,7 @@ class Game():
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.updateMessage(True)
+      if self.checkForWinner() or self.currentInning.declared or self.forceYeet: return
       await self.selectBowler()
   def rawStats(self):
     return {

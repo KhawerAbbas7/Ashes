@@ -139,6 +139,7 @@ class Game():
     else:
       await self.editGracefully(self.updateMsg, view = self.score())
   async def saveData(self):
+    if self.matchTotalBalls == 0: return
     await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id if self.mvp else None,self.maxBalls, 1 if self.drawnByAgreement else 0,))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,i.inningNo,) for i in self.innings]
     placeholders = ",".join(["?"] * len(data[0]))
@@ -533,8 +534,15 @@ class Game():
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"
     rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].BoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
+    runRate = round((self.currentInning.runs/self.currentInning.balls)*6,2) if self.currentInning.balls else 0.00 
+    extraInfo = f"RR: {runRate}"
+    if self.currentInning.inningNo == 4:
+      runsReq = self.teamTotal(self.currentInning.battingTeam) - self.teamTotal(self.currentInning.bowlingTeam) 
+      ballsRem = self.maxBalls - self.matchTotalBalls
+      reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
+      extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
     if len(self.currentInning.currentBatters) == 2:
-      rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]})\n```"]
+      rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]}) {extraInfo}\n```"]
     else: rows += ["\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))

@@ -546,7 +546,7 @@ class Game():
       extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
     if len(self.currentInning.currentBatters) == 2:
       rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]}) {extraInfo}\n```"]
-    else: rows += ["\n```"]
+    else: rows += [f"{extraInfo}\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BatterScore))

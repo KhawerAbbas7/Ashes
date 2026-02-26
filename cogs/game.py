@@ -771,6 +771,7 @@ class Game():
           bowler_p.AFKs = 0
           inn.nextBowlerId = None
           await self.selectBowler()
+          bowlerExtraTXT = ""
         else:
           bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         if striker_p.AFKs == 3:
@@ -798,8 +799,11 @@ class Game():
           inn.cantBat.remove(striker.id)
           inn.nextBatterId = None
           await self.selectNextBatter()
-          if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
+          if inn.currentBatters[0].id != striker.id:
+            batterExtraTXT = ""
+            inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          batterExtraTXT = ""
           striker_p.dismissedBy = "AFK"
           striker_p.dismissed = True
           inn.fallOfWickets.append(str(inn.runs))
@@ -886,8 +890,11 @@ class Game():
           inn.cantBat.remove(striker.id)
           inn.nextBatterId = None
           await self.selectNextBatter()
-          if inn.currentBatters[0].id != striker.id: inn.currentPartnership = [0,0]
+          if inn.currentBatters[0].id != striker.id:
+            batterExtraTXT = ""
+            inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
+          batterExtraTXT = ""
           inn.wickets+=1
           striker_p.dismissedBy = "AFK"
           pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
@@ -973,6 +980,7 @@ class Game():
         if bowler_p.AFKs == 3:
           bowler_p.AFKs = 0
           await self.selectBowler()
+          bowlerExtraTXT = ""
         else:
           bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         await asyncio.sleep(0.3)

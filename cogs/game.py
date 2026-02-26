@@ -72,11 +72,14 @@ class Team():
     self.name = name
     self.id = id
     self.captain = None 
+    self.viceCaptain = None 
     self.players = []
     self.color = "#14f67c" if id == 1 else "#05a9e6"
   def checkForCaptain(self):
     if self.players and (self.captain is None or self.captain not in self.players):
       self.captain = random.choice(self.players)
+    if len(self.players)>= 2 and (self.viceCaptain is None or self.viceCaptain not in self.players):
+      self.viceCaptain = random.choice([p for p in self.players if p.id != self.captain.id])
 class Player():
   def __init__(self):
     self.user,self.name, self.id, self.mention= 0,0,0,0
@@ -435,8 +438,8 @@ class Game():
     if not self.started:
       teamaP = ""
       teambP = ""
-      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
-      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
+      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
@@ -455,12 +458,12 @@ class Game():
         s =self.giveDescription(p.id, True, True)
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
-        teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
+        teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(VC)' if self.teama.viceCaptain and p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
       for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
         s =self.giveDescription(p.id, True, True)
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
-        teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
+        teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
@@ -563,7 +566,7 @@ class Game():
     if self.followOnTeam is not None and self.innings[-1].inningNo == 2:
       return self.followOnTeam
     return self.teamb if self.innings[-1].battingTeam == self.teama else self.teama
-  def giveDescription(self, playerId, bating= False, bowling= False):
+  def giveDescription(self, playerId, batting= False, bowling= False):
     bati=[]
     bowli=[]
     player = next(p for p in self.players if p.id == playerId)
@@ -575,11 +578,11 @@ class Game():
         i=inn.bowlers[player]
         bowli.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bati), " & ".join(bowli)
-    if bating and bowling:
+    if batting and bowling:
       if bat and bowl: return " | ".join([bat,bowl])
       if bat: return bat
       if bowl: return bowl
-    elif bating:return bat if bati else ""
+    elif batting:return bat if bati else ""
     elif bowling: return bowl if bowli else ""
     return ""
   async def selectBowler(self):
@@ -597,7 +600,7 @@ class Game():
       inn.nextBowlerId = None 
       await self.updateMessage()
       return 
-    view=ui.LayoutView(timeout=60)
+    view=ui.LayoutView(timeout=30)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Bowler'))
     view.add_item(ui.TextDisplay(f"{captain.mention} select bowler"))
@@ -609,11 +612,15 @@ class Game():
     inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
     if inn.balls != 0:
       await self.updateMessage()
+    if not view.value: 
+      await self.ctx.send(f"**{inn.bowlingTeam.captain} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      inn.bowlingTeam.captain = inn.bowlingTeam.viceCaptain
+      inn.bowlingTeam.checkForCaptain()
   async def selectOpeners(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bating= True)} for p in inn.battingTeam.players]
-    view=ui.LayoutView(timeout=60)
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players]
+    view=ui.LayoutView(timeout=30)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,2,'Select Openers'))
     view.add_item(ui.TextDisplay(f"{captain.mention} select openers"))
@@ -623,11 +630,15 @@ class Game():
     ids=view.value or random.sample([i['id'] for i in options], k= 2)
     inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
     inn.cantBat.extend(ids)
+    if not view.value: 
+      await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      inn.battingTeam.captain = inn.battingTeam.viceCaptain
+      inn.battingTeam.checkForCaptain()
   async def selectNextBatter(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
     used={p.id for p in inn.currentBatters}
-    options=[{'name':p.name,'id':p.id, 'bating': self.giveDescription(p.id, bowling= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
@@ -641,7 +652,7 @@ class Game():
       inn.nextBatterId = None
       await self.updateMessage()
       return
-    view=ui.LayoutView(timeout=60)
+    view=ui.LayoutView(timeout=30)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Next Batter'))
     view.add_item(ui.TextDisplay(f"{captain.mention} select next batter"))
@@ -652,6 +663,10 @@ class Game():
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
     inn.cantBat.append(pid)
     await self.updateMessage()
+    if not view.value: 
+      await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      inn.battingTeam.captain = inn.battingTeam.viceCaptain
+      inn.battingTeam.checkForCaptain()
   def calculateMvp(self):
     stats = {}
     for inn in self.innings:

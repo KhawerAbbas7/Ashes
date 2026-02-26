@@ -237,16 +237,33 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     await ctx.send(f"{host} is the new host.")
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
-  async def nextplayer(self, ctx, nextP:discord.User):
+  async def nextplayer(self, ctx, nextP:discord.User = None):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
       return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
-    elif not g.started:return await ctx.send(embed= Embed(title='Can\'t be used before start.', description='This command can\'t be used before the commencement of the game.', color=Color.from_str('#b30707')))
-    if nextP.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Player didn\'t join.', description='They must have joined .', color=Color.from_str('#b30707')))
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
     inn = g.currentInning
+    if nextP is None:
+      options=[{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat] if inn.battingTeam.id == team.id else [{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
+      if len(options) <= 1:return await ctx.send("Nothing to select.")
+      view=ui.LayoutView(timeout=30)
+      view.value=None
+      actionRow = ui.ActionRow().add_item(Selection(ctx.author.id,options,1,'Select Batter' if inn.battingTeam.id == team.id else 'Select Bowler'))
+      view.add_item(ui.TextDisplay(f"{ctx.author.mention} Select Batter" if inn.battingTeam.id == team.id else f"{ctx.author.mention} Select Bowler"))
+      view.add_item(actionRow)
+      view.m = await ctx.send(view=view)
+      await view.wait()
+      if view.value:
+        if inn.battingTeam.id == team.id:
+          inn.nextBatterId = view.value
+          return
+        else:
+          inn.nextBowlerId = view.value
+          return
+    elif not g.started:return await ctx.send(embed= Embed(title='Can\'t be used before start.', description='This command can\'t be used before the commencement of the game.', color=Color.from_str('#b30707')))
+    if nextP.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Player didn\'t join.', description='They must have joined .', color=Color.from_str('#b30707')))
     if nextP.id not in [p.id for p in team.players]:
       return await ctx.send(f"Bud is so disgusted with his team that he decided to send a player from another team.")
     if inn.battingTeam.id == team.id:
@@ -262,6 +279,23 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       inn.nextBowlerId = nextP.id
       return await ctx.send(f"**{nextP}** will be bowling next over.")
     
+  @commands.command(aliases= ['cvc', 'vc'],description= 'Change the vice captain of a team.', extras={'usableBy': 'Captains only.'})
+  async def changevicecap(self, ctx, cap:discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by host or captains.', color=Color.from_str('#b30707')))
+    if cap.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Vice Captain not in Game.', description='Vice captain must have joined .', color=Color.from_str('#b30707')))
+    team = g.teama if ctx.author.id in [p.id for p in g.teama.players] else g.teamb
+    if cap.id not in [p.id for p in team.players]:
+      return await ctx.send(embed= Embed(title='Vice Captain not in your team.', description='Vice captain must be in your  team.', color=Color.from_str('#b30707')))
+    if cap.id == ctx.author.id:
+      return await ctx.send(embed= Embed(title='Vice captain must not be captain already.', description='You can\'t vice captain your team when you are already captain bozo.', color=Color.from_str('#b30707')))
+    team.viceCaptain = next(p for p in team.players if p.id == cap.id)
+    await ctx.send(f"**{cap}** will be vice captaining {team.name}")
+    
+    #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['cc'],description= 'Change the captain of a team.', extras={'usableBy': 'Host or Captains only.'})
   async def changecap(self, ctx, cap:discord.User):
     if ctx.channel.id not in self.bot.games:

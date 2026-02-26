@@ -540,7 +540,7 @@ class Game():
     runRate = round((self.currentInning.runs/self.currentInning.balls)*6,2) if self.currentInning.balls else 0.00 
     extraInfo = f"RR: {runRate}"
     if self.currentInning.inningNo == 4:
-      runsReq = self.teamTotal(self.currentInning.battingTeam) - self.teamTotal(self.currentInning.bowlingTeam) 
+      runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
       ballsRem = self.maxBalls - self.matchTotalBalls
       reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
       extraInfo = f"RR: {runRate} RRR: {reqRunRate}"

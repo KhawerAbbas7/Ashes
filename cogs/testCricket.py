@@ -1,4 +1,4 @@
-import discord, time
+import discord, time,random
 from discord import Embed, Color,ui
 from discord.ext import commands, tasks
 from cogs.game import Game
@@ -19,14 +19,20 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     self.bot.games[ctx.channel.id] = g
     return await ctx.channel.send(embed=e)
   @commands.command(aliases= ['j'], description= 'Join an existing match.')
-  async def join(self, ctx):
+  async def join(self, ctx, rep:str= None):
+    isRep = rep in ['r', 'rep']
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
-    elif any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
+    elif not rep and any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
       return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
+    if ctx.author.id in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     if g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     elif len(g.players) == 18:return await ctx.send(embed= Embed(title='18 Players.', description='18 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
+    if isRep:
+      g.join(ctx.author)
+      g.repIds.append(ctx.author.id)
+      return await ctx.send(f'{ctx.author.name} has joined the game as a rep.')
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
   @commands.command(aliases= ['l'], description= 'Leave a game.')
@@ -38,6 +44,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if g.hostId == ctx.author.id:return await ctx.send(embed= Embed(title='Hosts can\'t leave', description='This command is can\'t be run by host', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     p = next((p for p in g.teama.players if p.id == ctx.author.id), None)
+    if ctx.author.id in g.repIds:g.repIds.remove(ctx.author.id)
     if p:
       g.teama.players.pop(g.teama.players.index(p))
     else:
@@ -67,6 +74,17 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if view.value in [None, 'No']: return 
     ctx.bot.games.pop(ctx.channel.id)
     await ctx.send("Game yeeted!")
+  @commands.command(aliases= ['rl'],extras={'usableBy': 'Host only.'}, description= 'Set the limit of runs a rep can score.')
+  async def replimit(self, ctx, limit: int):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif limit < 5:return await ctx.send(embed= Embed(title='Invalid Limit.', description='The score limit for representative player can\'t be less than 5.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    g.repLimit = limit
+    await ctx.send(f'The score limit for representative player has been set to {limit}, reps will automatically be declared out upon reaching the limit.')
   @commands.command(aliases= ['fuck'],extras={'usableBy': 'Host only.'}, description= 'Kick a player from the lobby, only usable before start.')
   async def kick(self, ctx, user: discord.User):
     if ctx.channel.id not in self.bot.games:
@@ -77,6 +95,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif user.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{user} not in Game.', description='User is already not playing.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     p = next((p for p in g.teama.players if p.id == user.id), None)
+    if user.id in g.repIds:g.repIds.remove(user.id)
     if p:
       g.teama.players.pop(g.teama.players.index(p))
     else:
@@ -246,7 +265,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
     inn = g.currentInning
     if nextP is None:
-      options=[{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat] if inn.battingTeam.id == team.id else [{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
+      options=[{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat] if inn.battingTeam.id == team.id else [{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in g.repIds]
       if len(options) <= 1:return await ctx.send("Nothing to select.")
       view=ui.LayoutView(timeout=30)
       view.value=None
@@ -257,10 +276,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       await view.wait()
       if view.value:
         if inn.battingTeam.id == team.id:
-          inn.nextBatterId = view.value
+          inn.nextBatterId = int(view.value)
           return
         else:
-          inn.nextBowlerId = view.value
+          inn.nextBowlerId = int(view.value)
           return
     elif not g.started:return await ctx.send(embed= Embed(title='Can\'t be used before start.', description='This command can\'t be used before the commencement of the game.', color=Color.from_str('#b30707')))
     if nextP.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Player didn\'t join.', description='They must have joined .', color=Color.from_str('#b30707')))
@@ -276,6 +295,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
         return await ctx.send(f"**Hold on a sec**.")
       if nextP.id == inn.currentBowlers[0].id:
         return await ctx.send(f"**{nextP}** is currently bowling bozo.")
+      if nextP.id in g.repIds:
+        return await ctx.send("Representative players can't bowl.")
       inn.nextBowlerId = nextP.id
       return await ctx.send(f"**{nextP}** will be bowling next over.")
     
@@ -307,12 +328,14 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if g.hostId == ctx.author.id:
       team = g.teama if cap.id in [p.id for p in g.teama.players] else g.teamb
       team.captain = next(p for p in team.players if p.id == cap.id)
+      if cap.id == team.viceCaptain.id:team.viceCaptain = random.choice([p for p in team.players if p.id != cap.id])
       await ctx.send(f"{cap} will be captaining {team.name}")
     else:
       team = g.teama if ctx.author.id in [p.id for p in g.teama.players] else g.teamb
       if cap.id not in [p.id for p in team.players]:
         return await ctx.send(embed= Embed(title='New Captain not in your team.', description='New captain must be in your  team.', color=Color.from_str('#b30707')))
       team.captain = next(p for p in team.players if p.id == cap.id)
+      if cap.id == team.viceCaptain.id:team.viceCaptain = random.choice([p for p in team.players if p.id != cap.id])
       await ctx.send(f"{cap} will be captaining {team.name}")
     
     #await ctx.send(view=g.showPlayers())

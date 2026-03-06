@@ -1,6 +1,6 @@
 import random, traceback,os, time,json
 from cogs.views import *
-from discord import ui 
+from discord import Embed, Color,ui
 from collections import deque
 import asyncio
 import discord
@@ -77,7 +77,10 @@ class Team():
     self.color = "#14f67c" if id == 1 else "#05a9e6"
   def checkForCaptain(self):
     if self.players and (self.captain is None or self.captain not in self.players):
-      self.captain = random.choice(self.players)
+      if self.viceCaptain:
+        self.captain = random.choice([p for p in self.players if p.id != self.viceCaptain.id])
+      else:
+        self.captain = random.choice(self.players)
     if len(self.players)>= 2 and (self.viceCaptain is None or self.viceCaptain not in self.players):
       self.viceCaptain = random.choice([p for p in self.players if p.id != self.captain.id])
 class Player():
@@ -107,6 +110,8 @@ class Game():
     self.batFirstTeam = None
     self.innings = []
     self.ballsData = []
+    self.repIds: list[int] = []
+    self.repLimit: int = 20
     self.v = None
     self.maxBalls = 180
     self.followOnTeam=None
@@ -438,11 +443,11 @@ class Game():
     if not self.started:
       teamaP = ""
       teambP = ""
-      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
-      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}\n"
+      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-      container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
+      container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
       actionRow = ui.ActionRow()
       actionRow.add_item(OversSelection())
       container.add_item(actionRow)
@@ -458,15 +463,15 @@ class Game():
         s =self.giveDescription(p.id, True, True)
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
-        teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(VC)' if self.teama.viceCaptain and p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
+        teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(VC)' if self.teama.viceCaptain and p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}`**{sc}"
       for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
         s =self.giveDescription(p.id, True, True)
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
-        teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''}`**{sc}"
+        teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}`**{sc}"
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}"))
+      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
@@ -588,7 +593,7 @@ class Game():
   async def selectBowler(self):
     inn=self.currentInning
     captain=inn.bowlingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
@@ -745,6 +750,7 @@ class Game():
       ballId = str(uuid7())
       inn=self.currentInning
       striker=inn.currentBatters[0]
+      isRep = striker.id in self.repIds
       bowler=inn.currentBowlers[0]
       DaysAndSessions = self.getDaysAndSessions()
       striker_p=inn.batters[striker]
@@ -790,7 +796,8 @@ class Game():
         else:
           bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
         if striker_p.AFKs == 3:
-          self.ballsData.append((
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -824,7 +831,8 @@ class Game():
           inn.fallOfWickets.append(str(inn.runs))
           pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
-          self.ballsData.append((
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -854,7 +862,8 @@ class Game():
           elif not inn.currentBatters:return 'Inning Over'
         else:
           batterExtraTXT = "You were AFK, try this again."
-          self.ballsData.append((
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -881,7 +890,8 @@ class Game():
         await self.ctx.send(f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6")
         await asyncio.sleep(0.3)
         if striker_p.AFKs == 3:
-          self.ballsData.append((
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -915,8 +925,9 @@ class Game():
           pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           inn.fallOfWickets.append(str(inn.runs))
-          striker_p.dismissed = True 
-          self.ballsData.append((
+          striker_p.dismissed = True
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -944,7 +955,8 @@ class Game():
             await self.selectNextBatter();inn.currentPartnership = [0,0]
           elif not inn.currentBatters:return 'Inning Over'
         else:
-          self.ballsData.append((
+          if not(isRep):
+            self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -972,7 +984,8 @@ class Game():
         bowler_p.AFKs += 1
         inn.nextBowlerId = None
         await self.ctx.send(f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3")
-        self.ballsData.append((
+        if not(isRep):
+          self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -1016,7 +1029,8 @@ class Game():
       striker_p.dismissed = True 
       inn.wickets+=1
       bowler_p.timeline.append("W")
-      self.ballsData.append((
+      if not(isRep):
+        self.ballsData.append((
             ballId,
             self.gameId,
             inn.inningId,
@@ -1065,57 +1079,92 @@ class Game():
         return 'Inning Over'
 
     else:
-      bowler_p.currentOverRuns += 1
-      bowler_p.timeline.append(str(bowl))
-      inn.runs+=bat
-      self.ballsData.append((
-            ballId,
-            self.gameId,
-            inn.inningId,
-            inn.inningNo,
-            striker.id,
-            None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
-            bowler.id,
-            1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
-            0,
-            bat,
-            inn.runs,
-            inn.balls,
-            float(self.ballsToOvers(inn.balls)),
-            inn.wickets,
-            bat, bowl,
-            int(time.time()),
-            DaysAndSessions[0], DaysAndSessions[1],
-          ))
-      if bat in [4,6]:
-        if bat == 4: striker_p.fours += 1
-        if bat == 6: striker_p.sixes += 1
-        striker_p.BoundaryThisOver = True
-      if striker_p.runs < 30 and striker_p.runs + bat >= 30:
-        await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
-      elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
-        await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
-      elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
-        await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
-      striker_p.runs+=bat
-      bowler_p.runsConceded+=bat
-      inn.currentPartnership[0] += bat
-      overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
-      youRemainOffStrike = ''
-      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")
-      if bat%2==1 and inn.balls%6!=0:
-        youRemainOffStrike = '\nYou are now on strike.'
-      elif bat%2!=1 and inn.balls%6!=0:
-        youRemainOffStrike = '\nYou stay on non-strike for the next ball.'
-      elif bat%2!=1 and inn.balls%6==0:
-        youRemainOffStrike = '\nYou are now on strike.'
-      await asyncio.sleep(0.3)
-      await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}")
-      await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
-      inn.timeline.append(f"{bat}")
-      if bat%2==1 and len(inn.currentBatters) > 1:
-        inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
+      if isRep and (striker_p.runs + bat) >= self.repLimit:
+        striker_p.dismissed = True 
+        inn.wickets+=1
+        excess = striker_p.runs + bat - self.repLimit
+        realNumber = bat - excess
+        bowler_p.runsConceded+=realNumber
+        bowler_p.currentOverRuns += realNumber
+        inn.runs+=realNumber
+        inn.fallOfWickets.append(str(inn.runs))
+        inn.currentPartnership[0] += realNumber
+        if realNumber in [4,6]:
+          if realNumber == 4: striker_p.fours += 1
+          if realNumber == 6: striker_p.sixes += 1
+        striker_p.runs+=realNumber
+        bowler_p.timeline.append(str(bowl))
+        inn.timeline.append(f"W{realNumber}")
+        pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**\n"
+        txt = f"{pship}**{striker.name} has reached the rep limit ({self.repLimit}) and therefore he is going off.**"
+        if excess:
+          txt += f"The batter scored {bat} on the previous delivery, but it has been revised to {realNumber} due to the rep limit."
+        await self.sendWicketGraphic(striker.name.upper()[:18], f"REP LIMT REACHED", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, None)
+        await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat} (revised to {realNumber} due to rep limit)\nAnd he is out!!")
+        await asyncio.sleep(0.3)
+        await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}. **Your number was reassessed to {realNumber}**\nYou have reached the rep limit with this shot, therefore you are being **declared out**.")
+        await asyncio.sleep(0.3)
+        await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat} (reassessed to {realNumber}**\nBowler -> {bowl}")
+        inn.currentPartnership = [0,0]
+        await asyncio.sleep(0.3)
+        inn.currentBatters.pop(0)
+        if len(inn.cantBat) < len(inn.battingTeam.players):
+          await self.selectNextBatter()
+        elif not inn.currentBatters:
+          return 'Inning Over'
+      else:
+        bowler_p.currentOverRuns += bat
+        bowler_p.timeline.append(str(bowl))
+        inn.runs+=bat
+        if not(isRep):
+          self.ballsData.append((
+              ballId,
+              self.gameId,
+              inn.inningId,
+              inn.inningNo,
+              striker.id,
+              None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
+              bowler.id,
+              1 if cando0 else 0,
+              0 if striker_p.BoundaryThisOver else 1, 
+              0,
+              bat,
+              inn.runs,
+              inn.balls,
+              float(self.ballsToOvers(inn.balls)),
+              inn.wickets,
+              bat, bowl,
+              int(time.time()),
+              DaysAndSessions[0], DaysAndSessions[1],
+            ))
+        if bat in [4,6]:
+          if bat == 4: striker_p.fours += 1
+          if bat == 6: striker_p.sixes += 1
+          striker_p.BoundaryThisOver = True
+        if striker_p.runs < 30 and striker_p.runs + bat >= 30:
+          await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+        elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
+          await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+        elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
+          await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+        striker_p.runs+=bat
+        bowler_p.runsConceded+=bat
+        inn.currentPartnership[0] += bat
+        overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
+        youRemainOffStrike = ''
+        await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")
+        if bat%2==1 and inn.balls%6!=0:
+          youRemainOffStrike = '\nYou are now on strike.'
+        elif bat%2!=1 and inn.balls%6!=0:
+          youRemainOffStrike = '\nYou stay on non-strike for the next ball.'
+        elif bat%2!=1 and inn.balls%6==0:
+          youRemainOffStrike = '\nYou are now on strike.'
+        await asyncio.sleep(0.3)
+        await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}")
+        await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
+        inn.timeline.append(f"{bat}")
+        if bat%2==1 and len(inn.currentBatters) > 1:
+          inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
     if inn.balls%6==0:
       inn.timeline.append("|")
       if bowler_p.currentOverRuns == 0:
@@ -1136,7 +1185,9 @@ class Game():
         "endTime": time.time(),
         "settings": {"maxBalls": self.maxBalls},
         "guild": self.ctx.guild.id,
-        "channel": self.ctx.channel.id
+        "channel": self.ctx.channel.id,
+        "repLimit": self.repLimit,
+        "repIds": self.repIds
       },
       "result": {
         "winner": self.winner,
@@ -1144,8 +1195,8 @@ class Game():
         "status": self.matchStatus()
       },
       "teams": {
-        "A": {"name": self.teama.name, "captain": self.teama.captain.id if self.teama.captain else None, "players": [{"id": p.id, "name": p.name} for p in self.teama.players]},
-        "B": {"name": self.teamb.name, "captain": self.teamb.captain.id if self.teamb.captain else None, "players": [{"id": p.id, "name": p.name} for p in self.teamb.players]}
+        "A": {"name": self.teama.name, "captain": self.teama.captain.id if self.teama.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in self.repIds} for p in self.teama.players]},
+        "B": {"name": self.teamb.name, "captain": self.teamb.captain.id if self.teamb.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in self.repIds} for p in self.teamb.players]}
       },
       "innings": [
         {
@@ -1163,6 +1214,7 @@ class Game():
               "balls": b.balls,
               "sr": b.sr,
               "dismissed": b.dismissed,
+              "isRep": p.id in self.repIds
             } for p, b in i.batters.items()
           ],
           "bowling": [

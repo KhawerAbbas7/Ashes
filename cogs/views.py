@@ -81,6 +81,12 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     q_params=[uid]+filter_params_bat
   bo=await ctx.bot.fetchrow(q, tuple(q_params))
   bunny=f"{ctx.bot.get_user(bo[0])} ({bo[1]} times in {bo[2]} balls)" if bo else "—"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT bowlerId, SUM(runs) r, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY bowlerId ORDER BY r DESC, b ASC LIMIT 1"
+    q_params=[uid]+filter_params_bat
+  bo=await ctx.bot.fetchrow(q, tuple(q_params))
+  ownerOf=f"{ctx.bot.get_user(bo[0])} ({bo[1]} runs off {bo[2]} balls)" if bo else "—"
   q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)"
   q_params=[uid,uid,uid]
   if filter_sql_bat:
@@ -160,7 +166,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bowl_econ=round((conceded/overs),2) if overs else 0
   bowl_avg = round((conceded/wkts),2) if wkts else 0.00
   bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
-  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{ctx.bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "MVPs": mvps}
+  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{ctx.bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Off": ownerOf,"MVPs": mvps}
   battxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
   container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))

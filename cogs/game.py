@@ -443,8 +443,19 @@ class Game():
     if not self.started:
       teamaP = ""
       teambP = ""
-      for i,p in enumerate(self.teama.players,1):teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
-      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+      playersData = {}
+      for i,p in enumerate(self.teama.players,1):
+        playersData[i-1] = {
+          "teamName": self.teama.name,
+          "playerName": p.name
+        }
+        teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+      for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
+        teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+        playersData[i-1] = {
+          "teamName": self.teamb.name,
+          "playerName": p.name
+        }
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
@@ -455,6 +466,11 @@ class Game():
       container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      actionRow = ui.ActionRow()
+      if len(self.players) >= 2:
+        actionRow.add_item(PlayersSwapSelection(playersData))
+        container.add_item(actionRow)
       view.add_item(container)
     else:
       teamaP = ""

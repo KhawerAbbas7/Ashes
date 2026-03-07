@@ -51,7 +51,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       p = next((p for p in g.teamb.players if p.id == ctx.author.id), None) 
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
-    await ctx.send(f'{ctx.author} has decided to be a prick and left the game')
+    await ctx.send(f'{ctx.author} has left the game.')
   @commands.command(aliases= ['delete'], description= 'Delete a game, cannot be used if gane has started.',extras={'usableBy': 'Host only.'})
   async def yeet(self, ctx):
     if ctx.channel.id not in self.bot.games:

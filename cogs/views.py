@@ -183,6 +183,20 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   container.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {footer_txt}"),accessory=FiltersBtn(ctx.author.id)))
   view.add_item(container)
   return view
+class PlayersSwapSelection(ui.Select):
+  def __init__(self, players):
+    options = [
+      discord.SelectOption(label= v['playerName'], description= v['teamName'], value = k) for k,v in players.items()
+      ]
+    super().__init__(placeholder= "Swap", min_values=2, max_values=2, options=options)
+  async def callback(self, interaction: discord.Interaction):
+    g = interaction.client.games[interaction.channel.id]
+    if interaction.user.id != g.hostId:
+      return await interaction.response.send_message("Only usable by host.", ephemeral= True)
+    elif g.started: return
+    idx1, idx2 = self.values
+    g.swap(int(idx1), int(idx2))
+    await interaction.response.edit_message(view= g.showPlayers())
 class OversSelection(ui.Select):
   def __init__(self):
     options = [

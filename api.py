@@ -22,7 +22,6 @@ class RankingCog(commands.Cog):
   async def cog_unload(self):
     if self.runner:
       await self.runner.cleanup()
-
   async def fetch_user_data(self, user_id):
     user = self.bot.get_user(user_id)
     if not user:
@@ -44,7 +43,6 @@ class RankingCog(commands.Cog):
 
   async def health_check(self, request):
     return web.json_response({"status": "online"}, headers=self.get_cors_headers())
-
   async def get_batting(self, request):
     try:
       page = int(request.query.get('page', 1))

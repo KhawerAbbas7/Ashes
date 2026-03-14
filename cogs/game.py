@@ -246,9 +246,6 @@ class Game():
     if self.forfeitedById:
       self.winner = self.teama.name if self.forfeitedById == 2 else self.teamb.name 
       return f"{self.winner} won by forfiet"
-    if self.matchTotalBalls >= self.maxBalls or self.drawnByAgreement:
-      self.winner = 'Drawn'
-      return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
     if len(self.innings)<2:return None
     last=self.currentInning
     bat=last.battingTeam
@@ -281,6 +278,9 @@ class Game():
       if last.runs>=target:
         self.winner = bat.name
         return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
+    if self.matchTotalBalls >= self.maxBalls or self.drawnByAgreement:
+      self.winner = 'Drawn'
+      return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
     return None
   def mitigatePlayers(self):
     combined= self.players
@@ -873,7 +873,7 @@ class Game():
           await self.sendToNonStriker("Striker was declared out because of being AFK.")
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):
-            inn.nextBowlerId = None
+            inn.nextBatterId = None
             await self.selectNextBatter(); inn.currentPartnership = [0,0]
           elif not inn.currentBatters:return 'Inning Over'
         else:
@@ -998,7 +998,7 @@ class Game():
       elif bat_ok and not bowl_ok:
         for t in pending: t.cancel()
         bowler_p.AFKs += 1
-        inn.nextBowlerId = None
+        
         await self.ctx.send(f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3")
         if not(isRep):
           self.ballsData.append((
@@ -1023,6 +1023,7 @@ class Game():
           ))
         if bowler_p.AFKs == 3:
           bowler_p.AFKs = 0
+          inn.nextBowlerId = None
           await self.selectBowler()
           bowlerExtraTXT = ""
         else:

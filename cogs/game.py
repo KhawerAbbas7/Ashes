@@ -782,18 +782,39 @@ class Game():
         allowed={'1','2','3','4','6'}
       def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
       def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
-      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))}) **within 20s**"
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})"
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
       batview.add_item(ui.TextDisplay(battxt))
+      batview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       bowlview = ui.LayoutView(timeout=None)
       bowlview.add_item(self.score(True))
-      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6) **within 20s**"))
-      await striker.send(view=batview)
-      await bowler.send(view=bowlview)
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6)"))
+      bowlview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
+      msg1= await striker.send(view=batview)
+      msg2 = await bowler.send(view=bowlview)
       bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
       bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
-      done,pending=await asyncio.wait([bat_task,bowl_task],timeout=20)
+      async def runCountdown():
+        start_time = time.time()
+        rangesToEdit = [17, 13, 10, 7, 5, 3, 2, 1]
+        edited = set()
+        while True:
+          if bat_task.done() and bowl_task.done(): break
+          elapsed = time.time() - start_time
+          remaining = 20 - int(elapsed)
+          if remaining <= 0: break
+          if remaining in rangesToEdit and remaining not in edited:
+            edited.add(remaining)
+            if not bat_task.done():
+              batview.find_item(37).content = f"Respond within: {remaining} second(s)"
+              await self.editGracefully(msg1, view=batview)
+            if not bowl_task.done():
+              bowlview.find_item(37).content = f"Respond within: {remaining} second(s)"
+              await self.editGracefully(msg2, view=bowlview)
+          await asyncio.sleep(0.5)
+      countdown_task= asyncio.create_task(runCountdown())
+      done,pending=await asyncio.wait([bat_task,bowl_task, countdown_task],timeout=20)
       bat_ok=bat_task in done and not bat_task.cancelled()
       bowl_ok=bowl_task in done and not bowl_task.cancelled()
       if not bat_ok and not bowl_ok:

@@ -255,6 +255,40 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.hostId = host.id
     await ctx.send(f"{host} is the new host.")
     #await ctx.send(view=g.showPlayers())
+  @commands.command(aliases= ['sub'],description= 'Substitute a player with another player.', extras={'usableBy': 'Captains only.'})
+  async def impact(self, ctx, playerA:discord.User, playerB: discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
+    elif playerA.id not in [p.id for p in g.players]:
+      return await ctx.send(embed= Embed(title='Player not in Game', description=f'{playerA} is not playing in this channel.', color=Color.from_str('#b30707')))
+    elif playerB.id in [p.id for p in g.players]:
+      return await ctx.send(embed= Embed(title='Player not in Game', description=f'{playerB} is already playing in this channel.', color=Color.from_str('#b30707')))
+    elif playerA.id == ctx.author.id:
+      return await ctx.send(embed= Embed(title='You can\'t be subbed off', description=f'Captains cannot sub themselves.', color=Color.from_str('#b30707')))
+    team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
+    inn = g.currentInning
+    if len(team.subbedOffIds) >= 2:
+      return await ctx.send(embed= Embed(title='Maximum Impact Players Used', description=f'There\'s a limit of 2 subs which is reached by {team.name}.', color=Color.from_str('#b30707')))
+    elif playerB.id in team.subbedOffIds:
+      return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed off.', color=Color.from_str('#b30707')))
+    buttons = [Button('Yes',discord.ButtonStyle.green,playerB.id), Button('No',discord.ButtonStyle.red ,playerB.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    view.add_item(ui.TextDisplay(f"{playerB.mention}"))
+    container.add_item(ui.TextDisplay(f"**{team.name}** is requesting you to sub {playerA}, do you agree?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      g.subAPlayer(playerA, playerB)
+      await ctx.send(f"{playerA} 🔻\n{playerB} 🔺")
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   async def nextplayer(self, ctx, nextP:discord.User = None):
     if ctx.channel.id not in self.bot.games:
@@ -265,7 +299,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
     inn = g.currentInning
     if nextP is None:
-      options=[{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat] if inn.battingTeam.id == team.id else [{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in g.repIds]
+      options=[{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat and p.id not in inn.battingTeam.subbedOffIds] if inn.battingTeam.id == team.id else [{'name':p.name,'id':p.id, 'description': g.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in g.repIds and p.id not in inn.bowlingTeam.subbedOffIds]
       if len(options) <= 1:return await ctx.send("Nothing to select.")
       view=ui.LayoutView(timeout=30)
       view.value=None
@@ -288,6 +322,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if inn.battingTeam.id == team.id:
       if nextP.id in inn.cantBat or nextP.id in [b.id for b in inn.currentBatters]:
         return await ctx.send(f"**{nextP}** is either currently batting or has been dismissed, in both cases you have failed ad a captain.")
+      elif nextP.id in inn.battingTeam.subbedOffIds:
+        return await ctx.send(f"**{nextP}** has been subbed off.")
       inn.nextBatterId = nextP.id
       await ctx.send(f"**{nextP}** will be batting next.")
     else:
@@ -297,9 +333,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
         return await ctx.send(f"**{nextP}** is currently bowling bozo.")
       if nextP.id in g.repIds:
         return await ctx.send("Representative players can't bowl.")
+      elif nextP.id in inn.bowlingTeam.subbedOffIds:
+        return await ctx.send(f"**{nextP}** has been subbed off.")
       inn.nextBowlerId = nextP.id
       return await ctx.send(f"**{nextP}** will be bowling next over.")
-    
   @commands.command(aliases= ['cvc', 'vc'],description= 'Change the vice captain of a team.', extras={'usableBy': 'Captains only.'})
   async def changevicecap(self, ctx, cap:discord.User):
     if ctx.channel.id not in self.bot.games:

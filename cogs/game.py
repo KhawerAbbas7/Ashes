@@ -74,6 +74,8 @@ class Team():
     self.captain = None 
     self.viceCaptain = None 
     self.players = []
+    self.subbedOffIds = []
+    self.subbedInIds = []
     self.color = "#14f67c" if id == 1 else "#05a9e6"
   def checkForCaptain(self):
     if self.players and (self.captain is None or self.captain not in self.players):
@@ -290,6 +292,20 @@ class Game():
     self.teama.players = combined[:mid + extra]
     self.teamb.players = combined[mid + extra:]
     self.teama.checkForCaptain();self.teamb.checkForCaptain()
+  def subAPlayer(self, userPlaying, userImpact):
+    inn = self.currentInning
+    team = self.teama if userPlaying.id in [p.id for p in self.teama.players] else self.teamb 
+    player = next(p for p in team.players if p.id == userPlaying.id)
+    team.players.remove(player)
+    playerObject = Player().fromUser(userImpact)
+    team.players.append(playerObject)
+    if team.id == inn.battingTeam.id:
+      inn.batters[playerObject] = BattingInning(playerObject)
+    else:
+      inn.bowlers[playerObject] = BowlingInning(playerObject)
+    team.subbedOffIds.append(userPlaying.id)
+    team.subbedInIds.append(userImpact.id)
+    return True
   def join(self, user):
     self.teama.players.append(Player().fromUser(user))
     self.mitigatePlayers()
@@ -609,7 +625,7 @@ class Game():
   async def selectBowler(self):
     inn=self.currentInning
     captain=inn.bowlingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds and p.id not in inn.bowlingTeam.subbedOffIds]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
@@ -640,7 +656,7 @@ class Game():
   async def selectOpeners(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.battingTeam.subbedOffIds]
     view=ui.LayoutView(timeout=30)
     view.value=None
     actionRow = ui.ActionRow().add_item(Selection(captain.id,options,2,'Select Openers'))
@@ -659,7 +675,7 @@ class Game():
     inn=self.currentInning
     captain=inn.battingTeam.captain
     used={p.id for p in inn.currentBatters}
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat]
+    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat and p.id not in inn.battingTeam.subbedOffIds]
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))

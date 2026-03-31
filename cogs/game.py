@@ -652,6 +652,7 @@ class Game():
     if not view.value: 
       await self.ctx.send(f"**{inn.bowlingTeam.captain} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain} (VC) is being appointed as Captain**")
       inn.bowlingTeam.captain = inn.bowlingTeam.viceCaptain
+      inn.bowlingTeam.viceCaptain = None 
       inn.bowlingTeam.checkForCaptain()
   async def selectOpeners(self):
     inn=self.currentInning
@@ -670,6 +671,7 @@ class Game():
     if not view.value: 
       await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
       inn.battingTeam.captain = inn.battingTeam.viceCaptain
+      inn.battingTeam.viceCaptain = None 
       inn.battingTeam.checkForCaptain()
   async def selectNextBatter(self):
     inn=self.currentInning
@@ -703,6 +705,7 @@ class Game():
     if not view.value: 
       await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
       inn.battingTeam.captain = inn.battingTeam.viceCaptain
+      inn.battingTeam.viceCaptain = None 
       inn.battingTeam.checkForCaptain()
   def calculateMvp(self):
     stats = {}

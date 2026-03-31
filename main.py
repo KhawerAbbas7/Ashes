@@ -61,7 +61,7 @@ class Ashes(commands.Bot):
         if member.id in [p.id for p in game.players]:
           await game.ctx.send(f'**{member.name}** has left the guild.')
   async def checkIfAllowedCategory(self, ctx):
-    if ctx.guild and ctx.guild.id == 1459434908932902914 and ctx.channel and ctx.channel.category_id != 1472116180666941534 and ctx.author.id != self.owner_id: 
+    if ctx.guild and ctx.guild.id == 1459434908932902914 and ctx.channel and ctx.channel.category_id not in [ 1472116180666941534, 1487368949552255106] and ctx.author.id != 759713678013890560: 
       await ctx.send("Commands are only usable in <#1472116180666941534>", delete_after=4)
       return False
     return True

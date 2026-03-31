@@ -260,7 +260,9 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
-    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+    if not g.started:
+      return await ctx.send(embed= Embed(title='Cannot use before start', description='This command is only intended to be run after game has commenced.', color=Color.from_str('#b30707')))
+    elif ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
       return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
     elif playerA.id not in [p.id for p in g.players]:
       return await ctx.send(embed= Embed(title='Player not in Game', description=f'{playerA} is not playing in this channel.', color=Color.from_str('#b30707')))

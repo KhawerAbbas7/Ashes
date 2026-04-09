@@ -267,7 +267,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif playerA.id not in [p.id for p in g.players]:
       return await ctx.send(embed= Embed(title='Player not in Game', description=f'{playerA} is not playing in this channel.', color=Color.from_str('#b30707')))
     elif playerB.id in [p.id for p in g.players]:
-      return await ctx.send(embed= Embed(title='Player not in Game', description=f'{playerB} is already playing in this channel.', color=Color.from_str('#b30707')))
+      return await ctx.send(embed= Embed(title='Player in Game', description=f'{playerB} is already playing in this channel.', color=Color.from_str('#b30707')))
     elif playerA.id == ctx.author.id:
       return await ctx.send(embed= Embed(title='You can\'t be subbed off', description=f'Captains cannot sub themselves.', color=Color.from_str('#b30707')))
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
@@ -276,6 +276,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Maximum Impact Players Used', description=f'There\'s a limit of 2 subs which is reached by {team.name}.', color=Color.from_str('#b30707')))
     elif playerB.id in team.subbedOffIds:
       return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed off.', color=Color.from_str('#b30707')))
+    elif playerA.id in team.subbedInIds:
+      return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed in.', color=Color.from_str('#b30707')))
     buttons = [Button('Yes',discord.ButtonStyle.green,playerB.id), Button('No',discord.ButtonStyle.red ,playerB.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None
@@ -289,6 +291,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     await ctx.send(view=view)
     await view.wait()
     if view.value == "Yes":
+      if playerB.id in [p.id for p in g.players]:
+        return
       g.subAPlayer(playerA, playerB)
       await ctx.send(f"{playerA} 🔻\n{playerB} 🔺")
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})

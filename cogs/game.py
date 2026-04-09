@@ -293,6 +293,8 @@ class Game():
     self.teamb.players = combined[mid + extra:]
     self.teama.checkForCaptain();self.teamb.checkForCaptain()
   def subAPlayer(self, userPlaying, userImpact):
+    if userPlaying.id not in [p.id for p in self.players]: return 
+    if userImpact.id in [p.id for p in self.players]: return
     inn = self.currentInning
     team = self.teama if userPlaying.id in [p.id for p in self.teama.players] else self.teamb 
     player = next(p for p in team.players if p.id == userPlaying.id)

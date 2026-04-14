@@ -294,7 +294,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if playerB.id in [p.id for p in g.players]:
         return
       g.subAPlayer(playerA, playerB)
-      await ctx.send(f"{playerA} 🔻\n{playerB} 🔺")
+      await ctx.send(embed= Embed(title='Impact Player', description=f'**{team.name}** have decided to sub in **{playerB}** for **{playerA}**', color=Color.from_str(team.color)))
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   async def nextplayer(self, ctx, nextP:discord.User = None):
     if ctx.channel.id not in self.bot.games:

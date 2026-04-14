@@ -306,6 +306,8 @@ class Game():
     else:
       inn.bowlers[playerObject] = BowlingInning(playerObject)
     team.subbedOffIds.append(userPlaying.id)
+    if userPlaying.id == self.hostId:
+      self.hostId = team.captain.id
     team.subbedInIds.append(userImpact.id)
     return True
   def join(self, user):
@@ -841,7 +843,7 @@ class Game():
       if not bat_ok and not bowl_ok:
         for t in pending: t.cancel()
         bowler_p.AFKs += 1; striker_p.AFKs += 1
-        await self.ctx.send(f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: {bowler_p.AFKs}/3\nBatter AFKs: {striker_p.AFKs}/6")
+        await self.ctx.send(embed= Embed(title="**AFK**", description=f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: {bowler_p.AFKs}/3\nBatter AFKs: {striker_p.AFKs}/6", color=Color.from_str('#b30707')))
         await asyncio.sleep(0.3)
         await striker.send(f"You didn't respond in time. Replaying the ball.\n{'' if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
         await asyncio.sleep(0.3)
@@ -945,7 +947,7 @@ class Game():
       elif not bat_ok and bowl_ok:
         for t in pending: t.cancel()
         striker_p.AFKs += 1
-        await self.ctx.send(f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6")
+        await self.ctx.send(embed= Embed(title="**AFK**", description=f"Batter was afk, replaying the ball\nBatter AFKs: {striker_p.AFKs}/6", color=Color.from_str('#b30707')))
         await asyncio.sleep(0.3)
         if striker_p.AFKs == 3:
           if not(isRep):
@@ -1040,8 +1042,7 @@ class Game():
       elif bat_ok and not bowl_ok:
         for t in pending: t.cancel()
         bowler_p.AFKs += 1
-        
-        await self.ctx.send(f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3")
+        await self.ctx.send(embed= Embed(title="**AFK**", description=f"Bowler was afk, replaying the ball.\nBowler AFKs: {bowler_p.AFKs}/3", color=Color.from_str('#b30707')))
         if not(isRep):
           self.ballsData.append((
             ballId,

@@ -278,6 +278,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed off.', color=Color.from_str('#b30707')))
     elif playerA.id in team.subbedInIds:
       return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed in.', color=Color.from_str('#b30707')))
+    if playerA.id in [p.id for p in inn.currentBatters]:
+        return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who is already on crease.', color=Color.from_str('#b30707')))
+    if inn.currentBowlers and playerA.id == inn.currentBowlers[0].id:
+        return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who is already on crease.', color=Color.from_str('#b30707')))
     buttons = [Button('Yes',discord.ButtonStyle.green,playerB.id), Button('No',discord.ButtonStyle.red ,playerB.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None

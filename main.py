@@ -1,4 +1,4 @@
-import discord, os
+import discord, os, json
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import os, aiosqlite
@@ -23,6 +23,7 @@ class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
     super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None)
     self.games = {}
+    self.staticData = {}
     self.Gifs = {
       "Batting": [
         "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
@@ -61,11 +62,14 @@ class Ashes(commands.Bot):
         if member.id in [p.id for p in game.players]:
           await game.ctx.send(f'**{member.name}** has left the guild.')
   async def checkIfAllowedCategory(self, ctx):
-    if ctx.guild and ctx.guild.id == 1459434908932902914 and ctx.channel and ctx.channel.category_id not in [ 1472116180666941534, 1487368949552255106, 1489207294842503258] and ctx.author.id != 759713678013890560: 
+    if ctx.guild and ctx.guild.id == 1459434908932902914 and ctx.channel and ctx.channel.id != 1472117725135376499 and ctx.author.id != 759713678013890560: 
       await ctx.send("Commands are only usable in <#1472116180666941534>", delete_after=4)
       return False
     return True
+  def loadStaticData(self):
+    self.staticData = json.load(open('staticData.json', 'r'))
   async def setup_hook(self):
+    self.loadStaticData()
     self.add_check(self.checkIfAllowedCategory)
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))

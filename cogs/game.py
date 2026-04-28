@@ -749,6 +749,7 @@ class Game():
       p = striker=self.currentInning.currentBatters[1]
       await asyncio.sleep(1)
       await p.send(content, **kwargs)
+  def getGif(self,userId,achievement):return self.ctx.bot.staticData['customGIFs'].get(str(userId),{}).get(achievement)
   async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None, achievement= None):
     img=Image.open(os.path.join(os.getcwd(), "templates/wicket.png")).convert("RGBA")
     draw=ImageDraw.Draw(img)
@@ -778,7 +779,7 @@ class Game():
       if achievement:
         container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
         container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
-        container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']), spoiler = False)))
+        container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
       c.add_item(container)
       await self.ctx.send(file= i, view= c)
   async def getInputs(self):
@@ -1202,11 +1203,11 @@ class Game():
           if bat == 6: striker_p.sixes += 1
           striker_p.BoundaryThisOver = True
         if striker_p.runs < 30 and striker_p.runs + bat >= 30:
-          await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+          await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '30') is None else self.getGif(striker.id, '30')})")
         elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
-          await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+          await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '50') is None else self.getGif(striker.id, '50')})")
         elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
-          await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting'])})")
+          await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
         striker_p.runs+=bat
         bowler_p.runsConceded+=bat
         inn.currentPartnership[0] += bat

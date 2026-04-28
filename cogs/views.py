@@ -56,8 +56,8 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   if og or uid in [882988325810614353]:
     container.add_item(ui.TextDisplay(f"{ogEmoji}\n-# I have played a key role in the development and success of this bot."))
     container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-    if uid in ctx.bot.staticData['WTC Winners']:
-      container.add_item(ui.TextDisplay(f"**WTC SEASON 1 WINNER 🏆**" if uid != 1021706711003832352 else "**WTC SEASON 1 WINNER 🏆** as Captain 🥶"))
+  if uid in ctx.bot.staticData['WTC Winners']:
+    container.add_item(ui.TextDisplay(f"**WTC SEASON 1 WINNER 🏆**" if uid != 1021706711003832352 else "**WTC SEASON 1 WINNER 🏆** as Captain 🥶"))
   q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries WHERE batterId=?"
   q_params=[uid]
   if filter_sql_bat:

@@ -95,4 +95,57 @@ class Statistics(commands.Cog, name= "Statistics"):
       table.add_row([f"{i}. {batter}", afks])
     v = ShamefulLBview(ctx, table, "Most AFKs")
     v.m =await ctx.send(view=v)
+  @commands.command(aliases= ['Badges'], description= 'View the achievements/Badges.')
+  async def achievements(self, ctx, target: discord.User = None):
+    if not target: target = ctx.author
+    Badges = []
+    row=await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?",(target.id,target.id,1768935600))
+    if row[0]!=0:
+      Badges.append("early_supporter")
+    officialGuild = ctx.bot.get_guild(1459434908932902914) 
+    moderatorRole= officialGuild.get_role(1462101976983535721) 
+    moderatorIds = [m.id for m in moderatorRole.members]
+    if target.id in moderatorIds:
+      Badges.append("official_moderator")
+    if target.id in ctx.bot.staticData['Tournaments']['1459434908932902914']['WTC SEASON 1']['Winning Players']:
+      if target.id == ctx.bot.staticData['Tournaments']['1459434908932902914']['WTC SEASON 1']['Winning Captain']:
+        Badges.append("WTCS1winningCap")
+      else:
+        Badges.append("WTCS1winner")
+    if target.id in ctx.bot.staticData['Tournaments']['1459434908932902914']['WTC SEASON 1']['CaptainsIds']:
+      Badges.append("WTCS1CAP")
+    if target.id in ctx.bot.staticData['Tournaments']['1366370821190451272']['RTC SEASON 1']['CaptainsIds']:
+      Badges.append("RTCS1CAP")
+    if target.id in ctx.bot.staticData['Tournaments']['1366370821190451272']['RTC SEASON 1']['Winning Players']:
+      if target.id == ctx.bot.staticData['Tournaments']['1366370821190451272']['RTC SEASON 1']['Winning Captain']:
+        Badges.append("RTCS1winningCap")
+      else:
+        Badges.append("RTCS1winner")
+    firstEverGame = [759713678013890560, 882228764237508628, 998615189651980400, 1038042742858715146]
+    if target.id in firstEverGame:
+      Badges.append("first_game")
+    """
+    centurions= await ctx.bot.fetchall("SELECT DISTINCT batterId FROM (SELECT batterId FROM deliveries GROUP BY matchId, inningId, batterId HAVING SUM(runs) >= 100);")
+    centurions = [p[0] for p in centurions]
+    if target.id in centurions:
+      Badges.append("Century Maker")
+    """
+    rows=await ctx.bot.fetchall("SELECT DISTINCT bowlerId FROM (SELECT bowlerId,CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL) t WHERE is_hattrick=1;",())
+    hattrickTakers=[r[0] for r in rows] 
+    if target.id in hattrickTakers:
+      Badges.append("hattrick_taker")
+    is100games = await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId) >= 100 AS has100Plus FROM deliveries WHERE batterId = ? OR bowlerId = ?;",(target.id,target.id))
+    is100games = is100games[0]
+    if is100games:
+      Badges.append("100+_games")
+    view=ui.LayoutView(timeout=30)
+    container=ui.Container(accent_color=discord.Colour.from_str("#0737b3"))
+    section = ui.Section(f"## {target}'s Achievements", accessory= discord.ui.Thumbnail(f"https://wsrv.nl/?url={target.avatar.url}&mask=circle" if target.avatar else ctx.bot.user.avatar.url))
+    container.add_item(section)
+    container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+    for b in Badges:
+      container.add_item(ui.Section(f"- {ctx.bot.staticData['achievements'][b]['description']}", accessory= discord.ui.Thumbnail(f"https://wsrv.nl/?url={ctx.bot.staticData['achievements'][b]['img_url']}&w=128&h=128&fit=contain")))
+      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+    view.add_item(container)
+    return await ctx.send(view=view)
 async def setup(bot):await bot.add_cog(Statistics(bot))

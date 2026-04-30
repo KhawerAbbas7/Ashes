@@ -1,5 +1,24 @@
 {
-  "WTC Winners": [930724419691741205, 961261599748923492, 871958885290893322, 706930327553310811, 1021706711003832352, 732894356800798771, 1191750544625246361, 1241464080313749574, 1195665161747447883, 835569981706076211, 700939815608254477],
+  "Tournaments": {
+    "1459434908932902914": {
+      "WTC SEASON 1": {
+        "Winner": "Bangladesh",
+        "Runner ups": "Sri Lanka",
+        "Winning Captain": 1021706711003832352,
+        "Winning Players": [930724419691741205, 961261599748923492, 871958885290893322, 706930327553310811, 1021706711003832352, 732894356800798771, 1191750544625246361, 1241464080313749574, 1195665161747447883, 835569981706076211, 700939815608254477],
+        "CaptainsIds": [1021706711003832352,1433808517642326046,897476826924998698,1218150186388422698,1170727793840111746,1232747532157845628,794193365545386005,1294966910986883093,1086533143625998357]
+      }
+    },
+    "1366370821190451272": {
+      "RTC SEASON 1": {
+        "Winner": "C Cricket Club",
+        "Runner ups": "One Potato Two Potato",
+        "Winning Captain": 794193365545386005,
+        "Winning Players": [994192911493247037,928825975796559952,754652411859304508,849256217146949661,1261933221533188149,976549749811474483,794193365545386005,690549928757559297,690549928757559297,835171428176756806,764458297281347624 ],
+        "CaptainsIds": [1244979225924993094,742398117751816242,764550163024707584,882228764237508628,796036120353439784,1428652318382882883,794193365545386005,1248712296218497034,1246878985690808361]
+      }
+    }
+  },
   "customGIFs": {
     "1244979225924993094": {
       "3fer": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEgHRckEG6t4FClt40UNUzYymr8xpMwhKD8XH9rACW64YyTaEdaVPqGxouBxGpIHxmkZh6MtaPIs5KBUB5reDVqAI4gJzhYxjTzMpy-6uPbmI1f9L132_tlfP3WhT_hBOPagI63vMQRdiw09/s1600/insta%25281%2529.gif"
@@ -15,6 +34,52 @@
     },
     "700939815608254477": {
       "3fer": "https://media1.tenor.com/m/YEiuhWymaQIAAAAC/mitchell-starc-yorker.gif"
+    }
+  },
+  "achievements": {
+    "first_game": {
+      "description": "Played the first ever game.",
+      "img_url": "https://i.ibb.co/1GGBYhZx/first-game.png"
+    },
+    "early_supporter": {
+      "description": "Supported the bot in early days.",
+      "img_url": "https://i.ibb.co/1tQCjxmM/early.png"
+    },
+    "official_moderator": {
+      "description": "Serving as moderator in the [official server](https://discord.gg/knCECtZQvZ).",
+      "img_url": "https://i.ibb.co/s99PCZPH/official-mod.png"
+    },
+    "100+_games": {
+      "description": "Played 100+ games.",
+      "img_url": "https://i.ibb.co/Xhx4qsr/100-games-1.png"
+    },
+    "hattrick_taker": {
+      "description": "Took a hattrick.",
+      "img_url": "https://i.ibb.co/dshctDhy/hattrick.png"
+    },
+    "WTCS1winningCap": {
+      "description": "Won the first ever tournament (WTC S1) held in  [official server](https://discord.gg/knCECtZQvZ) **as a captain**.",
+      "img_url": "https://i.ibb.co/2YPgrqZ6/WTC-1-W-Cap.png"
+    },
+    "RTCS1winningCap": {
+      "description": "Won the first ever tournament of Ashes - Ramadan Test Championship (The Dugout) **as a captain**.",
+      "img_url": "https://i.ibb.co/hFnmWrbt/RTC-1-W-Cap.png"
+    },
+    "WTCS1winner": {
+      "description": "Won the first ever tournament held in  [official server](https://discord.gg/knCECtZQvZ).",
+      "img_url": "https://i.ibb.co/Q7YxRRQ0/WTC-1-W.png"
+    },
+    "RTCS1winner": {
+      "description": "Won the first ever tournament of Ashes - Ramadan Test Championship (The Dugout).",
+      "img_url": "https://i.ibb.co/GfxCfzmq/RTC-1-W-1.png"
+    },
+    "WTCS1CAP": {
+      "description": "Captained in first ever tournament held in  [official server](https://discord.gg/knCECtZQvZ)",
+      "img_url": "https://i.ibb.co/zVrXcj3B/WTC-1-Cap.png"
+    },
+    "RTCS1CAP": {
+      "description": "Captained in first ever tournament of Ashes - Ramadan Test Championship (The Dugout).",
+      "img_url": "https://i.ibb.co/j9WLbRzf/RTC-1-Cap.png"
     }
   }
 }

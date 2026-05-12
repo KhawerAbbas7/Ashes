@@ -909,7 +909,7 @@ class ShowScoreButton(ui.Button):
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
-    container.add_item(ui.TextDisplay(f"###{user}'s Score\n**Batting:** {bat}\n**Bowling:**{bowl}"))
+    container.add_item(ui.TextDisplay(f"### {user}'s Score\n**Batting:** {bat}\n**Bowling:**{bowl}"))
     if timeline:
       container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))

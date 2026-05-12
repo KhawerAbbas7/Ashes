@@ -878,7 +878,7 @@ class ShowScoreButton(ui.Button):
   def __init__(self, Game, BatterIndex = None, BowlerIndex = None): 
     self.Game = Game
     self.BatterIndex = BatterIndex
-    self.BowlerIndex = Bowler 
+    self.BowlerIndex = BowlerIndex 
     self.isBatter = True if self.BatterIndex is not None else False
     emoji = "🏏" if self.isBatter else "🥎"
     index = self.BatterIndex if self.BatterIndex is not None else self.BowlerIndex
@@ -905,7 +905,7 @@ class ShowScoreButton(ui.Button):
         i=inn.bowlers[player]
         tookWickets = i.wicketsDigits
         timeline = i.timeline
-        if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+        if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 

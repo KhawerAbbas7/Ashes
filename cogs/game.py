@@ -641,15 +641,15 @@ class Game():
         ballsRem = 60 - self.currentInning.balls
         reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
         extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
-    for i, b in enumerate(self.currentInning.currentBatters):
-      actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
+    for i, b in enumerate(self.currentInning.currentBatters):actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
     if len(self.currentInning.currentBatters) == 2:
       rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]}) {extraInfo}\n```"]
     else: rows += [f"{extraInfo}\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BatterScore))
-    container.add_item(actionRow)
+    if self.currentInning.currentBatters:
+      container.add_item(actionRow)
     header = f"**` {'Bowlers'.ljust(16)}{'R'.rjust(4)}{'W'.rjust(4)}{'O'.rjust(9)}`**"
     rows = ["```py\n"] + [f"{b.name.ljust(16)}{str(self.currentInning.bowlers[b].runsConceded).rjust(4)}{str(self.currentInning.bowlers[b].wickets).rjust(4)}{str(self.ballsToOvers(self.currentInning.bowlers[b].balls)).rjust(9)}" for b in self.currentInning.currentBowlers] + ["\n```"]
     BowlersScore = "\n".join([header] + rows)
@@ -658,7 +658,8 @@ class Game():
       actionRow.add_item(ShowScoreButton(Game=self,BowlerIndex=i))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BowlersScore))
-    container.add_item(actionRow)
+    if self.currentInning.currentBowlers:
+      container.add_item(actionRow)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     if len(self.currentInning.timeline) > 0:
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in self.currentInning.timeline])))

@@ -22,6 +22,8 @@ async def get_pre(bot, message):
 class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
     super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None)
+    self.supportServerLink = "https://discord.gg/uxchR7sKd2"
+    self.creationBlocked= False
     self.games = {}
     self.staticData = {}
     self.Gifs = {

@@ -99,7 +99,10 @@ class Player():
     return self
 class Game():
   def __init__(self, ctx):
+    self.T10 = False
     self.lobbyCreatedAt = time.time()
+    self.lobbyLocked = False
+    self.bannedUsers = []
     self.gameId = str(uuid7())
     self.drawnByAgreement = False
     self.forfeitedById = None
@@ -194,6 +197,7 @@ class Game():
     self.teama.checkForCaptain();self.teamb.checkForCaptain()
     return True
   async def checkFollowOn(self):
+    if self.T10: return
     if len(self.innings)==2:
       first=self.innings[0].battingTeam
       second=self.innings[1].battingTeam
@@ -221,69 +225,102 @@ class Game():
   def matchStatus(self):
     w = self.checkForWinner()
     if w: return w
-    inn=self.currentInning
-    bat=inn.battingTeam
-    bowl=inn.bowlingTeam
-    batTotal=self.teamTotal(bat)
-    bowlTotal=self.teamTotal(bowl)
-    innsBat=len(self.inningsByTeam(bat))
-    innsBowl=len(self.inningsByTeam(bowl))
-    if len(self.innings)==1:return f"{bat.name} are batting"
-    if inn.inningNo == 2:
-      lead=bowlTotal-batTotal
-      if lead>=self.followOnLimit:
-        avoidFO = (lead - self.followOnLimit)+1 
-        return f"{bat.name} need {avoidFO} runs to avoid follow-on."
-    if len(self.innings)<4:
-      diff=batTotal-bowlTotal
-      if diff>0:return f"{bat.name} lead by {diff} runs"
-      if diff<0:return f"{bat.name} trail by {abs(diff)} runs"+(" (follow-on)" if self.followOnTeam==bat else "")
-      return "Scores are level"
-    batPrev=batTotal-inn.runs
-    target=(bowlTotal-batPrev)+1
-    need=target-inn.runs
-    if need>0:return f"{bat.name} need {need} runs to win"
-    return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
+    if not self.T10:
+      inn=self.currentInning
+      bat=inn.battingTeam
+      bowl=inn.bowlingTeam
+      batTotal=self.teamTotal(bat)
+      bowlTotal=self.teamTotal(bowl)
+      innsBat=len(self.inningsByTeam(bat))
+      innsBowl=len(self.inningsByTeam(bowl))
+      if len(self.innings)==1:return f"{bat.name} are batting"
+      if inn.inningNo == 2:
+        lead=bowlTotal-batTotal
+        if lead>=self.followOnLimit:
+          avoidFO = (lead - self.followOnLimit)+1 
+          return f"{bat.name} need {avoidFO} runs to avoid follow-on."
+      if len(self.innings)<4:
+        diff=batTotal-bowlTotal
+        if diff>0:return f"{bat.name} lead by {diff} runs"
+        if diff<0:return f"{bat.name} trail by {abs(diff)} runs"+(" (follow-on)" if self.followOnTeam==bat else "")
+        return "Scores are level"
+      batPrev=batTotal-inn.runs
+      target=(bowlTotal-batPrev)+1
+      need=target-inn.runs
+      if need>0:return f"{bat.name} need {need} runs to win"
+      return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
+    else:
+      inn=self.currentInning
+      bat=inn.battingTeam
+      bowl=inn.bowlingTeam
+      batTotal=self.teamTotal(bat)
+      bowlTotal=self.teamTotal(bowl)
+      innsBat=len(self.inningsByTeam(bat))
+      innsBowl=len(self.inningsByTeam(bowl))
+      if len(self.innings)==1:return f"{bat.name} are batting"
+      batPrev=batTotal-inn.runs
+      target=(bowlTotal-batPrev)+1
+      need=target-inn.runs
+      if need>0:return f"{bat.name} need {need} runs to win"
+      return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
-    if self.forfeitedById:
-      self.winner = self.teama.name if self.forfeitedById == 2 else self.teamb.name 
-      return f"{self.winner} won by forfiet"
-    if len(self.innings)<2:return None
-    last=self.currentInning
-    bat=last.battingTeam
-    bowl=last.bowlingTeam
-    batTotal=self.teamTotal(bat)
-    bowlTotal=self.teamTotal(bowl)
-    if not last.currentBatters and len(last.cantBat)==len(bat.players):
-      if self.followOnTeam==bat and last.inningNo == 3:
-        lead=bowlTotal-batTotal
-        if lead>0:
+    if not self.T10:
+      if self.forfeitedById:
+        self.winner = self.teama.name if self.forfeitedById == 2 else self.teamb.name 
+        return f"{self.winner} won by forfiet"
+      if len(self.innings)<2:return None
+      last=self.currentInning
+      bat=last.battingTeam
+      bowl=last.bowlingTeam
+      batTotal=self.teamTotal(bat)
+      bowlTotal=self.teamTotal(bowl)
+      if not last.currentBatters and len(last.cantBat)==len(bat.players):
+        if self.followOnTeam==bat and last.inningNo == 3:
+          lead=bowlTotal-batTotal
+          if lead>0:
+            self.winner = bowl.name
+            return f"{bowl.name} have won by an innings and {lead} runs"
+        elif len(self.innings)==3:
+          lead=bowlTotal-batTotal
+          if (batTotal- bowlTotal) < 0:
+            self.winner = bowl.name
+            return f"{bowl.name} have won by an innings and {lead} runs"
+        elif len(self.innings)==4:
+          batPrev=batTotal-last.runs
+          target=(bowlTotal-batPrev)+1
+          if last.runs==target-1:
+            self.winner = "Tied"
+            return "Match Tied"
+        if len(self.innings)==4:
           self.winner = bowl.name
-          return f"{bowl.name} have won by an innings and {lead} runs"
-      elif len(self.innings)==3:
-        lead=bowlTotal-batTotal
-        if (batTotal- bowlTotal) < 0:
-          self.winner = bowl.name
-          return f"{bowl.name} have won by an innings and {lead} runs"
-      elif len(self.innings)==4:
+          return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
+      if len(self.innings)==4:
         batPrev=batTotal-last.runs
         target=(bowlTotal-batPrev)+1
-        if last.runs==target-1:
-          self.winner = "Tied"
-          return "Match Tied"
-      if len(self.innings)==4:
-        self.winner = bowl.name
-        return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
-    if len(self.innings)==4:
-      batPrev=batTotal-last.runs
-      target=(bowlTotal-batPrev)+1
-      if last.runs>=target:
-        self.winner = bat.name
-        return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
-    if self.matchTotalBalls >= self.maxBalls or self.drawnByAgreement:
-      self.winner = 'Drawn'
-      return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
-    return None
+        if last.runs>=target:
+          self.winner = bat.name
+          return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
+      if self.matchTotalBalls >= self.maxBalls or self.drawnByAgreement:
+        self.winner = 'Drawn'
+        return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
+      return None
+    else:
+      if len(self.innings)<2: return 
+      else:
+        last=self.currentInning
+        bat=last.battingTeam
+        bowl=last.bowlingTeam
+        batTotal=self.teamTotal(bat)
+        bowlTotal=self.teamTotal(bowl)
+        if bowlTotal > batTotal and not last.currentBatters and len(last.cantBat)==len(bat.players):
+          self.winner = bowl.name
+          return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
+        elif bowlTotal == batTotal and not last.currentBatters and len(last.cantBat)==len(bat.players):
+          self.winner = 'Tied'
+          return f"Match Tied"
+        elif batTotal > bowlTotal:
+          self.winner = bat.name
+          return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
   def mitigatePlayers(self):
     combined= self.players
     total = len(combined)
@@ -478,11 +515,15 @@ class Game():
         }
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-      container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
-      actionRow = ui.ActionRow()
-      actionRow.add_item(OversSelection())
-      container.add_item(actionRow)
-      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      if not self.T10:
+        container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+        actionRow = ui.ActionRow()
+        actionRow.add_item(OversSelection())
+        container.add_item(actionRow)
+        container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      else:
+        container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**T10:** ✅\n**Rep Limit:** {self.repLimit}"))
+        
       container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
@@ -555,16 +596,23 @@ class Game():
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
     DaysAndSessions = self.getDaysAndSessions()
-    container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
+    if not self.T10:
+      container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
+    else: 
+      container.add_item(ui.TextDisplay(f"**T10**"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
-        s += f" ({self.ballsToOvers(i.balls)})"
+        if not self.T10:
+          s += f" ({self.ballsToOvers(i.balls)})"
+        else:
+          s += f" ({self.ballsToOvers(i.balls)}/10)"
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
-    Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
+    if not self.T10:
+      Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
     showDeclareBtn = True
     if self.currentInning.inningNo >= 2:
       last=self.currentInning
@@ -580,22 +628,37 @@ class Game():
     rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].BoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
     runRate = round((self.currentInning.runs/self.currentInning.balls)*6,2) if self.currentInning.balls else 0.00 
     extraInfo = f"RR: {runRate}"
-    if self.currentInning.inningNo == 4:
-      runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
-      ballsRem = self.maxBalls - self.matchTotalBalls
-      reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
-      extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
+    actionRow = ui.ActionRow()
+    if not self.T10:
+      if self.currentInning.inningNo == 4:
+        runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
+        ballsRem = self.maxBalls - self.matchTotalBalls
+        reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
+        extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
+    else:
+      if self.currentInning.inningNo == 2:
+        runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
+        ballsRem = 60 - self.currentInning.balls
+        reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
+        extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
+    for i, b in enumerate(self.currentInning.currentBatters):
+      actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
     if len(self.currentInning.currentBatters) == 2:
       rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]}) {extraInfo}\n```"]
     else: rows += [f"{extraInfo}\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BatterScore))
+    container.add_item(actionRow)
     header = f"**` {'Bowlers'.ljust(16)}{'R'.rjust(4)}{'W'.rjust(4)}{'O'.rjust(9)}`**"
     rows = ["```py\n"] + [f"{b.name.ljust(16)}{str(self.currentInning.bowlers[b].runsConceded).rjust(4)}{str(self.currentInning.bowlers[b].wickets).rjust(4)}{str(self.ballsToOvers(self.currentInning.bowlers[b].balls)).rjust(9)}" for b in self.currentInning.currentBowlers] + ["\n```"]
     BowlersScore = "\n".join([header] + rows)
+    actionRow = ui.ActionRow()
+    for i,b in enumerate(self.currentInning.currentBowlers):
+      actionRow.add_item(ShowScoreButton(Game=self,BowlerIndex=i))
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     container.add_item(ui.TextDisplay(BowlersScore))
+    container.add_item(actionRow)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
     if len(self.currentInning.timeline) > 0:
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in self.currentInning.timeline])))
@@ -1138,7 +1201,7 @@ class Game():
         await self.selectNextBatter()
       elif not inn.currentBatters:
         return 'Inning Over'
-
+      if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
     else:
       if isRep and (striker_p.runs + bat) >= self.repLimit:
         striker_p.dismissed = True 
@@ -1173,6 +1236,7 @@ class Game():
           await self.selectNextBatter()
         elif not inn.currentBatters:
           return 'Inning Over'
+        if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
       else:
         bowler_p.currentOverRuns += bat
         bowler_p.timeline.append(str(bowl))
@@ -1226,6 +1290,7 @@ class Game():
         inn.timeline.append(f"{bat}")
         if bat%2==1 and len(inn.currentBatters) > 1:
           inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
+    if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
     if inn.balls%6==0:
       inn.timeline.append("|")
       if bowler_p.currentOverRuns == 0:
@@ -1299,7 +1364,7 @@ class Game():
     try:
       self.started = True 
       self.startedAt = time.time()
-      for i in range(4):
+      for i in range(4 if not self.T10 else 2):
         if self.forceYeet: return
         w = self.checkForWinner()
         if w: break
@@ -1307,6 +1372,7 @@ class Game():
         while True:
           if self.forceYeet: return
           g = await self.getInputs()
+          
           if self.forceYeet: return
           if self.v:
             self.v.stop()
@@ -1348,12 +1414,12 @@ class Game():
         mvp= self.calculateMvp()
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
-        if not self.DEBUG:await self.saveData()
+        if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       else:
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
-        if not self.DEBUG:await self.saveData()
+        if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       
       self.ctx.bot.games.pop(self.ctx.channel.id)

@@ -11,15 +11,11 @@ class Analytics(commands.Cog):
     self.cordia.start(loop=self.bot.loop)
     print("📊 Cordia Analytics: Background Loops Started")
     await self.cordia.post_guild_count(len(self.bot.guilds))
-
   @commands.Cog.listener()
   async def on_command_completion(self, ctx):
-    await self.cordia.track_command(command=ctx.command.name,user_id=str(ctx.author.id),guild_id=str(ctx.guild.id) if ctx.guild else None)
-  @commands.Cog.listener()
-  async def on_message(self, message):
-    if message.author.bot:return
-    await self.cordia.track_user(user_id=str(message.author.id),guild_id=str(message.guild.id) if message.guild else None,action="message_sent")
-
+    if ctx.interaction:
+      await self.cordia.track_interaction(ctx.interaction)
+    else:await self.cordia.track_message(ctx.message, ctx.command.name)
   async def cog_unload(self):
     await self.cordia.close()
     print("💾 Cordia Analytics: Final flush performed.")

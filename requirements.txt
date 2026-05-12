@@ -6,4 +6,4 @@ uuid6
 aiosqlite
 prettytable
 psutil
-cordia
+Cordia>=1.2.3

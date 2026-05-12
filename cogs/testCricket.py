@@ -9,6 +9,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
+    if ctx.bot.creationBlocked:
+      return await ctx.send(embed= Embed(title='Cannot Create!', description='Creation of new games has been temporarily blocked. Join the [support server](https://discord.gg/uxchR7sKd2) to find out why.', color=Color.from_str('#b30707')))
     if ctx.channel.id in self.bot.games:
       return await ctx.send(embed= Embed(title='There is already a game in this channel', description='Looks like this channel is already hosting a game.', color=Color.from_str('#b30707')))
     elif any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
@@ -26,6 +28,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif not rep and any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
       return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
+    if g.lobbyLocked: 
+      return await ctx.send(embed= Embed(title='Lobby Locked.', description='Lobby is locked, no can join.', color=Color.from_str('#b30707')))
+    elif ctx.author.id in g.bannedUsers:
+      return await ctx.send(embed= Embed(title='Banned.', description='You have been banned from the lobby.', color=Color.from_str('#b30707')))
     if ctx.author.id in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
     if g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     elif len(g.players) == 18:return await ctx.send(embed= Embed(title='18 Players.', description='18 players have joined this game, therefore you can\'t sneak in.', color=Color.from_str('#b30707')))
@@ -52,6 +58,16 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{ctx.author} has left the game.')
+  @commands.command(aliases= ['T10'], description= 'Change the format to T10.',extras={'usableBy': 'Host only.'})
+  async def t10on(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    g.T10 = True if not g.T10 else False
+    await ctx.send("Changed the format to T10" if not g.T10 else "Changed the format to T10")
   @commands.command(aliases= ['delete'], description= 'Delete a game, cannot be used if gane has started.',extras={'usableBy': 'Host only.'})
   async def yeet(self, ctx):
     if ctx.channel.id not in self.bot.games:
@@ -74,6 +90,19 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if view.value in [None, 'No']: return 
     ctx.bot.games.pop(ctx.channel.id)
     await ctx.send("Game yeeted!")
+  @commands.command(aliases= ['unlock'],extras={'usableBy': 'Host only.'}, description= 'Lock the lobby so no one can join.')
+  async def lock(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    g.lobbyLocked = True if not g.lobbyLocked else False
+    if g.lobbyLocked:
+      return await ctx.send(embed= Embed(title='Lobby Locked.', description='Lobby has been locked, no one new can join.', color=Color.from_str('#b30707')))
+    else:
+      return await ctx.send(embed= Embed(title='Lobby Unlocked.', description='Lobby has been unlocked.', color=Color.from_str('#1fb307')))
   @commands.command(aliases= ['rl'],extras={'usableBy': 'Host only.'}, description= 'Set the limit of runs a rep can score.')
   async def replimit(self, ctx, limit: int):
     if ctx.channel.id not in self.bot.games:
@@ -85,6 +114,43 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     g.repLimit = limit
     await ctx.send(f'The score limit for representative player has been set to {limit}, reps will automatically be declared out upon reaching the limit.')
+  @commands.command(aliases= [],extras={'usableBy': 'Host only.'}, description= 'Unban someone from the lobby.')
+  async def unban(self, ctx, user: discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif user.id not in g.bannedUsers:return await ctx.send(embed= Embed(title=f'User is Unbanned.', description='User is already unbanned.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    g.bannedUsers.remove(user.id)
+    return await ctx.send(embed= Embed(title=f'{user} Unbanned.', description=f'{user} has been unbanned and join this lobby.', color=Color.from_str('#07b334')))
+  @commands.command(aliases= [],extras={'usableBy': 'Host only.'}, description= 'Ban someone from the lobby.')
+  async def ban(self, ctx, user: discord.User):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if g.hostId != ctx.author.id:
+      return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif user.id == ctx.author.id:
+      return await ctx.send(embed= Embed(title="Can't Ban", description='You cannot ban yourself.', color=Color.from_str('#b30707')))
+    
+    elif user.id in g.bannedUsers:return await ctx.send(embed= Embed(title=f'User is Banned.', description='User is already banned.', color=Color.from_str('#b30707')))
+    elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
+    if user.id not in [p.id for p in g.players]:
+      g.bannedUsers.append(user.id)
+      return await ctx.send(embed= Embed(title=f'{user} Banned.', description=f'{user} has been banned and cannot join this lobby.', color=Color.from_str('#b30707')))
+    else:
+      p = next((p for p in g.teama.players if p.id == user.id), None)
+      if user.id in g.repIds:g.repIds.remove(user.id)
+      if p:
+        g.teama.players.pop(g.teama.players.index(p))
+      else:
+        p = next((p for p in g.teamb.players if p.id == user.id), None) 
+        if p:g.teamb.players.pop(g.teamb.players.index(p))
+      g.mitigatePlayers()
+      g.bannedUsers.append(user.id)
+      return await ctx.send(embed= Embed(title=f'{user} Banned.', description=f'{user} has been banned and cannot join this lobby.', color=Color.from_str('#b30707')))
   @commands.command(aliases= ['fuck'],extras={'usableBy': 'Host only.'}, description= 'Kick a player from the lobby, only usable before start.')
   async def kick(self, ctx, user: discord.User):
     if ctx.channel.id not in self.bot.games:
@@ -92,6 +158,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g = self.bot.games[ctx.channel.id]
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
+    elif user.id == ctx.author.id:
+      return await ctx.send(embed= Embed(title="Can't Kick", description='You cannot Kick yourself.', color=Color.from_str('#b30707')))
     elif user.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title=f'{user} not in Game.', description='User is already not playing.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     p = next((p for p in g.teama.players if p.id == user.id), None)
@@ -133,8 +201,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
     container.add_item(ui.TextDisplay(f"**Batting:** {bat}\n**Bowling:**{bowl}"))
     if timeline:
+      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))
     if tookWickets:
+      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
       w = " • ".join([f'**{t}**' for t in tookWickets])
       container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
     view.add_item(container)

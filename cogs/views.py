@@ -874,6 +874,51 @@ class Button(ui.Button):
     await i.response.defer()
     self.view.value = self.lab
     self.view.stop()
+class ShowScoreButton(ui.Button):
+  def __init__(self, Game, BatterIndex = None, BowlerIndex = None): 
+    self.Game = Game
+    self.BatterIndex = BatterIndex
+    self.BowlerIndex = Bowler 
+    self.isBatter = True if self.BatterIndex is not None else False
+    emoji = "🏏" if self.isBatter else "🥎"
+    index = self.BatterIndex if self.BatterIndex is not None else self.BowlerIndex
+    super().__init__(emoji = emoji, style=discord.ButtonStyle.primary if index == 0 else discord.ButtonStyle.secondary)
+  async def callback(self, interaction):
+    g = self.Game
+    inn = g.currentInning
+    if self.isBatter:
+      user = inn.currentBatters[self.BatterIndex]
+    else:
+      user = inn.currentBowlers[self.BowlerIndex]
+    bat=[]
+    bowl=[]
+    timeline=[]
+    tookWickets = []
+    player = next(p for p in g.players if p.id == user.id)
+    for inn in g.innings:
+      if player in inn.batters:
+        tookWickets = []
+        i=inn.batters[player]
+        timeline = i.timeline
+        if i.balls>0: bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
+      if player in inn.bowlers:
+        i=inn.bowlers[player]
+        tookWickets = i.wicketsDigits
+        timeline = i.timeline
+        if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+    bat, bowl = " & ".join(bat), " & ".join(bowl)
+    view = ui.LayoutView(timeout= 60)
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
+    container.add_item(ui.TextDisplay(f"###{user}'s Score\n**Batting:** {bat}\n**Bowling:**{bowl}"))
+    if timeline:
+      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+      container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))
+    if tookWickets:
+      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+      w = " • ".join([f'**{t}**' for t in tookWickets])
+      container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
+    view.add_item(container)
+    await interaction.response.send_message(view=view, ephemeral = True)
 class HelpButton(ui.Button):
   def __init__(self,lab, disabledd: bool):
     self.lab = lab

@@ -95,7 +95,7 @@ class Ashes(commands.Bot):
       content = message.content[1:]
       if not content: return await self.process_commands(message)
       if len(content) >= 150: return await self.process_commands(message)
-      g = next((g for g in self.games.copy().values() if any(ctx.author.id==p.id for p in g.players)),None)
+      g = next((g for g in self.games.copy().values() if any(message.author.id==p.id for p in g.players)),None)
       if g:
         if message.content.startswith(".") and len(g.currentInning.currentBatters) == 2 and message.author.id in [b.id for b in g.currentInning.currentBatters]:
           p = next(b for b in g.currentInning.currentBatters if b.id != message.author.id) 

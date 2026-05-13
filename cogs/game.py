@@ -810,7 +810,7 @@ class Game():
     await self.updateMessage(True)
   async def sendToNonStriker(self, content= None, **kwargs):
     if len(self.currentInning.currentBatters) == 2:
-      p = striker=self.currentInning.currentBatters[1]
+      p =self.currentInning.currentBatters[1]
       await asyncio.sleep(1)
       await p.send(content, **kwargs)
   def getGif(self,userId,achievement):return self.ctx.bot.staticData['customGIFs'].get(str(userId),{}).get(achievement)
@@ -1422,8 +1422,11 @@ class Game():
         formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
-      
+      for p in self.players:
+        if p.id in self.ctx.bot.messageCooldownMap:
+          self.ctx.bot.messageCooldownMap.pop(p.id)
       self.ctx.bot.games.pop(self.ctx.channel.id)
+      
       try: 
         await self.sendRawStats()
       except Exception as e: 

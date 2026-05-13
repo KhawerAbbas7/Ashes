@@ -26,7 +26,9 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     elif not rep and any(ctx.author.id==p.id for g in self.bot.games.values() for p in g.players):
-      return await ctx.send(embed= Embed(title='You are already in a game', description='Looks like you are already playing a game.', color=Color.from_str('#b30707')))
+      g = next((g for g in self.bot.games.copy().values() if any(ctx.author.id==p.id for p in g.players)),None)
+      if g.ctx.channel.id != ctx.channel.id:return await ctx.send(embed= Embed(title='You are already in a game', description=f'You are already playing a game at <#{g.ctx.channel.id}>.', color=Color.from_str('#b30707')))
+      else:return await ctx.send(embed= Embed(title='Already Joined', description=f'You have already joined.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if g.lobbyLocked: 
       return await ctx.send(embed= Embed(title='Lobby Locked.', description='Lobby is locked, no can join.', color=Color.from_str('#b30707')))

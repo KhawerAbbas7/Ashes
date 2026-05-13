@@ -1,4 +1,4 @@
-import discord, os, json
+import discord, os, json, time
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import os, aiosqlite
@@ -41,6 +41,7 @@ class Ashes(commands.Bot):
         "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
         ]
     }
+    self.messageCooldownMap = {}
   @tasks.loop(seconds= 30)
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
@@ -87,6 +88,39 @@ class Ashes(commands.Bot):
     await self.load_extension('api')
     for file in os.listdir('cogs'):
       if file.endswith('py') and file not in ['game.py', 'views.py']:await self.load_extension('cogs.' + file[:-3])
+  async def on_message(self, message):
+    if not message.author.bot and message.channel.type == discord.ChannelType.private and (message.content.startswith(".") or message.content.startswith("+")):
+      if message.author.id in self.messageCooldownMap and time.time() - self.messageCooldownMap[message.author.id] < 5:
+        return await self.process_commands(message)
+      content = message.content[1:]
+      if not content: return await self.process_commands(message)
+      if len(content) >= 150: return await self.process_commands(message)
+      g = next((g for g in self.games.copy().values() if any(ctx.author.id==p.id for p in g.players)),None)
+      if g:
+        if message.content.startswith(".") and len(g.currentInning.currentBatters) == 2 and message.author.id in [b.id for b in g.currentInning.currentBatters]:
+          p = next(b for b in g.currentInning.currentBatters if b.id != message.author.id) 
+          await p.send(f"🗣️**`{message.author}`:** {content}")
+          await message.add_reaction("☑️")
+          self.messageCooldownMap[message.author.id] = time.time()
+        if message.content.startswith("+") and (message.author.id in [b.id for b in g.currentInning.currentBatters] or message.author.id == g.currentInning.battingTeam.captain.id):
+          if message.author.id == g.currentInning.battingTeam.captain.id:
+            if message.author.id in [b.id for b in g.currentInning.currentBatters]: return await self.process_commands(message)
+            else: 
+              for p in g.currentInning.currentBatters:
+                await p.send(f"🗣️**`{message.author} (C):`** {content}\n-# Use '+' before message to talk to captain.")
+              await message.add_reaction("☑️")
+              self.messageCooldownMap[message.author.id] = time.time()
+          else:
+            p = g.currentInning.battingTeam.captain
+            await p.send(f"🗣️**`{message.author}:`** {content}")
+            await message.add_reaction("☑️")
+            self.messageCooldownMap[message.author.id] = time.time()
+        if (message.author.id == g.currentInning.bowlingTeam.captain.id and g.currentInning.currentBowlers[0].id != message.author.id) or g.currentInning.currentBowlers[0].id == message.author.id:
+          p = g.currentInning.bowlingTeam.captain if message.author.id != g.currentInning.bowlingTeam.captain.id else g.currentInning.currentBowlers[0]
+          await p.send(f"🗣️**`{message.author}:`** {content}")
+          await message.add_reaction("☑️")
+          self.messageCooldownMap[message.author.id] = time.time()
+    return await self.process_commands(message)
   async def fetchrow(self, query, params=()):
     async with self.db.execute(query, params) as cursor:
       return await cursor.fetchone()

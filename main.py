@@ -114,7 +114,7 @@ class Ashes(commands.Bot):
             p = g.currentInning.battingTeam.captain
             p2 = next((b for b in g.currentInning.currentBatters if b.id != message.author.id), None) 
             await p.send(f"🗣️**`{message.author}:`** {content}")
-            if p2:
+            if p2 and p2.id != p.id:
               await p2.send(f"🗣️**`{message.author} -> {p.name}(C):`** {content}")
             await message.add_reaction("☑️")
             self.messageCooldownMap[message.author.id] = time.time()

@@ -103,8 +103,8 @@ class Ashes(commands.Bot):
             lines = [l for l in m.split("\n") if l.strip()]
             collected = []
             for line in reversed(lines):
-              if line.startswith("🗣️"): break
               collected.append(line)
+              if line.startswith("🗣️"): break
             collected.reverse()
             replyMsg = f"> {'\n'.join(collected)}\n"
           else: replyMsg= None

@@ -97,9 +97,14 @@ class Ashes(commands.Bot):
       if len(content) >= 150: return await self.process_commands(message)
       g = next((g for g in self.games.copy().values() if any(message.author.id==p.id for p in g.players)),None)
       if g:
+        if message.reference and (replyMsg:= message.reference.resolved):
+          if replyMsg.author.id == 1443165621100740668 and replyMsg.content and ":" in replyMsg.content:
+            replyMsg = f"> {replyMsg.content}\n"
+          else: replyMsg= None
+        else: replyMsg = None
         if message.content.startswith(".") and len(g.currentInning.currentBatters) == 2 and message.author.id in [b.id for b in g.currentInning.currentBatters]:
           p = next(b for b in g.currentInning.currentBatters if b.id != message.author.id) 
-          await p.send(f"🗣️**`{message.author}`:** {content}")
+          await p.send(f"{replyMsg if replyMsg else ''}🗣️**`{message.author}`:** {content}")
           await message.add_reaction("☑️")
           self.messageCooldownMap[message.author.id] = time.time()
         if message.content.startswith("+") and (message.author.id in [b.id for b in g.currentInning.currentBatters] or message.author.id == g.currentInning.battingTeam.captain.id):
@@ -107,22 +112,22 @@ class Ashes(commands.Bot):
             if message.author.id in [b.id for b in g.currentInning.currentBatters]: return await self.process_commands(message)
             else: 
               for p in g.currentInning.currentBatters:
-                await p.send(f"🗣️**`{message.author} (C):`** {content}\n-# Use '+' before message to talk to captain.")
+                await p.send(f"{replyMsg if replyMsg else ''}🗣️**`{message.author} (C):`** {content}\n-# Use '+' before message to talk to captain.")
               await message.add_reaction("☑️")
               self.messageCooldownMap[message.author.id] = time.time()
           else:
             p = g.currentInning.battingTeam.captain
             p2 = next((b for b in g.currentInning.currentBatters if b.id != message.author.id), None) 
-            await p.send(f"🗣️**`{message.author}:`** {content}")
+            await p.send(f"{replyMsg if replyMsg else ''}🗣️**`{message.author}:`** {content}")
             if p2 and p2.id != p.id:
-              await p2.send(f"🗣️**`{message.author} -> {p.name}(C):`** {content}")
+              await p2.send(f"{replyMsg if replyMsg else ''}🗣️**`{message.author} -> {p.name}(C):`** {content}")
             await message.add_reaction("☑️")
             self.messageCooldownMap[message.author.id] = time.time()
         if (message.author.id == g.currentInning.bowlingTeam.captain.id and g.currentInning.currentBowlers[0].id != message.author.id) or g.currentInning.currentBowlers[0].id == message.author.id:
           p = g.currentInning.bowlingTeam.captain if message.author.id != g.currentInning.bowlingTeam.captain.id else g.currentInning.currentBowlers[0]
           if p.id == message.author.id: 
             return await self.process_commands(message)
-          await p.send(f"🗣️**`{message.author}:`** {content}")
+          await p.send(f"{replyMsg if replyMsg else ''}🗣️**`{message.author}:`** {content}")
           await message.add_reaction("☑️")
           self.messageCooldownMap[message.author.id] = time.time()
     return await self.process_commands(message)

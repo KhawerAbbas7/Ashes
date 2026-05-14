@@ -935,6 +935,14 @@ class HelpButton(ui.Button):
       self.view.page += 1 
       self.view.makePage()
       await i.response.edit_message(content=None,view=self.view)
+    elif self.lab == 'How To Play':
+      self.view.page = 'How To Play'
+      self.view.makePage()
+      await i.response.edit_message(content=None,view=self.view)
+    elif self.lab == 'Commands':
+      self.view.page = 0
+      self.view.makePage()
+      await i.response.edit_message(content=None,view=self.view)
 class Helpview(ui.LayoutView):
   def __init__(self,ctx) -> None:
     self.ctx = ctx = ctx 
@@ -944,26 +952,39 @@ class Helpview(ui.LayoutView):
     self.makePage()
   def makePage(self):
     self.clear_items()
-    commands = [c for c in self.ctx.bot.commands if c.hidden is False]
-    start=self.page*self.perPage 
-    end=start+self.perPage
-    container = ui.Container(accent_color = discord.Colour.from_str("#a50ee7"))
-    container.add_item(ui.TextDisplay(f"### Help"))
-    if self.page == 0:
+    if self.page !=  "How To Play":
+      commands = [c for c in self.ctx.bot.commands if c.hidden is False]
+      start=self.page*self.perPage 
+      end=start+self.perPage
+      container = ui.Container(accent_color = discord.Colour.from_str("#a50ee7"))
+      container.add_item(ui.TextDisplay(f"### Help"))
+      if self.page == 0:
+        container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(f"Ashes is a fun bot inspired by Hand Cricket and enhanced with elements of Test cricket. While it follows the basic idea of Test cricket, a few special rules apply:\n• The digit 5 is not used in the game\nA batter can score only one boundary (either 4 or 6) in an over\n• Bowlers are not allowed to bowl 0\n• A batter can play at most three 0s in a row\nThese rules make the game simple, balanced, and more strategic to play.\nJoin the **[Official Server](https://discord.gg/uxchR7sKd2)**\n-# Only if you can bear pings and want to play more else fuck off."))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(f"Ashes is a fun bot inspired by Hand Cricket and enhanced with elements of Test cricket. While it follows the basic idea of Test cricket, a few special rules apply:\n• The digit 5 is not used in the game\nA batter can score only one boundary (either 4 or 6) in an over\n• Bowlers are not allowed to bowl 0\n• A batter can play at most three 0s in a row\nThese rules make the game simple, balanced, and more strategic to play.\nJoin the **[Official Server](https://discord.gg/uxchR7sKd2)**\n-# Only if you can bear pings and want to play more else fuck off."))
-    container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-    for command in commands[start:end]:
-      canOnlyBeUsedBy = f"\n**Only Usable By:{command.extras['usableBy']}**" if command.extras else ""
-      extraTxt = f"\n**Description:** {command.description}" if command.description else ""
-      extraTxt += canOnlyBeUsedBy
-      container.add_item(ui.TextDisplay(f"{self.ctx.clean_prefix}{command.qualified_name} {command.signature}\n**Aliases:** {' • '.join(command.aliases)}{extraTxt}"))
+      for command in commands[start:end]:
+        canOnlyBeUsedBy = f"\n**Only Usable By:{command.extras['usableBy']}**" if command.extras else ""
+        extraTxt = f"\n**Description:** {command.description}" if command.description else ""
+        extraTxt += canOnlyBeUsedBy
+        container.add_item(ui.TextDisplay(f"{self.ctx.clean_prefix}{command.qualified_name} {command.signature}\n**Aliases:** {' • '.join(command.aliases)}{extraTxt}"))
+        container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      actionRow = ui.ActionRow()
+      actionRow.add_item(HelpButton('Prev', True if self.page == 0 else False))
+      actionRow.add_item(HelpButton('Next', True if end >= len(commands) else False))
+      actionRow.add_item(HelpButton('How To Play', False))
+      container.add_item(actionRow)
+      self.add_item(container)
+    else:
+      container = ui.Container(accent_color = discord.Colour.from_str("#07b326"))
+      container.add_item(ui.TextDisplay(f"## How To Play"))
+      container.add_item(ui.TextDisplay("### Basics\nBot will ask for a number from both batter & bowler, numbers may only be chosen from 0, 1, 2, 3, 4, and 6. If both put same number then it's out, otherwise, the batter is safe, and the number the batter chose is added to the score.\n**Examples**\n- The batter chose 2, and the bowler chose 3.\n  - Batter scored 2 runs.\n- The batter chose 3, and the bowler chose 3.\n  - The batter is out."))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-    actionRow = ui.ActionRow()
-    actionRow.add_item(HelpButton('Prev', True if self.page == 0 else False))
-    actionRow.add_item(HelpButton('Next', True if end >= len(commands) else False))
-    container.add_item(actionRow)
-    self.add_item(container)
+      container.add_item(ui.TextDisplay("### Advance Rules\n**Ashes** has special set of rules which are different from basics which follow as these:\n\n- Each game has 4 innings (if a team wins by an inning then 3).\n- Bowlers can't do 0.\n- The number 5 doesn't exist.\n- Batter may only use boundary numbers (4/6) once per over.\n  - This applies to one batter per over, e.g if striker does 4 and then rotates the strike, non striker can hit another boundary.\n- Batter can only do 3 consecutive 0s.\n  - This applies regardless of overs, eg. Khawi did 000 on 4.4, 4.5, 4.6 and then gets strike on 5.3, he will have to do a number (can't do 0)"))
+      container.add_item(ui.TextDisplay("### How To Start A Game\nTo start a game you need 4 players. Start by creating a lobby with `create` command, you can now ask other players to join via `join` command. Once you have enough players (That can be viewed through `pl` command) you are ready to initiate toss by `toss` command. After that you can start the game by using `start` command. Remember all it takes is 4 commands, `create` -> `join` -> `toss` -> `start`. If you can't find the players you can always play in  **[Official Server](https://discord.gg/uxchR7sKd2)**\n-# you can ping 'regular players' role there."))
+      actionRow = ui.ActionRow()
+      actionRow.add_item(HelpButton('Commands', False))
+      container.add_item(actionRow)
+      self.add_item(container)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 
 class ShamefulLBview(ui.LayoutView):

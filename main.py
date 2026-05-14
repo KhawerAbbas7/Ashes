@@ -99,7 +99,14 @@ class Ashes(commands.Bot):
       if g:
         if message.reference and (replyMsg:= message.reference.resolved):
           if replyMsg.author.id == 1443165621100740668 and replyMsg.content and ":" in replyMsg.content:
-            replyMsg = f"> {replyMsg.content}\n"
+            m= replyMsg.content.replace("\n-# Use '+' before message to talk to captain.", "")
+            lines = [l for l in m.split("\n") if l.strip()]
+            collected = []
+            for line in reversed(lines):
+              if line.startswith("🗣️"): break
+              collected.append(line)
+            collected.reverse()
+            replyMsg = f"> {'\n'.join(collected)}\n"
           else: replyMsg= None
         else: replyMsg = None
         if message.content.startswith(".") and len(g.currentInning.currentBatters) == 2 and message.author.id in [b.id for b in g.currentInning.currentBatters]:
@@ -142,6 +149,13 @@ class Ashes(commands.Bot):
     await self.db.commit()
   async def on_command_error(self, ctx, error):
     if isinstance(error,commands.CommandNotFound): pass
+    elif isinstance(error, commands.MissingRequiredArgument):
+      commandName = ctx.clean_prefix + ctx.command.qualified_name + " " + ctx.command.signature
+      param = error.param.name
+      startingIndex = commandName.find(param)
+      endingIndex = startingIndex + len(param)
+      errorMsg = f"```py\n{commandName}\n{' '* startingIndex}{'^'* len(param)}\n```\n**{param}** is the required argument that is missing."
+      await ctx.reply(errorMsg)
   async def on_ready(self):
     self.gamesDeletionCheck.start()
 bot = Ashes()

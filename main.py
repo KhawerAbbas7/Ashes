@@ -18,6 +18,7 @@ async def get_pre(bot, message):
   async with bot.settingsdb.execute("SELECT prefix FROM settings WHERE guildId =?", (message.guild.id,)) as cursor:
     p = await cursor.fetchone()
     prefix_return = [p[0] if p else "as!"]
+    prefix_return.append('as!')
     return commands.when_mentioned_or(*prefix_return)(bot, message)
 class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):

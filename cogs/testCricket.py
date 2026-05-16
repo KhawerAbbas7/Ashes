@@ -233,7 +233,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     else:
       humanReadable  = f"in {inSeconds} seconds"
     await ctx.send(f'This game will be deleted at <t:{int(g.lobbyCreatedAt + 1800)}:F> ({humanReadable})')
-  @commands.command(aliases= [''], description= 'Get the link for live score message.')
+  @commands.command(aliases= [], description= 'Get the link for live score message.')
   async def live(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))

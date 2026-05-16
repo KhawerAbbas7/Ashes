@@ -113,6 +113,7 @@ class Game():
     self.started = False 
     self.startedAt = None
     self.batFirstTeam = None
+    self.tossStatus = None
     self.innings = []
     self.ballsData = []
     self.repIds: list[int] = []
@@ -506,9 +507,9 @@ class Game():
           "teamName": self.teama.name,
           "playerName": p.name
         }
-        teamaP += f"{i}. {p.name} {'(C)' if self.teama.viceCaptain and p.id == self.teama.captain.id else ''} {'(VC)' if p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+        teamaP += f"{i}. {p.name} {'(C)' if self.teama.captain and p.id == self.teama.captain.id else ''} {'(VC)' if self.teama.viceCaptain and p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
       for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
-        teambP += f"{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
+        teambP += f"{i}. {p.name} {'(C)' if self.teamb.captain and p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}\n"
         playersData[i-1] = {
           "teamName": self.teamb.name,
           "playerName": p.name
@@ -516,7 +517,7 @@ class Game():
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       if not self.T10:
-        container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+        container.add_item(ui.TextDisplay(f"**Toss:** {self.tossStatus if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
         actionRow = ui.ActionRow()
         actionRow.add_item(OversSelection())
         container.add_item(actionRow)
@@ -546,13 +547,23 @@ class Game():
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
         teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}`**{sc}"
+      t = {}
+      for i in self.innings:
+        s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
+        if i.inningNo == self.currentInning.inningNo:
+          if not self.T10:
+            s += f" ({self.ballsToOvers(i.balls)})"
+          else:
+            s += f" ({self.ballsToOvers(i.balls)}/10)"
+        if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
+        else: t[i.battingTeam.name] = s
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}\n**Toss:**{self.tossStatus}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
+      container.add_item(ui.TextDisplay(f"### {self.teama.name} {t.get(self.teama.name, 'YTB')}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(f"### {self.teamb.name}\n{teambP}"))
+      container.add_item(ui.TextDisplay(f"### {self.teamb.name} {t.get(self.teamb.name, 'YTB')}\n{teambP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"-# [{self.matchStatus()}]({self.updateMsg.jump_url})"))
       view.add_item(container)
@@ -589,6 +600,7 @@ class Game():
       await view.wait()
       if view.value:
         other = self.teamb if winner.id == 1 else self.teama
+        self.tossStatus = f"**{winner.name} have won the toss and have elected to {view.value} first**"
         await self.ctx.send(f"**{winner.name} have won the toss and have elected to {view.value} first**")
         if view.value == 'Bat':self.batFirstTeam = winner
         else:self.batFirstTeam = other

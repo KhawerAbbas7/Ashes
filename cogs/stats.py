@@ -15,10 +15,10 @@ class Statistics(commands.Cog, name= "Statistics"):
     if not target: target=ctx.author
     v = await makeProfileView(target,ctx)
     if v == "No Games":
-      return await ctx.send("Ask this bozo to play games.")
+      return await ctx.send(f"{target} is yet to play any Ashes game.")
     await ctx.send(view= v)
   @commands.command(aliases= ['vs'], description= 'View statistics for any individual versus another.')
-  async def matchup(self, ctx, player1: discord.User = None, player2: discord.User = None):
+  async def matchup(self, ctx, player1: discord.User, player2: discord.User = None):
     if not player1:
       return await ctx.send("You have provide at least one player to have VS statistics.")
     elif not player2:

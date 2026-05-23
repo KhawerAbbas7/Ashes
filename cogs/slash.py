@@ -1,0 +1,22 @@
+import discord, json
+from discord import app_commands
+from discord.ext import commands
+from discord import ui 
+from cogs.views import makeProfileView
+class UserInstallable(commands.Cog):
+  def __init__(self, bot: commands.Bot) -> None:
+    self.bot = bot
+  @app_commands.command(name="stats", description="get statistics for yourself or someone else")
+  @app_commands.describe(member='the user to check, leave it if you want to check yours.', ephemeral='If u want message to be secret')
+  @app_commands.allowed_installs(guilds=True, users=True)
+  @app_commands.allowed_contexts(guilds=True, dms=True, private_channels=True)
+  async def playerstats(self,interaction, member: discord.User = None, ephemeral: bool = False):
+    if not member:
+      member = interaction.user
+    v = await makeProfileView(member,interaction)
+    if v == "No Games":
+      return await interaction.response.send_message(content= f"{member} is yet to relish the Ashes.", ephemeral= ephemeral)
+    return await interaction.response.send_message(view = v, ephemeral=ephemeral)
+async def setup(bot: commands.Bot) -> None:
+  await bot.add_cog(UserInstallable(bot))
+  await bot.tree.sync()

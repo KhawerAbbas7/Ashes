@@ -516,8 +516,9 @@ class Game():
         }
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
+      tossStatus = f"**Toss:** ❌" if not self.tossStatus else f"-# {self.tossStatus}"
       if not self.T10:
-        container.add_item(ui.TextDisplay(f"**Toss:** {self.tossStatus if self.batFirstTeam else '❌'}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+        container.add_item(ui.TextDisplay(f"{tossStatus}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
         actionRow = ui.ActionRow()
         actionRow.add_item(OversSelection())
         container.add_item(actionRow)
@@ -584,8 +585,9 @@ class Game():
     view.add_item(container)
     await self.ctx.send(view=view)
     await view.wait()
+    coinResult = random.choice(['Heads', 'Tails'])
     if view.value:
-      winner = picker if view.value == random.choice(['Heads', 'Tails']) else other
+      winner = picker if view.value == coinResult else other
       buttons = [Button('Bat',discord.ButtonStyle.green,winner.captain.id), Button('Bowl',discord.ButtonStyle.red,winner.captain.id)]
       view = ui.LayoutView(timeout= 60)
       view.value = None
@@ -600,7 +602,7 @@ class Game():
       await view.wait()
       if view.value:
         other = self.teamb if winner.id == 1 else self.teama
-        self.tossStatus = f"**{winner.name} have won the toss and have elected to {view.value} first**"
+        self.tossStatus = f"**{winner.name}** have won the toss and have elected to {view.value} first"
         await self.ctx.send(f"**{winner.name} have won the toss and have elected to {view.value} first**")
         if view.value == 'Bat':self.batFirstTeam = winner
         else:self.batFirstTeam = other

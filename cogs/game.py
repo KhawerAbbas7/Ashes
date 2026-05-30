@@ -1166,7 +1166,7 @@ class Game():
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
-      inn.commentary.insert(0, {"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bat}) to {striker.name} ({bat}), Bowled Em!!"})
+      inn.commentary.appendleft({"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bat}) to {striker.name} ({bat}), Bowled Em!!"})
       striker_p.dismissed = True 
       inn.wickets+=1
       bowler_p.timeline.append("W")
@@ -1220,7 +1220,7 @@ class Game():
         return 'Inning Over'
       if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
     else:
-      inn.commentary.insert(0, {"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bowl}) to {striker.name} ({bat}), and it's {bat} runs"})
+      inn.commentary.appendleft({"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bowl}) to {striker.name} ({bat}), and it's {bat} runs"})
       if isRep and (striker_p.runs + bat) >= self.repLimit:
         striker_p.dismissed = True 
         inn.wickets+=1

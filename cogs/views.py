@@ -1045,7 +1045,7 @@ class LBview(ui.LayoutView):
     self.guild = guild = ctx.guild
     self.statType = title
     container = ui.Container(accent_color = discord.Colour.from_str("#0ebce7"))
-    container.add_item(ui.TextDisplay(f"### {title}"))
+    container.add_item(ui.TextDisplay(f"### {title}\n-# For better view visit our [website](https://ashesdiscord.streamlit.app/?page=leaderboard)"))
     container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
     actionRow = ui.ActionRow().add_item(LBSelection(self))
     if footer:

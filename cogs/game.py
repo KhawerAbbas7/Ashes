@@ -52,6 +52,7 @@ class Inning():
     self.inningNo = None 
     self.battingTeam = None 
     self.bowlingTeam = None 
+    self.commentary = deque(maxlen=25)
     self.batters = {}
     self.bowlers = {} 
     self.cantBat= []
@@ -1165,6 +1166,7 @@ class Game():
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
+      inn.commentary.insert(0, {"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bat}) to {striker.name} ({bat}), Bowled Em!!"})
       striker_p.dismissed = True 
       inn.wickets+=1
       bowler_p.timeline.append("W")
@@ -1218,6 +1220,7 @@ class Game():
         return 'Inning Over'
       if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
     else:
+      inn.commentary.insert(0, {"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bowl}) to {striker.name} ({bat}), and it's {bat} runs"})
       if isRep and (striker_p.runs + bat) >= self.repLimit:
         striker_p.dismissed = True 
         inn.wickets+=1
@@ -1428,7 +1431,7 @@ class Game():
       if not self.drawnByAgreement and not self.forfeitedById:
         mvp= self.calculateMvp()
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
+        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdiscord.streamlit.app/?id={self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       else:

@@ -826,7 +826,7 @@ class Game():
   async def sendToNonStriker(self, content= None, **kwargs):
     if len(self.currentInning.currentBatters) == 2:
       p =self.currentInning.currentBatters[1]
-      await asyncio.sleep(1)
+      await asyncio.sleep(0.3)
       await p.send(content, **kwargs)
   def getGif(self,userId,achievement):return self.ctx.bot.staticData['customGIFs'].get(str(userId),{}).get(achievement)
   async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None, achievement= None):

@@ -14,7 +14,7 @@ class RankingCog(commands.Cog):
     app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),])
     self.runner = web.AppRunner(app)
     await self.runner.setup()
-    self.site = web.TCPSite(self.runner, '0.0.0.0', 20375)
+    self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
     await self.site.start()
     print("Rankings API running on http://0.0.0.0:20375")
   async def get_match(self, request):

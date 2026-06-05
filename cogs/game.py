@@ -354,7 +354,7 @@ class Game():
     self.mitigatePlayers()
   def battingCard(self):
     inn = self.currentInning
-    img = Image.open(os.path.join(BASE_DIR, "templates", "BattingSummary.png")).convert("RGBA")
+    img = Image.open(os.path.join(BASE_DIR, "templates", "battingSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
     S = 1.3325714286
     font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(65 * S))
@@ -397,7 +397,7 @@ class Game():
       return discord.File(fp=image_binary, filename='battingSC.png')
   def bowlingCard(self):
     inn = self.currentInning
-    img = Image.open(os.path.join(BASE_DIR, "templates", "BowlingSummary.png")).convert("RGBA")
+    img = Image.open(os.path.join(BASE_DIR, "templates", "bowlingSummary.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
     S = 1.3325714286
     font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(65*S))

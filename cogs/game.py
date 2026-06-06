@@ -33,6 +33,12 @@ class BattingInning():
     self.sixes = 0
     self.timeline = deque(maxlen=13)
   @property
+  def cantDoBoundaryThisOver(self):
+    if self.balls >= 15:
+      return self.BoundaryThisOver == 2 
+    else:
+      return self.BoundaryThisOver == 1  
+  @property
   def sr(self): return round((self.runs/self.balls)*100,2) if self.balls else 00.0
 class BowlingInning():
   def __init__(self,player):
@@ -646,7 +652,7 @@ class Game():
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"
-    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].BoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
+    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].cantDoBoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
     runRate = round((self.currentInning.runs/self.currentInning.balls)*6,2) if self.currentInning.balls else 0.00 
     extraInfo = f"RR: {runRate}"
     actionRow = ui.ActionRow()
@@ -864,7 +870,8 @@ class Game():
       if achievement:
         container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
         container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
-        container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
+        if achievement != "hattrick":
+          container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
       c.add_item(container)
       await self.ctx.send(file= i, view= c)
   async def getInputs(self):
@@ -882,17 +889,18 @@ class Game():
       bowler_p=inn.bowlers[bowler]
       cando0=striker_p.consecutiveDots!=3
       bowlerAllowed = ['1','2','3','4','6']
-      if bowler_p.isOnHattrick or (inn.balls > 6 and inn.lastOverRuns == 0)
-      if cando0 and not striker_p.BoundaryThisOver:
+      if bowler_p.isOnHattrick or (inn.balls > 6 and inn.lastOverRuns == 0 and not inn.zeroByBowler):
+        bowlerAllowed.append('0')
+      if cando0 and not striker_p.cantDoBoundaryThisOver:
         allowed={'0','1','2','3','4','6'}
-      elif cando0 and striker_p.BoundaryThisOver:
+      elif cando0 and striker_p.cantDoBoundaryThisOver:
         allowed={'0','1','2','3'}
-      elif not cando0 and striker_p.BoundaryThisOver:
+      elif not cando0 and striker_p.cantDoBoundaryThisOver:
         allowed={'1','2','3'}
       else:
         allowed={'1','2','3','4','6'}
       def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
-      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in ['1','2','3','4','6']
+      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in bowlerAllowed
       battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})"
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
@@ -900,7 +908,7 @@ class Game():
       batview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       bowlview = ui.LayoutView(timeout=None)
       bowlview.add_item(self.score(True))
-      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery (1,2,3,4,6)"))
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery ({','.join(bowlerAllowed)})"))
       bowlview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       msg1= await striker.send(view=batview)
       msg2 = await bowler.send(view=bowlview)
@@ -954,7 +962,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             0,
             0,
             inn.runs,
@@ -989,7 +997,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             1,
             0,
             inn.runs,
@@ -1020,7 +1028,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             0,
             0,
             inn.runs,
@@ -1048,7 +1056,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             0,
             0,
             inn.runs,
@@ -1084,7 +1092,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             1,
             0,
             inn.runs,
@@ -1113,7 +1121,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             0,
             0,
             inn.runs,
@@ -1141,7 +1149,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             0,
             0,
             inn.runs,
@@ -1171,12 +1179,15 @@ class Game():
     bowler_p.balls+=1
     inn.currentPartnership[1] +=1
     striker_p.timeline.append(str(bat))
+    if bowl == 0:
+      inn.zeroByBowler = 1
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
     if bat==bowl:
       inn.commentary.appendleft({"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bat}) to {striker.name} ({bat}), Bowled Em!!"})
       striker_p.dismissed = True 
       inn.wickets+=1
+      isHattrick = bowler_p.isOnHattrick
       bowler_p.timeline.append("W")
       if not(isRep):
         self.ballsData.append((
@@ -1188,7 +1199,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.BoundaryThisOver else 1, 
+            0 if striker_p.cantDoBoundaryThisOver else 1, 
             1,
             0,
             inn.runs,
@@ -1207,6 +1218,8 @@ class Game():
       if bowler_p.wickets < 3 and bowler_p.wickets+1 == 3:achievement = "3fer"
       elif bowler_p.wickets < 5 and bowler_p.wickets+1 == 5:achievement = "5fer"
       elif bowler_p.wickets < 7 and bowler_p.wickets+1 == 7:achievement = "7fer"
+      if isHattrick:
+        achievement = "hattrick "
       await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, achievement)
       inn.currentPartnership = [0,0]
       await asyncio.sleep(0.3)
@@ -1266,7 +1279,7 @@ class Game():
         if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
       else:
         bowler_p.currentOverRuns += bat
-        inn.currentOverRuns += runs
+        inn.currentOverRuns += bat
         bowler_p.timeline.append(str(bowl))
         inn.runs+=bat
         if not(isRep):
@@ -1279,7 +1292,7 @@ class Game():
               None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
               bowler.id,
               1 if cando0 else 0,
-              0 if striker_p.BoundaryThisOver else 1, 
+              0 if striker_p.cantDoBoundaryThisOver else 1, 
               0,
               bat,
               inn.runs,
@@ -1322,6 +1335,7 @@ class Game():
     if inn.balls%6==0:
       inn.timeline.append("|")
       inn.lastOverRuns = inn.currentOverRuns
+      inn.zeroByBowler = 0
       if bowler_p.currentOverRuns == 0:
         bowler_p.maidens += 1
       for b in inn.currentBatters:

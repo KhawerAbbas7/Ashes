@@ -25,7 +25,7 @@ class BattingInning():
     self.runs=0
     self.balls=0
     self.consecutiveDots=0
-    self.BoundaryThisOver= False
+    self.BoundaryThisOver= 0
     self.AFKs = 0
     self.dismissed = False
     self.dismissedBy = "DNB"
@@ -46,6 +46,9 @@ class BowlingInning():
     self.AFKs = 0
     self.maidens = 0 
     self.currentOverRuns = 0
+  @property
+  def isOnHattrick(self):
+    return len(self.timeline) >= 2 and self.timeline[-1] == "W" and self.timeline[-2] == "W" and (len(self.timeline) == 2 or self.timeline[-3] != "W")
 class Inning():
   def __init__(self):
     self.inningId = str(uuid7())
@@ -65,6 +68,9 @@ class Inning():
     self.wickets = 0
     self.balls = 0
     self.currentPartnership= [0,0]
+    self.currentOverRuns = 0
+    self.lastOverRuns = 0
+    self.zeroByBowler = 0
     self.fallOfWickets = []
     self.nextBatterId = None
     self.nextBowlerId = None
@@ -875,6 +881,8 @@ class Game():
       striker_p=inn.batters[striker]
       bowler_p=inn.bowlers[bowler]
       cando0=striker_p.consecutiveDots!=3
+      bowlerAllowed = ['1','2','3','4','6']
+      if bowler_p.isOnHattrick or (inn.balls > 6 and inn.lastOverRuns == 0)
       if cando0 and not striker_p.BoundaryThisOver:
         allowed={'0','1','2','3','4','6'}
       elif cando0 and striker_p.BoundaryThisOver:
@@ -1228,6 +1236,7 @@ class Game():
         realNumber = bat - excess
         bowler_p.runsConceded+=realNumber
         bowler_p.currentOverRuns += realNumber
+        inn.currentOverRuns += realNumber
         inn.runs+=realNumber
         inn.fallOfWickets.append(str(inn.runs))
         inn.currentPartnership[0] += realNumber
@@ -1257,6 +1266,7 @@ class Game():
         if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
       else:
         bowler_p.currentOverRuns += bat
+        inn.currentOverRuns += runs
         bowler_p.timeline.append(str(bowl))
         inn.runs+=bat
         if not(isRep):
@@ -1283,7 +1293,7 @@ class Game():
         if bat in [4,6]:
           if bat == 4: striker_p.fours += 1
           if bat == 6: striker_p.sixes += 1
-          striker_p.BoundaryThisOver = True
+          striker_p.BoundaryThisOver += 1
         if striker_p.runs < 30 and striker_p.runs + bat >= 30:
           await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '30') is None else self.getGif(striker.id, '30')})")
         elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
@@ -1311,10 +1321,11 @@ class Game():
     if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
     if inn.balls%6==0:
       inn.timeline.append("|")
+      inn.lastOverRuns = inn.currentOverRuns
       if bowler_p.currentOverRuns == 0:
         bowler_p.maidens += 1
       for b in inn.currentBatters:
-        inn.batters[b].BoundaryThisOver = False
+        inn.batters[b].BoundaryThisOver = 0
       if len(inn.currentBatters) > 1:
         inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
       await self.updateMessage(True)

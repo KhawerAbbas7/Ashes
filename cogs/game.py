@@ -691,6 +691,10 @@ class Game():
     if len(self.currentInning.timeline) > 0:
       container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in self.currentInning.timeline])))
     container.add_item(ui.TextDisplay(f"-# {self.matchStatus()}"))
+    if self.currentInning.currentBowlers:
+      bowler_p=self.currentInning.bowlers[self.currentInning.currentBowlers[0]]
+      if bowler_p.isOnHattrick or (self.currentInning.balls > 6 and inn.lastOverRuns == 0 and not self.currentInning.zeroByBowler):
+        container.add_item(ui.TextDisplay(f"-# ⚠️Bowler can do 0"))
     view.add_item(container)
     return view if returnContainer is False else container
   def nextBattingTeam(self):

@@ -1339,6 +1339,7 @@ class Game():
     if inn.balls%6==0:
       inn.timeline.append("|")
       inn.lastOverRuns = inn.currentOverRuns
+      inn.currentOverRuns = 0
       inn.zeroByBowler = 0
       if bowler_p.currentOverRuns == 0:
         bowler_p.maidens += 1

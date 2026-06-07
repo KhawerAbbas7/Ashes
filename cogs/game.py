@@ -1466,7 +1466,7 @@ class Game():
         await self.ctx.send(f"{formatted}")
       else:
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-        formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds"
+        formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       for p in self.players:

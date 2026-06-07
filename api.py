@@ -53,7 +53,7 @@ class RankingCog(commands.Cog):
       if mvpId:
         mvp = await self.fetch_user_data(mvpId)
         mvp["id"] = str(mvpId)
-      ts = await self.fetchrow("SELECT MAX(timestamp) FROM deliveries WHERE matchId = ?", (matchId,))
+      ts = await self.bot.fetchrow("SELECT MAX(timestamp) FROM deliveries WHERE matchId = ?", (matchId,))
       return web.json_response({
         "matchId": matchId,
         "channelName": channel.name if channel else str(channelId),

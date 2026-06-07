@@ -1460,7 +1460,7 @@ class Game():
       if not self.drawnByAgreement and not self.forfeitedById:
         mvp= self.calculateMvp()
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdiscord.streamlit.app/?id={self.gameId})"
+        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       else:

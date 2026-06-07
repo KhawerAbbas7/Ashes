@@ -146,7 +146,7 @@ class RankingCog(commands.Cog):
           "bowlers": bowlers,
           "winner": winner
         })
-      return web.json_response({"matchId": match_id, "innings": result}, headers=self.get_cors_headers())
+      return web.json_response({"matchId": match_id, "innings": result, "winner": winner,}, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_live_matches(self, request):

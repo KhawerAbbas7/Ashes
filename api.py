@@ -53,6 +53,7 @@ class RankingCog(commands.Cog):
       if mvpId:
         mvp = await self.fetch_user_data(mvpId)
         mvp["id"] = str(mvpId)
+      ts = await self.fetchrow("SELECT MAX(timestamp) FROM deliveries WHERE matchId = ?", (matchId,))
       return web.json_response({
         "matchId": matchId,
         "channelName": channel.name if channel else str(channelId),
@@ -62,18 +63,24 @@ class RankingCog(commands.Cog):
         "winner": winner,
         "mvp": mvp,
         "innings": innings,
+        "timestamp": ts
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_scorecard(self, request):
     try:
       match_id = request.match_info['matchId']
+      match_row = await self.bot.fetchrow(
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId FROM matches WHERE matchId=?",
+        [match_id]
+      )
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId = match_row
+      if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       innings_rows = await self.bot.fetchall(
         "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls FROM innings WHERE matchId=? ORDER BY inningNo",
         [match_id]
       )
-      if not innings_rows:
-        return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
+      if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       result = []
       for inning in innings_rows:
         inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls = inning
@@ -137,6 +144,7 @@ class RankingCog(commands.Cog):
           "overs": f"{totalBalls // 6}.{totalBalls % 6}",
           "batters": batters,
           "bowlers": bowlers,
+          "winner": winner
         })
       return web.json_response({"matchId": match_id, "innings": result}, headers=self.get_cors_headers())
     except Exception as e:

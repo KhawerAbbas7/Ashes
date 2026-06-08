@@ -466,7 +466,9 @@ class RankingCog(commands.Cog):
       for u in users:
         userData = await self.fetch_user_data(u)
         usersData[str(u)]= userData
-      return web.json_response(usersData)
+      return web.json_response(usersData, headers=self.get_cors_headers())
+    except:
+      return web.json_response({"error": 'Failed to get users'}, status=500, headers=self.get_cors_headers())
   async def cog_unload(self):
     if self.runner:
       await self.runner.cleanup()

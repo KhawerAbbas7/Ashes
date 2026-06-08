@@ -465,7 +465,7 @@ class RankingCog(commands.Cog):
       usersData= {}
       for u in users:
         userData = await self.fetch_user_data(u)
-        usersData[u]= userData
+        usersData[str(u])= userData
       return web.json_response(usersData)
   async def cog_unload(self):
     if self.runner:

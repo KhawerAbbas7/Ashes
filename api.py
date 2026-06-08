@@ -77,7 +77,7 @@ class RankingCog(commands.Cog):
       matchId, channelId, guildId, teamAName, teamBName, winner, mvpId,matchMaximumBalls,drawByAgreement = match_row
       if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       innings_rows = await self.bot.fetchall(
-        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo",
+        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn,isDeclared FROM innings WHERE matchId=? ORDER BY inningNo",
         [match_id]
       )
       if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())

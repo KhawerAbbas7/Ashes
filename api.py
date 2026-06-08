@@ -63,7 +63,7 @@ class RankingCog(commands.Cog):
         "winner": winner,
         "mvp": mvp,
         "innings": innings,
-        "timestamp": ts
+        "timestamp": ts[0] if ts else 00000000
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

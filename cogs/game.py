@@ -379,7 +379,16 @@ class Game():
     y = 210.3
     offset = 91.1
     overlay = Image.open(os.path.join(BASE_DIR, "templates", "NotOutLine.png")).convert("RGBA")
-    for p, b in inn.batters.items():
+    def get_order(player):
+      try:
+        return inn.cantBat.index(player.id)
+      except ValueError:
+        try:
+          return len(inn.cantBat) + inn.battingTeam.players.index(player)
+        except:
+          return len(inn.cantBat) + len(inn.battingTeam.players)
+    ordered_batters = sorted(inn.batters.items(), key=lambda x: get_order(x[0]))
+    for p, b in ordered_batters.items():
       name = p.name.upper()[:15]
       runs = str(b.runs)
       balls = str(b.balls)

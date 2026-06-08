@@ -71,19 +71,19 @@ class RankingCog(commands.Cog):
     try:
       match_id = request.match_info['matchId']
       match_row = await self.bot.fetchrow(
-        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId FROM matches WHERE matchId=?",
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?",
         [match_id]
       )
-      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId = match_row
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId,matchMaximumBalls,drawByAgreement = match_row
       if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       innings_rows = await self.bot.fetchall(
-        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls FROM innings WHERE matchId=? ORDER BY inningNo",
+        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn, FROM innings WHERE matchId=? ORDER BY inningNo",
         [match_id]
       )
       if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       result = []
       for inning in innings_rows:
-        inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls = inning
+        inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls, isFollowOn,isDeclared = inning
         # --- batting: group deliveries by batterId ---
         bat_rows = await self.bot.fetchall("SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls, SUM(CASE WHEN runs=4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN runs=6 THEN 1 ELSE 0 END) AS sixes, MAX(timestamp) AS batting_order, MAX(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) AS dismissed, MAX(CASE WHEN isWicket=1 THEN bowlerId ELSE NULL END) AS dismissedBy FROM deliveries WHERE inningId=? AND batterId IS NOT NULL GROUP BY batterId ORDER BY batting_order", [inningId])
         batters = []
@@ -144,9 +144,12 @@ class RankingCog(commands.Cog):
           "overs": f"{totalBalls // 6}.{totalBalls % 6}",
           "batters": batters,
           "bowlers": bowlers,
-          "winner": winner
+          "winner": winner,
+          'isFollowOn': bool(isFollowOn),
+          'isDeclared': bool(isDeclared)
         })
-      return web.json_response({"matchId": match_id, "innings": result, "winner": winner,}, headers=self.get_cors_headers())
+      
+      return web.json_response({"matchId": match_id, "innings": result, "winner": winner,'drawByAgreement': bool(drawByAgreement), 'matchMaximumBalls': matchMaximumBalls}, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_live_matches(self, request):

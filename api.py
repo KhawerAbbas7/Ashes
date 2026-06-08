@@ -11,12 +11,12 @@ class RankingCog(commands.Cog):
     self.runner = None
   async def cog_load(self):
     app = web.Application()
-    app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),])
+    app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi)])
     self.runner = web.AppRunner(app)
     await self.runner.setup()
     self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
     await self.site.start()
-    print("Rankings API running on http://0.0.0.0:20375")
+    print("Rankings API running on http://0.0.0.0:8000")
   async def get_match(self, request):
     try:
       match_id = request.match_info['matchId']
@@ -186,7 +186,6 @@ class RankingCog(commands.Cog):
       return web.json_response({"matches": matches}, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
-
   async def get_live_match(self, request):
     try:
       match_id = request.match_info['matchId']
@@ -276,7 +275,6 @@ class RankingCog(commands.Cog):
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
-
   async def get_leaderboard(self, request):
     try:
       category = request.query.get('category', 'most_runs')
@@ -458,7 +456,17 @@ class RankingCog(commands.Cog):
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
-
+  async def get_userApi(self, request):
+    try: 
+      users =request.query.get('userIds')
+      if not users:
+        return web.json_response({"error": 'Failed to get users'}, status=500, headers=self.get_cors_headers())
+      users= [int(u) for u in users.split(",")]
+      usersData= {}
+      for u in users:
+        userData = await self.fetch_user_data(u)
+        usersData[u]= userData
+      return web.json_response(usersData)
   async def cog_unload(self):
     if self.runner:
       await self.runner.cleanup()
@@ -469,7 +477,7 @@ class RankingCog(commands.Cog):
         user = await self.bot.fetch_user(user_id)
       except:
         return {"name": "Unknown Player", "avatar": ""}
-    return {"name": user.name, "avatar": str(user.display_avatar.url) if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"}
+    return {"displayName": user.display_name,"name": user.name, "avatar": str(user.display_avatar.url) if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"}
   def get_cors_headers(self):
     return {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'GET, OPTIONS','Access-Control-Allow-Headers': 'Content-Type'}
   def get_cutoff_end(self):

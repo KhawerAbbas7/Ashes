@@ -102,7 +102,7 @@ class Team():
       self.viceCaptain = random.choice([p for p in self.players if p.id != self.captain.id])
 class Player():
   def __init__(self):
-    self.user,self.name, self.id, self.mention= 0,0,0,0
+    self.user,self.name, self.id, self.mention,self.avatar= 0,0,0,0,0
   def __str__(self): return self.name
   async def send(self,content=None, **kwargs):
     for _ in range(3):
@@ -110,7 +110,7 @@ class Player():
         return await self.user.send(content, **kwargs)
       except (discord.HTTPException):await asyncio.sleep(1)
   def fromUser(self,user):
-    self.user,self.name, self.id, self.mention =user, user.name, user.id, user.mention
+    self.user,self.name, self.id, self.mention, self.avatar =user, user.name, user.id, user.mention, user.avatar
     return self
 class Game():
   def __init__(self, ctx):
@@ -366,6 +366,134 @@ class Game():
   def join(self, user):
     self.teama.players.append(Player().fromUser(user))
     self.mitigatePlayers()
+  async def sendPartnershipGraphic(self, p1, p2, pScore, p1Stats, p2Stats):
+    img = Image.open(os.path.join(BASE_DIR, "templates", "Pship.png")).convert("RGBA")
+    draw = ImageDraw.Draw(img)
+    nameFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 60)
+    PScoreFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 200)
+    ContributionFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 45)
+    w1 = nameFont.getlength(p1.name)
+    x1 = 107.8 + (285 - w1) / 2
+    draw.text((x1, 827.9), p1.name[:8].upper(), font=nameFont, fill="#08b5f6")
+    w2 = nameFont.getlength(p2.name)
+    x2 = 887 + (285 - w2) / 2
+    draw.text((x2, 827.9), p2.name[:8].upper(), font=nameFont, fill="#08b5f6")
+    wP = PScoreFont.getlength(str(pScore))
+    xP = (1280 - wP) / 2
+    draw.text((xP, 384.7), str(pScore).upper(), font=PScoreFont, fill="#08b5f6")
+    draw.text((xP + wP + 10, 384.7), "*", font=PScoreFont, fill="#08b5f6")
+    draw.text((408.1, 661.5), p1Stats, font=ContributionFont, fill="white")
+    wC = ContributionFont.getlength(p2Stats)
+    draw.text((886 - wC, 661.5), p2Stats, font=ContributionFont, fill="white")
+    if p1.user.avatar:
+      p1Data = await p1.user.avatar.read()
+      partner1Pfp = Image.open(BytesIO(p1Data)).convert("RGBA").resize((285, 418), Image.LANCZOS)
+      img.paste(partner1Pfp, (108, 410), partner1Pfp)
+    if p2.user.avatar:
+      p2Data = await p2.user.avatar.read()
+      partner2Pfp = Image.open(BytesIO(p2Data)).convert("RGBA").resize((285, 418), Image.LANCZOS)
+      img.paste(partner2Pfp, (887, 410), partner2Pfp)
+    with BytesIO() as image_binary:
+      img.save(image_binary, 'PNG')
+      image_binary.seek(0)
+      i = discord.File(fp=image_binary, filename='pship.png')
+      await self.ctx.send(file=i)
+  async def sendNewBatterGraphic(self, *batterPlayers):
+    files = []
+    for batterPlayer in batterPlayers:
+      uid = batterPlayer.id
+      bot = self.ctx.bot
+      q1 = "SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COALESCE(SUM(isWicket),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE batterId=?"
+      res1 = await bot.fetchrow(q1, (uid, uid, uid))
+      matches = str(res1[0] or 0)
+      inns = str(res1[1] or 0)
+      runs_val = res1[2] or 0
+      wickets = res1[3] or 0
+      balls = res1[4] or 0
+      avg = str(round((runs_val/wickets), 2)) if wickets else str(runs_val)
+      sr = str(round((runs_val*100/balls), 2)) if balls else "0.00"
+      runs = str(runs_val)
+      q2 = "SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+      res2 = await bot.fetchrow(q2, (uid,))
+      fifties = str(res2[0] or 0)
+      hundreds = str(res2[1] or 0)
+      q3 = "SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+      bb = await bot.fetchrow(q3, (uid,))
+      best = f"{bb[0]}*" if bb and bb[2]==1 else str(bb[0]) if bb else "0"
+      img = Image.open(os.path.join(BASE_DIR, "templates", "New batter.png")).convert("RGBA")
+      draw = ImageDraw.Draw(img)
+      nameFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 90)
+      statsFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 70)
+      draw.text((246.6,42.5), batterPlayer.name[:16].upper(), font=nameFont, fill="white")
+      def draw_centered(text, start_x, width, y):
+        w = statsFont.getlength(text)
+        x = start_x + (width - w)/2
+        draw.text((x, y), text, font=statsFont, fill="white")
+      draw_centered(matches, 42.5, 126, 295)
+      draw_centered(inns, 213.6, 113, 295)
+      draw_centered(runs, 358.5, 131.4, 295)
+      draw_centered(avg, 521.8, 128.1, 295)
+      draw_centered(sr, 687.3, 162.2, 295)
+      draw_centered(fifties, 893.6, 47.8, 295)
+      draw_centered(hundreds, 1018.9, 64.4, 295)
+      draw_centered(best, 1153.2, 66, 295)
+      with BytesIO() as image_binary:
+        img.save(image_binary, 'PNG')
+        image_binary.seek(0)
+        file = discord.File(fp=image_binary, filename=f'{batterPlayer.name}.png')
+        files.append(file)
+    c =  ui.LayoutView(timeout= 60)
+    container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+    gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False) for bat in files)
+    container.add_item(gallery)
+    container.add_item(ui.TextDisplay("-# Graphics: zuhair_asif"))
+    c.add_item(container)
+    await self.ctx.send(view=c, files=files)
+  async def sendNewBowlerGraphic(self, bowlerPlayer):
+    uid=bowlerPlayer.id
+    bot=self.ctx.bot
+    q1="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
+    res1=await bot.fetchrow(q1,(uid,uid,uid))
+    matches=str(res1[0] or 0)
+    inns=str(res1[1] or 0)
+    wkts_val=res1[2] or 0
+    runs_val=res1[3] or 0
+    balls_val=res1[4] or 0
+    wkts=str(wkts_val)
+    avg=str(round((runs_val/wkts_val),2)) if wkts_val else "0.00"
+    SR=str(round((balls_val/wkts_val),2)) if wkts_val else "0.00"
+    q2="SELECT SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+    res2=await bot.fetchrow(q2,(uid,))
+    fifer=str(res2[0] or 0)
+    q3="SELECT SUM(CASE WHEN w>=10 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY matchId)"
+    res3=await bot.fetchrow(q3,(uid,))
+    teninamatch=str(res3[0] or 0)
+    q4="SELECT w,r FROM (SELECT SUM(isWicket) w,SUM(runs) r FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC LIMIT 1)"
+    bb=await bot.fetchrow(q4,(uid,))
+    best=f"{bb[0]}/{bb[1]}" if bb else "0/0"
+    img=Image.open(os.path.join(BASE_DIR,"templates","New bowler.png")).convert("RGBA")
+    draw=ImageDraw.Draw(img)
+    nameFont=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","ArchivoNarrowBold.woff2"),90)
+    statsFont=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","ArchivoNarrowBold.woff2"),70)
+    draw.text((246.6,42.5),bowlerPlayer.name[:16].upper(),font=nameFont,fill="white")
+    def draw_centered(text,start_x,width,y):
+      w=statsFont.getlength(text)
+      x=start_x+(width-w)/2
+      draw.text((x,y),text,font=statsFont,fill="white")
+    draw_centered(matches,42.5,126.5,295)
+    draw_centered(inns,213.6,113,295)
+    draw_centered(wkts,351.3,123,295)
+    draw_centered(avg,521.8,128.1,295)
+    draw_centered(fifer,701.9,43.8,295)
+    draw_centered(teninamatch,808,77.8,295)
+    draw_centered(best,958.9,66,295)
+    draw_centered(SR,1090,162.2,295)
+    with BytesIO() as image_binary:
+      img.save(image_binary,'PNG')
+      image_binary.seek(0)
+      file=discord.File(fp=image_binary,filename='new_bowler.png')
+      await self.ctx.send(file=file)
+      
   def battingCard(self):
     inn = self.currentInning
     img = Image.open(os.path.join(BASE_DIR, "templates", "battingSummary.png")).convert("RGBA")
@@ -741,11 +869,13 @@ class Game():
     if len(options) == 1:
       pid = options[0]['id']
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+      if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
       await self.updateMessage()
       return
     if inn.nextBowlerId and inn.nextBowlerId in [b['id'] for b in options]:
       pid = inn.nextBowlerId 
       inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+      if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
       inn.nextBowlerId = None 
       await self.updateMessage()
       return 
@@ -759,10 +889,11 @@ class Game():
     await view.wait()
     pid=view.value or random.choice(options)['id']
     inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+    if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
     if inn.balls != 0:
       await self.updateMessage()
     if not view.value: 
-      await self.ctx.send(f"**{inn.bowlingTeam.captain} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      await self.ctx.send(f"{inn.bowlingTeam.captain.mention} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
       inn.bowlingTeam.captain = inn.bowlingTeam.viceCaptain
       inn.bowlingTeam.viceCaptain = None 
       inn.bowlingTeam.checkForCaptain()
@@ -782,10 +913,12 @@ class Game():
     inn.cantBat.extend(ids)
     inn.resetPartnership()
     if not view.value: 
-      await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
       inn.battingTeam.captain = inn.battingTeam.viceCaptain
       inn.battingTeam.viceCaptain = None 
       inn.battingTeam.checkForCaptain()
+      
+    await self.sendNewBatterGraphic(*inn.currentBatters)
   async def selectNextBatter(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
@@ -797,12 +930,14 @@ class Game():
       inn.cantBat.append(pid)
       inn.resetPartnership()
       await self.updateMessage()
+      await self.sendNewBatterGraphic(inn.currentBatters[0])
       return
     if inn.nextBatterId and inn.nextBatterId in [b['id'] for b in options]:
       pid=inn.nextBatterId
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
       inn.nextBatterId = None
+      await self.sendNewBatterGraphic(inn.currentBatters[0])
       inn.resetPartnership()
       await self.updateMessage()
       return
@@ -818,8 +953,9 @@ class Game():
     inn.cantBat.append(pid)
     inn.resetPartnership()
     await self.updateMessage()
+    await self.sendNewBatterGraphic(inn.currentBatters[0])
     if not view.value: 
-      await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
+      await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
       inn.battingTeam.captain = inn.battingTeam.viceCaptain
       inn.battingTeam.viceCaptain = None 
       inn.battingTeam.checkForCaptain()
@@ -1270,8 +1406,16 @@ class Game():
         inn.wickets+=1
         excess = striker_p.runs + bat - self.repLimit
         realNumber = bat - excess
+        prev_pship= inn.currentPartnership["runs"]
         inn.currentPartnership["runs"] += realNumber
         inn.currentPartnership["batters"][striker.id]["runs"] += realNumber
+        curr_pship = inn.currentPartnership["runs"]
+        if prev_pship // 50 < curr_pship // 50 and len(inn.currentBatters) > 1:
+          p1 = inn.currentBatters[0]
+          p2 = inn.currentBatters[1]
+          p1s = f"{inn.currentPartnership['batters'][p1.id]['runs']} ({inn.currentPartnership['batters'][p1.id]['balls']})"
+          p2s = f"{inn.currentPartnership['batters'][p2.id]['runs']} ({inn.currentPartnership['batters'][p2.id]['balls']})"
+          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s)
         bowler_p.runsConceded+=realNumber
         bowler_p.currentOverRuns += realNumber
         inn.currentOverRuns += realNumber
@@ -1339,8 +1483,16 @@ class Game():
           await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
         striker_p.runs+=bat
         bowler_p.runsConceded+=bat
+        prev_pship= inn.currentPartnership["runs"]
         inn.currentPartnership["runs"] += bat
         inn.currentPartnership["batters"][striker.id]["runs"] += bat
+        curr_pship = inn.currentPartnership["runs"]
+        if prev_pship // 50 < curr_pship // 50 and len(inn.currentBatters) > 1:
+          p1 = inn.currentBatters[0]
+          p2 = inn.currentBatters[1]
+          p1s = f"{inn.currentPartnership['batters'][p1.id]['runs']} ({inn.currentPartnership['batters'][p1.id]['balls']})"
+          p2s = f"{inn.currentPartnership['batters'][p2.id]['runs']} ({inn.currentPartnership['batters'][p2.id]['balls']})"
+          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s)
         overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
         youRemainOffStrike = ''
         await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")

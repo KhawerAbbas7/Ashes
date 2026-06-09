@@ -1016,7 +1016,7 @@ class Game():
     container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
     container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(bowlerStatsFile, spoiler = False)))
     c.add_item(container)
-    await self.ctx.send(view=c, files = openersStatsFiles+ bowlerStatsFile)
+    await self.ctx.send(view=c, files = openersStatsFiles+ [bowlerStatsFile])
   async def sendToNonStriker(self, content= None, **kwargs):
     if len(self.currentInning.currentBatters) == 2:
       p =self.currentInning.currentBatters[1]

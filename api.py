@@ -271,7 +271,7 @@ class RankingCog(commands.Cog):
         "innings": innings_out,
         "currentBatters": current_batters,
         "currentBowlers": current_bowlers,
-        "commentary": game.currentInning.commentary if game.currentInning.commentary else None
+        "commentary": list(game.currentInning.commentary) if game.currentInning.commentary else None
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

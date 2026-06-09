@@ -439,6 +439,7 @@ class Game():
       draw_centered(best, 1153.2, 66, 295)
       image_binary = BytesIO()
       img.save(image_binary, 'PNG')
+      image_binary.seek(0)
       file = discord.File(fp=image_binary, filename=f'{batterPlayer.name}.png')
       files.append(file)
     c =  ui.LayoutView(timeout= 60)

@@ -437,11 +437,10 @@ class Game():
       draw_centered(fifties, 893.6, 47.8, 295)
       draw_centered(hundreds, 1018.9, 64.4, 295)
       draw_centered(best, 1153.2, 66, 295)
-      with BytesIO() as image_binary:
-        img.save(image_binary, 'PNG')
-        image_binary.seek(0)
-        file = discord.File(fp=image_binary, filename=f'{batterPlayer.name}.png')
-        files.append(file)
+      image_binary = BytesIO()
+      img.save(image_binary, 'PNG')
+      file = discord.File(fp=image_binary, filename=f'{batterPlayer.name}.png')
+      files.append(file)
     c =  ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
     gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False) for bat in files)
@@ -518,7 +517,7 @@ class Game():
         except:
           return len(inn.cantBat) + len(inn.battingTeam.players)
     ordered_batters = sorted(inn.batters.items(), key=lambda x: get_order(x[0]))
-    for p, b in ordered_batters.items():
+    for p, b in ordered_batters:
       name = p.name.upper()[:15]
       runs = str(b.runs)
       balls = str(b.balls)

@@ -374,14 +374,14 @@ class Game():
     ContributionFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 45)
     w1 = nameFont.getlength(p1.name)
     x1 = 107.8 + (285 - w1) / 2
-    draw.text((x1, 827.9), p1.name[:8].upper(), font=nameFont, fill="#08b5f6")
+    draw.text((x1, 827.9), p1.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color)
     w2 = nameFont.getlength(p2.name)
     x2 = 887 + (285 - w2) / 2
-    draw.text((x2, 827.9), p2.name[:8].upper(), font=nameFont, fill="#08b5f6")
+    draw.text((x2, 827.9), p2.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color)
     wP = PScoreFont.getlength(str(pScore))
     xP = (1280 - wP) / 2
-    draw.text((xP, 384.7), str(pScore).upper(), font=PScoreFont, fill="#08b5f6")
-    draw.text((xP + wP + 10, 384.7), "*", font=PScoreFont, fill="#08b5f6")
+    draw.text((xP, 384.7), str(pScore).upper(), font=PScoreFont, fill=self.currentInning.battingTeam.color)
+    draw.text((xP + wP + 10, 384.7), "*", font=PScoreFont, fill=self.currentInning.battingTeam.color)
     draw.text((408.1, 661.5), p1Stats, font=ContributionFont, fill="white")
     wC = ContributionFont.getlength(p2Stats)
     draw.text((886 - wC, 661.5), p2Stats, font=ContributionFont, fill="white")
@@ -396,9 +396,14 @@ class Game():
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
       image_binary.seek(0)
-      i = discord.File(fp=image_binary, filename='pship.png')
-      await self.ctx.send(file=i)
-  async def sendNewBatterGraphic(self, *batterPlayers):
+      file= discord.File(fp=image_binary, filename='pship.png')
+      c =  ui.LayoutView(timeout= 60)
+      container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+      gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(file, spoiler = False))
+      container.add_item(gallery)
+      c.add_item(container)
+      await self.ctx.send(view=c, file=file)
+  async def sendNewBatterGraphic(self, *batterPlayers, returnFiles = False):
     files = []
     for batterPlayer in batterPlayers:
       uid = batterPlayer.id
@@ -442,14 +447,18 @@ class Game():
       image_binary.seek(0)
       file = discord.File(fp=image_binary, filename=f'{batterPlayer.name}.png')
       files.append(file)
+    if returnFiles: 
+      return files
     c =  ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
-    gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False) for bat in files)
-    container.add_item(gallery)
-    container.add_item(ui.TextDisplay("-# Graphics: zuhair_asif"))
+    for bat in files:
+      gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False))
+      container.add_item(gallery)
+      if len(files) == 2:
+        container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
     c.add_item(container)
     await self.ctx.send(view=c, files=files)
-  async def sendNewBowlerGraphic(self, bowlerPlayer):
+  async def sendNewBowlerGraphic(self, bowlerPlayer, returnFile = False):
     uid=bowlerPlayer.id
     bot=self.ctx.bot
     q1="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
@@ -492,7 +501,14 @@ class Game():
       img.save(image_binary,'PNG')
       image_binary.seek(0)
       file=discord.File(fp=image_binary,filename='new_bowler.png')
-      await self.ctx.send(file=file)
+      if returnFile: return file
+      c =  ui.LayoutView(timeout= 60)
+      container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.bowlingTeam.color))
+      gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(file, spoiler = False))
+      container.add_item(ui.TextDisplay("**New Bowler**"))
+      container.add_item(gallery)
+      c.add_item(container)
+      await self.ctx.send(view=c, files=file)
       
   def battingCard(self):
     inn = self.currentInning
@@ -810,7 +826,7 @@ class Game():
     for i, b in enumerate(self.currentInning.currentBatters):actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
     if len(self.currentInning.currentBatters) == 2:
       p = self.currentInning.currentPartnership
-      pship= f"**P'ship: {p['runs']} ({p['balls']})**"
+      pship= f"P'ship: {p['runs']} ({p['balls']})"
       rows += [f"{pship} {extraInfo}\n```"]
     else: rows += [f"{extraInfo}\n```"]
     BatterScore = "\n".join([header] + rows)
@@ -862,7 +878,7 @@ class Game():
     elif batting:return bat if bati else ""
     elif bowling: return bowl if bowli else ""
     return ""
-  async def selectBowler(self):
+  async def selectBowler(self,isStart= False):
     inn=self.currentInning
     captain=inn.bowlingTeam.captain
     options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds and p.id not in inn.bowlingTeam.subbedOffIds]
@@ -889,7 +905,7 @@ class Game():
     await view.wait()
     pid=view.value or random.choice(options)['id']
     inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
-    if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
+    if inn.bowlers[inn.currentBowlers[0]].balls == 0 and not isStart:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
     if inn.balls != 0:
       await self.updateMessage()
     if not view.value: 
@@ -918,7 +934,6 @@ class Game():
       inn.battingTeam.viceCaptain = None 
       inn.battingTeam.checkForCaptain()
       
-    await self.sendNewBatterGraphic(*inn.currentBatters)
   async def selectNextBatter(self):
     inn=self.currentInning
     captain=inn.battingTeam.captain
@@ -990,8 +1005,18 @@ class Game():
     for p in bat.players: inn.batters[p]=BattingInning(p)
     for p in bowl.players: inn.bowlers[p]=BowlingInning(p)
     self.innings.append(inn)
-    await asyncio.gather(self.selectBowler(),self.selectOpeners())
+    await asyncio.gather(self.selectBowler(isStart= True),self.selectOpeners())
     await self.updateMessage(True)
+    openersStatsFiles = await self.sendNewBatterGraphic(*inn.currentBatters, returnFiles= True)
+    bowlerStatsFile = await self.sendNewBowlerGraphic(inn.currentBowlers[0], returnFile= True)
+    c =  ui.LayoutView(timeout= 60)
+    container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
+    gallery = discord.ui.MediaGallery(*(discord.MediaGalleryItem(bat, spoiler = False) for bat in openersStatsFiles))
+    container.add_item(gallery)
+    container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+    container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(bowlerStatsFile, spoiler = False)))
+    c.add_item(container)
+    await self.ctx.send(view=c, files = openersStatsFiles+ bowlerStatsFile)
   async def sendToNonStriker(self, content= None, **kwargs):
     if len(self.currentInning.currentBatters) == 2:
       p =self.currentInning.currentBatters[1]
@@ -1142,7 +1167,7 @@ class Game():
           striker_p.dismissed = True
           inn.fallOfWickets.append(str(inn.runs))
           p = inn.currentPartnership
-          pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
+          pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else ""
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           if not(isRep):
             self.ballsData.append((
@@ -1235,7 +1260,7 @@ class Game():
           inn.wickets+=1
           striker_p.dismissedBy = "AFK"
           p = inn.currentPartnership
-          pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
+          pship= f"P'ship: {p['runs']} ({p['balls']})" if len(inn.currentBatters) == 2 else ""
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           inn.fallOfWickets.append(str(inn.runs))
           striker_p.dismissed = True
@@ -1372,7 +1397,7 @@ class Game():
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
       p = inn.currentPartnership
-      pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
+      pship= f"**P'ship: {p['runs']} ({p['balls']})**\n" if len(inn.currentBatters) == 2 else None
       txt = f"{pship}**The Protagonist -> {bat}**"
       achievement= None
       if bowler_p.wickets < 3 and bowler_p.wickets+1 == 3:achievement = "3fer"

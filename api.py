@@ -200,7 +200,16 @@ class RankingCog(commands.Cog):
       for inn in game.innings:
         # Batters seen so far this inning
         batters_out = []
-        for player, b in inn.batters.items():
+        def get_order(player):
+          try:
+            return inn.cantBat.index(player.id)
+          except ValueError:
+            try:
+              return len(inn.cantBat) + inn.battingTeam.players.index(player)
+            except:
+              return len(inn.cantBat) + len(inn.battingTeam.players)
+        ordered_batters = sorted(inn.batters.items(), key=lambda x: get_order(x[0]))
+        for player, b in ordered_batters:
           batters_out.append({
             "playerId": str(player.id),
             "playerName": player.name,

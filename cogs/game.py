@@ -1397,7 +1397,7 @@ class Game():
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
       p = inn.currentPartnership
-      pship= f"**P'ship: {p['runs']} ({p['balls']})**\n" if len(inn.currentBatters) == 2 else None
+      pship= f"**P'ship: {p['runs']} ({p['balls']})**\n" if len(inn.currentBatters) == 2 else ""
       txt = f"{pship}**The Protagonist -> {bat}**"
       achievement= None
       if bowler_p.wickets < 3 and bowler_p.wickets+1 == 3:achievement = "3fer"

@@ -73,13 +73,15 @@ class Inning():
     self.runs = 0
     self.wickets = 0
     self.balls = 0
-    self.currentPartnership= [0,0]
+    self.currentPartnership = {"runs": 0, "balls": 0, "batters": {}}
     self.currentOverRuns = 0
     self.lastOverRuns = 0
     self.zeroByBowler = 0
     self.fallOfWickets = []
     self.nextBatterId = None
     self.nextBowlerId = None
+  def resetPartnership(self):
+    self.currentPartnership = {"runs": 0, "balls": 0, "batters": {b.id: {"runs": 0, "balls": 0} for b in self.currentBatters}}
 class Team():
   def __init__(self, name: str = 'Team A', id: int = 1):
     self.name = name
@@ -679,7 +681,9 @@ class Game():
         extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
     for i, b in enumerate(self.currentInning.currentBatters):actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
     if len(self.currentInning.currentBatters) == 2:
-      rows += [f"P'ship: {self.currentInning.currentPartnership[0]} ({self.currentInning.currentPartnership[1]}) {extraInfo}\n```"]
+      p = self.currentInning.currentPartnership
+      pship= f"**P'ship: {p['runs']} ({p['balls']})**"
+      rows += [f"{pship} {extraInfo}\n```"]
     else: rows += [f"{extraInfo}\n```"]
     BatterScore = "\n".join([header] + rows)
     container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
@@ -776,6 +780,7 @@ class Game():
     ids=view.value or random.sample([i['id'] for i in options], k= 2)
     inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
     inn.cantBat.extend(ids)
+    inn.resetPartnership()
     if not view.value: 
       await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
       inn.battingTeam.captain = inn.battingTeam.viceCaptain
@@ -790,6 +795,7 @@ class Game():
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
+      inn.resetPartnership()
       await self.updateMessage()
       return
     if inn.nextBatterId and inn.nextBatterId in [b['id'] for b in options]:
@@ -797,6 +803,7 @@ class Game():
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
       inn.nextBatterId = None
+      inn.resetPartnership()
       await self.updateMessage()
       return
     view=ui.LayoutView(timeout=30)
@@ -809,6 +816,7 @@ class Game():
     pid=view.value or random.choice(options)['id']
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
     inn.cantBat.append(pid)
+    inn.resetPartnership()
     await self.updateMessage()
     if not view.value: 
       await self.ctx.send(f"**{inn.battingTeam.captain} Failed to respond in time, therefore {inn.battingTeam.viceCaptain} (VC) is being appointed as Captain**")
@@ -992,13 +1000,13 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id:
             batterExtraTXT = ""
-            inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
           batterExtraTXT = ""
           striker_p.dismissedBy = "AFK"
           striker_p.dismissed = True
           inn.fallOfWickets.append(str(inn.runs))
-          pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
+          p = inn.currentPartnership
+          pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets+1}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           if not(isRep):
             self.ballsData.append((
@@ -1027,7 +1035,7 @@ class Game():
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):
             inn.nextBatterId = None
-            await self.selectNextBatter(); inn.currentPartnership = [0,0]
+            await self.selectNextBatter()
           elif not inn.currentBatters:return 'Inning Over'
         else:
           batterExtraTXT = "You were AFK, try this again."
@@ -1086,12 +1094,12 @@ class Game():
           await self.selectNextBatter()
           if inn.currentBatters[0].id != striker.id:
             batterExtraTXT = ""
-            inn.currentPartnership = [0,0]
         elif striker_p.AFKs == 6:
           batterExtraTXT = ""
           inn.wickets+=1
           striker_p.dismissedBy = "AFK"
-          pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**" if len(inn.currentBatters) == 2 else None
+          p = inn.currentPartnership
+          pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
           await self.sendWicketGraphic(striker.name.upper()[:18], striker_p.dismissedBy, str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), pship)
           inn.fallOfWickets.append(str(inn.runs))
           striker_p.dismissed = True
@@ -1121,7 +1129,7 @@ class Game():
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):
             inn.nextBatterId = None
-            await self.selectNextBatter();inn.currentPartnership = [0,0]
+            await self.selectNextBatter()
           elif not inn.currentBatters:return 'Inning Over'
         else:
           if not(isRep):
@@ -1190,7 +1198,9 @@ class Game():
     inn.balls+=1
     striker_p.balls+=1
     bowler_p.balls+=1
-    inn.currentPartnership[1] +=1
+    inn.currentPartnership["balls"] += 1
+    if striker.id not in inn.currentPartnership["batters"]: inn.currentPartnership["batters"][striker.id] = {"runs": 0, "balls": 0}
+    inn.currentPartnership["batters"][striker.id]["balls"] += 1
     striker_p.timeline.append(str(bat))
     if bowl == 0:
       inn.zeroByBowler = 1
@@ -1225,7 +1235,8 @@ class Game():
           ))
       v = ui.LayoutView(timeout=None)
       c = ui.Container(accent_color=discord.Colour.from_str("#9b0a0a"))
-      pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**\n" if len(inn.currentBatters) == 2 else ""
+      p = inn.currentPartnership
+      pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
       txt = f"{pship}**The Protagonist -> {bat}**"
       achievement= None
       if bowler_p.wickets < 3 and bowler_p.wickets+1 == 3:achievement = "3fer"
@@ -1234,7 +1245,6 @@ class Game():
       if isHattrick:
         achievement = "hattrick "
       await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, achievement)
-      inn.currentPartnership = [0,0]
       await asyncio.sleep(0.3)
       await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
       inn.fallOfWickets.append(str(inn.runs))
@@ -1260,19 +1270,21 @@ class Game():
         inn.wickets+=1
         excess = striker_p.runs + bat - self.repLimit
         realNumber = bat - excess
+        inn.currentPartnership["runs"] += realNumber
+        inn.currentPartnership["batters"][striker.id]["runs"] += realNumber
         bowler_p.runsConceded+=realNumber
         bowler_p.currentOverRuns += realNumber
         inn.currentOverRuns += realNumber
         inn.runs+=realNumber
         inn.fallOfWickets.append(str(inn.runs))
-        inn.currentPartnership[0] += realNumber
         if realNumber in [4,6]:
           if realNumber == 4: striker_p.fours += 1
           if realNumber == 6: striker_p.sixes += 1
         striker_p.runs+=realNumber
         bowler_p.timeline.append(str(bowl))
         inn.timeline.append(f"W{realNumber}")
-        pship= f"**P'ship: {inn.currentPartnership[0]} ({inn.currentPartnership[1]})**\n"
+        p = inn.currentPartnership
+        pship= f"**P'ship: {p['runs']} ({p['balls']})**" if len(inn.currentBatters) == 2 else None
         txt = f"{pship}**{striker.name} has reached the rep limit ({self.repLimit}) and therefore he is going off.**"
         if excess:
           txt += f"The batter scored {bat} on the previous delivery, but it has been revised to {realNumber} due to the rep limit."
@@ -1282,7 +1294,6 @@ class Game():
         await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}. **Your number was reassessed to {realNumber}**\nYou have reached the rep limit with this shot, therefore you are being **declared out**.")
         await asyncio.sleep(0.3)
         await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat} (reassessed to {realNumber}**\nBowler -> {bowl}")
-        inn.currentPartnership = [0,0]
         await asyncio.sleep(0.3)
         inn.currentBatters.pop(0)
         if len(inn.cantBat) < len(inn.battingTeam.players):
@@ -1328,7 +1339,8 @@ class Game():
           await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
         striker_p.runs+=bat
         bowler_p.runsConceded+=bat
-        inn.currentPartnership[0] += bat
+        inn.currentPartnership["runs"] += bat
+        inn.currentPartnership["batters"][striker.id]["runs"] += bat
         overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
         youRemainOffStrike = ''
         await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")

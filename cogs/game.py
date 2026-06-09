@@ -508,7 +508,7 @@ class Game():
       container.add_item(ui.TextDisplay("**New Bowler**"))
       container.add_item(gallery)
       c.add_item(container)
-      await self.ctx.send(view=c, files=file)
+      await self.ctx.send(view=c, file=file)
       
   def battingCard(self):
     inn = self.currentInning
@@ -1011,8 +1011,8 @@ class Game():
     bowlerStatsFile = await self.sendNewBowlerGraphic(inn.currentBowlers[0], returnFile= True)
     c =  ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
-    gallery = discord.ui.MediaGallery(*(discord.MediaGalleryItem(bat, spoiler = False) for bat in openersStatsFiles))
-    container.add_item(gallery)
+    for bat in openersStatsFiles:
+      container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(bat, spoiler = False)))
     container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
     container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(bowlerStatsFile, spoiler = False)))
     c.add_item(container)

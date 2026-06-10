@@ -89,7 +89,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
               } for p, b in i.bowlers.items()
             ]
           } for i in game.innings
-        ]
+        ],
+        "ballsData": list(game.ballsData)
       }
       buf = BytesIO(json.dumps(data, indent=2).encode())
       buf.seek(0)

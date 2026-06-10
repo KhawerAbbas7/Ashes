@@ -954,31 +954,24 @@ class HelpButton(ui.Button):
     super().__init__(label= lab, style=discord.ButtonStyle.green, disabled= disabledd)
   async def callback(self, i):
     if self.lab == 'Prev':
-      self.view.page -= 1 
+      v = Helpview(self.view.ctx, self.view.page-1)
       self.view.makePage()
-      await i.response.edit_message(content=None,view=self.view)
+      await i.response.edit_message(content=None,view=v)
     elif self.lab == 'Next':
-      self.view.page += 1 
-      v = Helpview(self.view.ctx)
-      v.page = self.view.page
-      self.view.makePage()
+      v = Helpview(self.view.ctx, self.view.page+1)
       await i.response.edit_message(content=None,view=v)
     elif self.lab == 'How To Play':
       self.view.page = 'How To Play'
-      v = Helpview(self.view.ctx)
-      v.page = self.view.page
-      v.makePage()
+      v = Helpview(self.view.ctx, 'How To Play')
       await i.response.edit_message(content=None,view=v)
     elif self.lab == 'Commands':
       v = Helpview(self.view.ctx)
-      v.page = self.view.page
-      v.makePage()
       await i.response.edit_message(content=None,view=v)
 class Helpview(ui.LayoutView):
-  def __init__(self,ctx) -> None:
+  def __init__(self,ctx, page= 0) -> None:
     self.ctx = ctx = ctx 
     self.perPage = 10
-    self.page = 0 
+    self.page = page
     super().__init__(timeout= 60)
     self.makePage()
   def makePage(self):

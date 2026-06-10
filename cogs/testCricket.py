@@ -8,8 +8,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
-  @commands.command(aliases=['export'], description='Create a test match instance and invite others to join the fun.')
+  @commands.command(aliases=['export'], description='.')
+  @commands.is_owner()
   async def exp(self, ctx):
+    
     async def export_live_instance(game, ctx):
       data = {
         "meta": {

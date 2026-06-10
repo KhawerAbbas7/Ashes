@@ -373,11 +373,11 @@ class Game():
     PScoreFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 200)
     ContributionFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 45)
     w1 = nameFont.getlength(p1.name)
-    x1 = 107.8 + (285 - w1) / 2
-    draw.text((x1, 827.9), p1.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color)
+    x1 = 90.4 + (320 - w)/2
+    draw.text((x1, 835), p1.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
     w2 = nameFont.getlength(p2.name)
-    x2 = 887 + (285 - w2) / 2
-    draw.text((x2, 827.9), p2.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color)
+    x2 = 869.6 + (320 - w)/2
+    draw.text((x2, 835), p2.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
     wP = PScoreFont.getlength(str(pScore))
     xP = (1280 - wP) / 2
     draw.text((xP, 384.7), str(pScore).upper(), font=PScoreFont, fill=self.currentInning.battingTeam.color)
@@ -385,13 +385,21 @@ class Game():
     draw.text((408.1, 661.5), p1Stats, font=ContributionFont, fill="white")
     wC = ContributionFont.getlength(p2Stats)
     draw.text((886 - wC, 661.5), p2Stats, font=ContributionFont, fill="white")
+    def returnRounded(img):
+      mask = Image.new("L", img.size, 0)
+      draw = ImageDraw.Draw(mask)
+      draw.rounded_rectangle((0, 0, img.width, img.height), radius=18, fill=255)
+      img.putalpha(mask)
+      return img
     if p1.user.avatar:
       p1Data = await p1.user.avatar.read()
-      partner1Pfp = Image.open(BytesIO(p1Data)).convert("RGBA").resize((285, 418), Image.LANCZOS)
+      partner1Pfp = Image.open(BytesIO(p1Data)).resize((285, 418), Image.Resampling.LANCZOS)
+      partner1Pfp = returnRounded(partner1Pfp)
       img.paste(partner1Pfp, (108, 410), partner1Pfp)
     if p2.user.avatar:
       p2Data = await p2.user.avatar.read()
-      partner2Pfp = Image.open(BytesIO(p2Data)).convert("RGBA").resize((285, 418), Image.LANCZOS)
+      partner2Pfp = Image.open(BytesIO(p2Data)).convert("RGBA").resize((285, 418), Image.Resampling.LANCZOS)
+      partner2Pfp = returnRounded(partner2Pfp)
       img.paste(partner2Pfp, (887, 410), partner2Pfp)
     with BytesIO() as image_binary:
       img.save(image_binary, 'PNG')
@@ -429,7 +437,7 @@ class Game():
       draw = ImageDraw.Draw(img)
       nameFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 90)
       statsFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 70)
-      draw.text((246.6,42.5), batterPlayer.name[:16].upper(), font=nameFont, fill="white")
+      draw.text((246.6,42.5), batterPlayer.name[:16].upper(), font=nameFont, fill=self.currentInning.battingTeam.color)
       def draw_centered(text, start_x, width, y):
         w = statsFont.getlength(text)
         x = start_x + (width - w)/2
@@ -484,7 +492,7 @@ class Game():
     draw=ImageDraw.Draw(img)
     nameFont=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","ArchivoNarrowBold.woff2"),90)
     statsFont=ImageFont.truetype(os.path.join(BASE_DIR,"fonts","ArchivoNarrowBold.woff2"),70)
-    draw.text((246.6,42.5),bowlerPlayer.name[:16].upper(),font=nameFont,fill="white")
+    draw.text((246.6,42.5),bowlerPlayer.name[:16].upper(),font=nameFont,fill=self.currentInning.bowlingTeam.color)
     def draw_centered(text,start_x,width,y):
       w=statsFont.getlength(text)
       x=start_x+(width-w)/2

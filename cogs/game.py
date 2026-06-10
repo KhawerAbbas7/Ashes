@@ -1659,6 +1659,7 @@ class Game():
       inn.declared=i_data["flags"]["declared"]
       inn.followOn=i_data["flags"]["followOn"]
       inn.currentOverRuns=i_data["crease"]["currentOverRuns"]
+      inn.lastOverRuns=i_data["crease"]["lastOverRuns"]
       inn.zeroByBowler=i_data["crease"]["zeroByBowler"]
       inn.timeline.extend(i_data["crease"]["timeline"])
       inn.currentPartnership=i_data["crease"]["currentPartnership"]

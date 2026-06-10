@@ -77,7 +77,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       buf = BytesIO(json.dumps(data, indent=2).encode())
       buf.seek(0)
       await ctx.send(file=discord.File(fp=buf, filename=f"state_export_{game.gameId}.json"))
-    export_live_instance(ctx.bot.games[ctx.channel.id], ctx)
+    await export_live_instance(ctx.bot.games[ctx.channel.id], ctx)
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.bot.creationBlocked:

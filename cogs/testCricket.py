@@ -8,7 +8,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
-  @commands.command(aliases= ['export'], description= 'Create a test match instance and invite others to join the fun.')
+  @commands.command(aliases=['export'], description='Create a test match instance and invite others to join the fun.')
   async def exp(self, ctx):
     async def export_live_instance(game, ctx):
       data = {
@@ -17,17 +17,25 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
           "host": game.hostId,
           "startTime": game.startedAt,
           "endTime": time.time(),
-          "settings": {"maxBalls": game.maxBalls},
+          "settings": {"maxBalls": game.maxBalls, "T10": game.T10},
+          "guild": ctx.guild.id,
+          "channel": ctx.channel.id,
           "repLimit": game.repLimit,
-          "repIds": game.repIds
+          "repIds": game.repIds,
+          "tossStatus": game.tossStatus,
+          "batFirstTeam": game.batFirstTeam.id if game.batFirstTeam else None,
+          "followOnTeam": game.followOnTeam.id if game.followOnTeam else None
         },
         "result": {
           "winner": game.winner,
-          "status": game.matchStatus()
+          "mvp": game.mvp.id if game.mvp else None,
+          "status": game.matchStatus(),
+          "drawnByAgreement": game.drawnByAgreement,
+          "forfeitedById": game.forfeitedById
         },
         "teams": {
-          "A": {"name": game.teama.name, "captain": game.teama.captain.id if game.teama.captain else None, "players": [{"id": p.id, "name": p.name} for p in game.teama.players]},
-          "B": {"name": game.teamb.name, "captain": game.teamb.captain.id if game.teamb.captain else None, "players": [{"id": p.id, "name": p.name} for p in game.teamb.players]}
+          "A": {"name": game.teama.name, "captain": game.teama.captain.id if game.teama.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in game.repIds} for p in game.teama.players], "subbedOffIds": game.teama.subbedOffIds, "subbedInIds": game.teama.subbedInIds},
+          "B": {"name": game.teamb.name, "captain": game.teamb.captain.id if game.teamb.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in game.repIds} for p in game.teamb.players], "subbedOffIds": game.teamb.subbedOffIds, "subbedInIds": game.teamb.subbedInIds}
         },
         "innings": [
           {
@@ -43,7 +51,10 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
               "currentPartnership": {"runs": i.currentPartnership["runs"], "balls": i.currentPartnership["balls"]},
               "timeline": list(i.timeline),
               "currentOverRuns": i.currentOverRuns,
-              "zeroByBowler": i.zeroByBowler
+              "zeroByBowler": i.zeroByBowler,
+              "fallOfWickets": list(i.fallOfWickets),
+              "nextBatterId": i.nextBatterId,
+              "nextBowlerId": i.nextBowlerId
             },
             "batting": [
               {
@@ -53,9 +64,14 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
                 "balls": b.balls,
                 "sr": b.sr,
                 "dismissed": b.dismissed,
+                "dismissedBy": b.dismissedBy,
+                "isRep": p.id in game.repIds,
                 "consecutiveDots": b.consecutiveDots,
                 "BoundaryThisOver": b.BoundaryThisOver,
-                "AFKs": b.AFKs
+                "AFKs": b.AFKs,
+                "fours": b.fours,
+                "sixes": b.sixes,
+                "timeline": list(b.timeline)
               } for p, b in i.batters.items()
             ],
             "bowling": [
@@ -68,7 +84,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
                 "economy": round((b.runsConceded / b.balls) * 6, 2) if b.balls else 0.0,
                 "timeline": list(b.timeline),
                 "AFKs": b.AFKs,
-                "maidens": b.maidens
+                "maidens": b.maidens,
+                "wicketsDigits": list(b.wicketsDigits)
               } for p, b in i.bowlers.items()
             ]
           } for i in game.innings
@@ -78,6 +95,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       buf.seek(0)
       await ctx.send(file=discord.File(fp=buf, filename=f"state_export_{game.gameId}.json"))
     await export_live_instance(ctx.bot.games[ctx.channel.id], ctx)
+
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.bot.creationBlocked:

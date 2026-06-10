@@ -1662,7 +1662,19 @@ class Game():
       inn.lastOverRuns=i_data["crease"]["lastOverRuns"]
       inn.zeroByBowler=i_data["crease"]["zeroByBowler"]
       inn.timeline.extend(i_data["crease"]["timeline"])
-      inn.currentPartnership=i_data["crease"]["currentPartnership"]
+      pship=i_data["crease"]["currentPartnership"]
+      if "batters" in pship:
+        pship["batters"]={int(k):v for k,v in pship["batters"].items()}
+      else:
+        pship["batters"]={pid:{"runs":0,"balls":0} for pid in i_data["crease"]["currentBatters"]}
+        # b[2] = inningId, b[9] = isWicket, b[4] = batterId, b[10] = runs, b[15] = batterNum, b[16] = bowlerNum
+        for b in reversed([b for b in data.get("ballsData",[]) if b[2]==i_data["id"]]):
+          if b[9]==1: break
+          if b[4] in pship["batters"]:
+            if b[15] is not None and b[16] is not None:
+              pship["batters"][b[4]]["runs"]+=b[10]
+              pship["batters"][b[4]]["balls"]+=1
+      inn.currentPartnership=pship
       inn.fallOfWickets=i_data["crease"].get("fallOfWickets",[])
       inn.nextBatterId=i_data["crease"].get("nextBatterId")
       inn.nextBowlerId=i_data["crease"].get("nextBowlerId")

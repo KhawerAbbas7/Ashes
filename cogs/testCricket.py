@@ -50,7 +50,11 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
             "crease": {
               "currentBatters": [b.id for b in i.currentBatters],
               "currentBowlers": [b.id for b in i.currentBowlers],
-              "currentPartnership": {"runs": i.currentPartnership["runs"], "balls": i.currentPartnership["balls"]},
+              "currentPartnership": {
+                "runs": i.currentPartnership["runs"], 
+                "balls": i.currentPartnership["balls"], 
+                "batters": i.currentPartnership.get("batters", {})
+              },
               "timeline": list(i.timeline),
               "currentOverRuns": i.currentOverRuns,
               "lastOverRuns": i.lastOverRuns,

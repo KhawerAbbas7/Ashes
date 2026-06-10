@@ -1619,21 +1619,34 @@ class Game():
     self.hostId=data["meta"]["host"]
     self.startedAt=data["meta"]["startTime"]
     self.maxBalls=data["meta"]["settings"]["maxBalls"]
+    self.T10=data["meta"]["settings"].get("T10",False)
     self.repLimit=data["meta"]["repLimit"]
     self.repIds=data["meta"]["repIds"]
+    self.tossStatus=data["meta"].get("tossStatus")
     self.winner=data["result"]["winner"]
+    self.drawnByAgreement=data["result"].get("drawnByAgreement",False)
+    self.forfeitedById=data["result"].get("forfeitedById")
     self.started=True
+    self.ballsData=[tuple(b) for b in data.get("ballsData",[])]
     async def get_player(p_data):
       u=await self.ctx.bot.fetch_user(p_data["id"])
       return Player().fromUser(u)
     self.teama.name=data["teams"]["A"]["name"]
     self.teama.players=[await get_player(p) for p in data["teams"]["A"]["players"]]
+    self.teama.subbedOffIds=data["teams"]["A"].get("subbedOffIds",[])
+    self.teama.subbedInIds=data["teams"]["A"].get("subbedInIds",[])
     if data["teams"]["A"]["captain"]:
       self.teama.captain=next(p for p in self.teama.players if p.id==data["teams"]["A"]["captain"])
     self.teamb.name=data["teams"]["B"]["name"]
     self.teamb.players=[await get_player(p) for p in data["teams"]["B"]["players"]]
+    self.teamb.subbedOffIds=data["teams"]["B"].get("subbedOffIds",[])
+    self.teamb.subbedInIds=data["teams"]["B"].get("subbedInIds",[])
     if data["teams"]["B"]["captain"]:
       self.teamb.captain=next(p for p in self.teamb.players if p.id==data["teams"]["B"]["captain"])
+    if data["meta"].get("batFirstTeam"):
+      self.batFirstTeam=self.teama if data["meta"]["batFirstTeam"]==self.teama.id else self.teamb
+    if data["meta"].get("followOnTeam"):
+      self.followOnTeam=self.teama if data["meta"]["followOnTeam"]==self.teama.id else self.teamb
     for i_data in data["innings"]:
       inn=Inning()
       inn.inningId=i_data["id"]
@@ -1649,15 +1662,22 @@ class Game():
       inn.zeroByBowler=i_data["crease"]["zeroByBowler"]
       inn.timeline.extend(i_data["crease"]["timeline"])
       inn.currentPartnership=i_data["crease"]["currentPartnership"]
+      inn.fallOfWickets=i_data["crease"].get("fallOfWickets",[])
+      inn.nextBatterId=i_data["crease"].get("nextBatterId")
+      inn.nextBowlerId=i_data["crease"].get("nextBowlerId")
       for b_data in i_data["batting"]:
         p=next(x for x in inn.battingTeam.players if x.id==b_data["id"])
         bi=BattingInning(p)
         bi.runs=b_data["runs"]
         bi.balls=b_data["balls"]
         bi.dismissed=b_data["dismissed"]
+        bi.dismissedBy=b_data.get("dismissedBy","DNB")
         bi.consecutiveDots=b_data["consecutiveDots"]
         bi.BoundaryThisOver=b_data["BoundaryThisOver"]
         bi.AFKs=b_data["AFKs"]
+        bi.fours=b_data.get("fours",0)
+        bi.sixes=b_data.get("sixes",0)
+        bi.timeline.extend(b_data.get("timeline",[]))
         inn.batters[p]=bi
       for b_data in i_data["bowling"]:
         p=next(x for x in inn.bowlingTeam.players if x.id==b_data["id"])
@@ -1668,12 +1688,13 @@ class Game():
         bi.AFKs=b_data["AFKs"]
         bi.maidens=b_data["maidens"]
         bi.timeline.extend(b_data["timeline"])
+        bi.wicketsDigits=b_data.get("wicketsDigits",[])
         inn.bowlers[p]=bi
       inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBatters"]]
       inn.currentBowlers=deque([next(p for p in inn.bowlingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBowlers"]],maxlen=2)
       inn.cantBat=[p.id for p,b in inn.batters.items() if b.dismissed or p.id in [x.id for x in inn.currentBatters]]
       self.innings.append(inn)
-      
+
   async def start(self):
     try:
       self.started=True 

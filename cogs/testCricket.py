@@ -96,7 +96,18 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       buf.seek(0)
       await ctx.send(file=discord.File(fp=buf, filename=f"state_export_{game.gameId}.json"))
     await export_live_instance(ctx.bot.games[ctx.channel.id], ctx)
-
+  @commands.command()
+  @commands.is_owner()
+  async def resume(self, ctx):
+    message = ctx.message
+    if message.reference and (replyMsg:= message.reference.resolved):
+      file_content = await replyMsg.attachments[0].read()
+      data = json.loads(file_content.decode('utf-8'))
+      game = Game(ctx)
+      await game.load_from_state(data) 
+      ctx.bot.games[ctx.channel.id] = game
+      await ctx.send("Game state loaded successfully. Resuming match...")
+      await game.start()
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.bot.creationBlocked:

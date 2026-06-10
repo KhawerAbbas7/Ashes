@@ -959,16 +959,21 @@ class HelpButton(ui.Button):
       await i.response.edit_message(content=None,view=self.view)
     elif self.lab == 'Next':
       self.view.page += 1 
+      v = Helpview(self.view.ctx)
+      v.page = self.view.page
       self.view.makePage()
-      await i.response.edit_message(content=None,view=self.view)
+      await i.response.edit_message(content=None,view=v)
     elif self.lab == 'How To Play':
       self.view.page = 'How To Play'
-      self.view.makePage()
-      await i.response.edit_message(content=None,view=self.view)
+      v = Helpview(self.view.ctx)
+      v.page = self.view.page
+      v.makePage()
+      await i.response.edit_message(content=None,view=v)
     elif self.lab == 'Commands':
-      self.view.page = 0
-      self.view.makePage()
-      await i.response.edit_message(content=None,view=self.view)
+      v = Helpview(self.view.ctx)
+      v.page = self.view.page
+      v.makePage()
+      await i.response.edit_message(content=None,view=v)
 class Helpview(ui.LayoutView):
   def __init__(self,ctx) -> None:
     self.ctx = ctx = ctx 

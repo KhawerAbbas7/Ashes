@@ -373,10 +373,10 @@ class Game():
     PScoreFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 200)
     ContributionFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 45)
     w1 = nameFont.getlength(p1.name)
-    x1 = 90.4 + (320 - w)/2
+    x1 = 90.4 + (320 - w1)/2
     draw.text((x1, 835), p1.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
     w2 = nameFont.getlength(p2.name)
-    x2 = 869.6 + (320 - w)/2
+    x2 = 869.6 + (320 - w2)/2
     draw.text((x2, 835), p2.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
     wP = PScoreFont.getlength(str(pScore))
     xP = (1280 - wP) / 2
@@ -1614,15 +1614,78 @@ class Game():
     buf=BytesIO(json.dumps(self.rawStats(),indent=2).encode())
     buf.seek(0)
     await self.ctx.send(file= discord.File(fp=buf, filename=f'{self.gameId}.json'))
+  async def load_from_state(self,data):
+    self.gameId=data["meta"]["id"]
+    self.hostId=data["meta"]["host"]
+    self.startedAt=data["meta"]["startTime"]
+    self.maxBalls=data["meta"]["settings"]["maxBalls"]
+    self.repLimit=data["meta"]["repLimit"]
+    self.repIds=data["meta"]["repIds"]
+    self.winner=data["result"]["winner"]
+    self.started=True
+    async def get_player(p_data):
+      u=await self.ctx.bot.fetch_user(p_data["id"])
+      return Player().fromUser(u)
+    self.teama.name=data["teams"]["A"]["name"]
+    self.teama.players=[await get_player(p) for p in data["teams"]["A"]["players"]]
+    if data["teams"]["A"]["captain"]:
+      self.teama.captain=next(p for p in self.teama.players if p.id==data["teams"]["A"]["captain"])
+    self.teamb.name=data["teams"]["B"]["name"]
+    self.teamb.players=[await get_player(p) for p in data["teams"]["B"]["players"]]
+    if data["teams"]["B"]["captain"]:
+      self.teamb.captain=next(p for p in self.teamb.players if p.id==data["teams"]["B"]["captain"])
+    for i_data in data["innings"]:
+      inn=Inning()
+      inn.inningId=i_data["id"]
+      inn.inningNo=i_data["number"]
+      inn.battingTeam=self.teama if i_data["battingTeam"]==self.teama.name else self.teamb
+      inn.bowlingTeam=self.teamb if i_data["bowlingTeam"]==self.teamb.name else self.teama
+      inn.runs=i_data["totals"]["runs"]
+      inn.wickets=i_data["totals"]["wickets"]
+      inn.balls=i_data["totals"]["balls"]
+      inn.declared=i_data["flags"]["declared"]
+      inn.followOn=i_data["flags"]["followOn"]
+      inn.currentOverRuns=i_data["crease"]["currentOverRuns"]
+      inn.zeroByBowler=i_data["crease"]["zeroByBowler"]
+      inn.timeline.extend(i_data["crease"]["timeline"])
+      inn.currentPartnership=i_data["crease"]["currentPartnership"]
+      for b_data in i_data["batting"]:
+        p=next(x for x in inn.battingTeam.players if x.id==b_data["id"])
+        bi=BattingInning(p)
+        bi.runs=b_data["runs"]
+        bi.balls=b_data["balls"]
+        bi.dismissed=b_data["dismissed"]
+        bi.consecutiveDots=b_data["consecutiveDots"]
+        bi.BoundaryThisOver=b_data["BoundaryThisOver"]
+        bi.AFKs=b_data["AFKs"]
+        inn.batters[p]=bi
+      for b_data in i_data["bowling"]:
+        p=next(x for x in inn.bowlingTeam.players if x.id==b_data["id"])
+        bi=BowlingInning(p)
+        bi.runsConceded=b_data["runs"]
+        bi.wickets=b_data["wickets"]
+        bi.balls=b_data["balls"]
+        bi.AFKs=b_data["AFKs"]
+        bi.maidens=b_data["maidens"]
+        bi.timeline.extend(b_data["timeline"])
+        inn.bowlers[p]=bi
+      inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBatters"]]
+      inn.currentBowlers=deque([next(p for p in inn.bowlingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBowlers"]],maxlen=2)
+      inn.cantBat=[p.id for p,b in inn.batters.items() if b.dismissed or p.id in [x.id for x in inn.currentBatters]]
+      self.innings.append(inn)
+      
   async def start(self):
     try:
-      self.started = True 
-      self.startedAt = time.time()
+      self.started=True 
+      if not self.startedAt:self.startedAt=time.time()
       for i in range(4 if not self.T10 else 2):
-        if self.forceYeet: return
-        w = self.checkForWinner()
-        if w: break
-        await self.startInning()
+        if self.forceYeet:return
+        w=self.checkForWinner()
+        if w:break
+        if len(self.innings)<=i:
+          await self.startInning()
+        elif self.innings[i].declared or not self.innings[i].currentBatters:
+          continue
         while True:
           if self.forceYeet: return
           g = await self.getInputs()

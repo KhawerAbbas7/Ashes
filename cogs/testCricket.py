@@ -1,12 +1,83 @@
-import discord, time,random
+import discord, time,random, json
 from discord import Embed, Color,ui
 from discord.ext import commands, tasks
 from cogs.game import Game
 from cogs.views import *
+from io import BytesIO
 class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
+  @commands.command(aliases= ['export'], description= 'Create a test match instance and invite others to join the fun.')
+  async def exp(self, ctx):
+    async def export_live_instance(game, ctx):
+      data = {
+        "meta": {
+          "id": game.gameId,
+          "host": game.hostId,
+          "startTime": game.startedAt,
+          "endTime": time.time(),
+          "settings": {"maxBalls": game.maxBalls},
+          "repLimit": game.repLimit,
+          "repIds": game.repIds
+        },
+        "result": {
+          "winner": game.winner,
+          "status": game.matchStatus()
+        },
+        "teams": {
+          "A": {"name": game.teama.name, "captain": game.teama.captain.id if game.teama.captain else None, "players": [{"id": p.id, "name": p.name} for p in game.teama.players]},
+          "B": {"name": game.teamb.name, "captain": game.teamb.captain.id if game.teamb.captain else None, "players": [{"id": p.id, "name": p.name} for p in game.teamb.players]}
+        },
+        "innings": [
+          {
+            "id": i.inningId,
+            "number": i.inningNo,
+            "battingTeam": i.battingTeam.name,
+            "bowlingTeam": i.bowlingTeam.name,
+            "totals": {"runs": i.runs, "wickets": i.wickets, "balls": i.balls},
+            "flags": {"declared": i.declared, "followOn": i.followOn},
+            "crease": {
+              "currentBatters": [b.id for b in i.currentBatters],
+              "currentBowlers": [b.id for b in i.currentBowlers],
+              "currentPartnership": {"runs": i.currentPartnership["runs"], "balls": i.currentPartnership["balls"]},
+              "timeline": list(i.timeline),
+              "currentOverRuns": i.currentOverRuns,
+              "zeroByBowler": i.zeroByBowler
+            },
+            "batting": [
+              {
+                "id": p.id,
+                "name": p.name,
+                "runs": b.runs,
+                "balls": b.balls,
+                "sr": b.sr,
+                "dismissed": b.dismissed,
+                "consecutiveDots": b.consecutiveDots,
+                "BoundaryThisOver": b.BoundaryThisOver,
+                "AFKs": b.AFKs
+              } for p, b in i.batters.items()
+            ],
+            "bowling": [
+              {
+                "id": p.id,
+                "name": p.name,
+                "runs": b.runsConceded,
+                "wickets": b.wickets,
+                "balls": b.balls,
+                "economy": round((b.runsConceded / b.balls) * 6, 2) if b.balls else 0.0,
+                "timeline": list(b.timeline),
+                "AFKs": b.AFKs,
+                "maidens": b.maidens
+              } for p, b in i.bowlers.items()
+            ]
+          } for i in game.innings
+        ]
+      }
+      buf = BytesIO(json.dumps(data, indent=2).encode())
+      buf.seek(0)
+      await ctx.send(file=discord.File(fp=buf, filename=f"state_export_{game.gameId}.json"))
+    export_live_instance(ctx.bot.games[ctx.channel.id], ctx)
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.bot.creationBlocked:

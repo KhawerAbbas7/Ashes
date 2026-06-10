@@ -1629,7 +1629,9 @@ class Game():
     self.started=True
     self.ballsData=[tuple(b) for b in data.get("ballsData",[])]
     async def get_player(p_data):
-      u=await self.ctx.bot.fetch_user(p_data["id"])
+      u = self.ctx.bot.get_user(p_data["id"])
+      if not u:
+        u=await self.ctx.bot.fetch_user(p_data["id"])
       return Player().fromUser(u)
     self.teama.name=data["teams"]["A"]["name"]
     self.teama.players=[await get_player(p) for p in data["teams"]["A"]["players"]]

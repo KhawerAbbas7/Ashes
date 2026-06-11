@@ -111,6 +111,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       file_content = await replyMsg.attachments[0].read()
       data = json.loads(file_content.decode('utf-8'))
       game = Game(ctx)
+      game.resumed = True
       await game.load_from_state(data) 
       ctx.bot.games[ctx.channel.id] = game
       await ctx.send("Game state loaded successfully. Resuming match...")
@@ -456,8 +457,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='You can\'t be subbed off', description=f'Captains cannot sub themselves.', color=Color.from_str('#b30707')))
     team = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
     inn = g.currentInning
-    if len(team.subbedOffIds) >= 2:
-      return await ctx.send(embed= Embed(title='Maximum Impact Players Used', description=f'There\'s a limit of 2 subs which is reached by {team.name}.', color=Color.from_str('#b30707')))
+    if (not g.resumed and len(team.subbedOffIds) >= 2) or (g.resumed and len(team.subbedOffIds) >= 4):
+      return await ctx.send(embed= Embed(title='Maximum Impact Players Used', description=f'There\'s a limit of 2 (4 if resumed) subs which is reached by {team.name}.', color=Color.from_str('#b30707')))
     elif playerB.id in team.subbedOffIds:
       return await ctx.send(embed= Embed(title='Can\'t sub this player', description=f'You cannot sub a player who has already been subbed off.', color=Color.from_str('#b30707')))
     elif playerA.id in team.subbedInIds:

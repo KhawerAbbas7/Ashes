@@ -115,6 +115,7 @@ class Player():
 class Game():
   def __init__(self, ctx):
     self.T10 = False
+    self.resumed = False
     self.lobbyCreatedAt = time.time()
     self.lobbyLocked = False
     self.bannedUsers = []

@@ -116,7 +116,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       ctx.bot.games[ctx.channel.id] = game
       await ctx.send("Game state loaded successfully. Resuming match...")
       await game.start()
-      await game.updateMessage()
+      await game.updateMessage(True)
   @commands.command(aliases= ['c'], description= 'Create a test match instance and invite others to join the fun.')
   async def create(self, ctx):
     if ctx.bot.creationBlocked:

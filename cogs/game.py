@@ -1710,7 +1710,7 @@ class Game():
       inn.currentBowlers=deque([next(p for p in inn.bowlingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBowlers"]],maxlen=2)
       inn.cantBat=[p.id for p,b in inn.batters.items() if b.dismissed or p.id in [x.id for x in inn.currentBatters]]
       self.innings.append(inn)
-
+    self.teama.checkForCaptain();self.teamb.checkForCaptain()
   async def start(self):
     try:
       self.started=True 

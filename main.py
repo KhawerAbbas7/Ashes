@@ -1,4 +1,4 @@
-import discord, os, json, time
+import discord, os, json, time, sys
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import aiosqlite
@@ -256,13 +256,15 @@ bot = Ashes()
 @commands.is_owner()
 async def shut(ctx):
   if len(ctx.bot.games) > 0:
-    for game in ctx.bot.games.values():
+    for game in ctx.bot.games.copy().values():
       file = ctx.bot.export_live_instance(game)
       await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
     await ctx.send("There were games going on. But shutting myself down.")
-    return await ctx.bot.close()
+    await ctx.bot.close()
+    sys.exit(0)
   await ctx.send("Shutting myself down")
-  return await ctx.bot.close()
+  await ctx.bot.close()
+  sys.exit(0)
 @bot.command()
 async def ping( ctx):
   duration= bot.latency * 1000 

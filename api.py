@@ -107,12 +107,12 @@ class RankingCog(commands.Cog):
         # --- bowling: group deliveries by bowlerId ---
         bowl_rows = await self.bot.fetchall("""
           SELECT bowlerId,
-                 SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls,
+                 COUNT(*) AS balls,
                  SUM(runs) AS runs,
                  SUM(isWicket) AS wickets,
                  MAX(timestamp) AS bowling_order
           FROM deliveries
-          WHERE inningId=? AND bowlerId IS NOT NULL
+          WHERE inningId=? AND bowlerId IS NOT NULL AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL
           GROUP BY bowlerId
           ORDER BY bowling_order
         """, [inningId])

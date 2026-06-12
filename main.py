@@ -252,13 +252,14 @@ class Ashes(commands.Bot):
   async def on_ready(self):
     self.gamesDeletionCheck.start()
 bot = Ashes()
-@bot.command()
+@bot.command(aliases = ['close'])
 @commands.is_owner()
 async def shut(ctx):
   if len(ctx.bot.games) > 0:
     for game in ctx.bot.games.copy().values():
-      file = ctx.bot.export_live_instance(game)
-      await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
+      if game.started:
+        file = ctx.bot.export_live_instance(game)
+        await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
     await ctx.send("There were games going on. But shutting myself down.")
     await ctx.bot.close()
     sys.exit(0)

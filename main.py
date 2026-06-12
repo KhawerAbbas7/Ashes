@@ -262,10 +262,10 @@ async def shut(ctx):
         await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
     await ctx.send("There were games going on. But shutting myself down.")
     await ctx.bot.close()
-    sys.exit(0)
+    sys._exit(0)
   await ctx.send("Shutting myself down")
   await ctx.bot.close()
-  sys.exit(0)
+  sys._exit(0)
 @bot.command()
 async def ping( ctx):
   duration= bot.latency * 1000 

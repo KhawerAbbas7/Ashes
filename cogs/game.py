@@ -1785,4 +1785,6 @@ class Game():
       except Exception as e: 
         traceback.print_exc()
     except Exception as e:
+      file = self.ctx.bot.export_live_instance(self)
+      await self.ctx.send(content= f"Unfortunately game is bugged due to this error: {e}\nBut don't worry you can ask the owner to fix the issue and resume it from the file.", file= file)
       traceback.print_exc()

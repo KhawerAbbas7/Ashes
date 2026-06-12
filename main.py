@@ -1,7 +1,7 @@
 import discord, os, json, time
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
-import os, aiosqlite
+import aiosqlite
 from cogs.views import *
 import psutil
 from psutil import cpu_percent
@@ -148,6 +148,96 @@ class Ashes(commands.Bot):
   async def execute(self, query, params=()):
     await self.db.execute(query, params)
     await self.db.commit()
+  def export_live_instance(self, game):
+    data = {
+      "meta": {
+        "id": game.gameId,
+        "host": game.hostId,
+        "startTime": game.startedAt,
+        "endTime": time.time(),
+        "settings": {"maxBalls": game.maxBalls, "T10": game.T10},
+        "guild": game.ctx.guild.id,
+        "channel": game.ctx.channel.id,
+        "repLimit": game.repLimit,
+        "repIds": game.repIds,
+        "tossStatus": game.tossStatus,
+        "batFirstTeam": game.batFirstTeam.id if game.batFirstTeam else None,
+        "followOnTeam": game.followOnTeam.id if game.followOnTeam else None
+      },
+      "result": {
+        "winner": game.winner,
+        "mvp": game.mvp.id if game.mvp else None,
+        "status": game.matchStatus(),
+        "drawnByAgreement": game.drawnByAgreement,
+        "forfeitedById": game.forfeitedById
+      },
+      "teams": {
+        "A": {"name": game.teama.name, "captain": game.teama.captain.id if game.teama.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in game.repIds} for p in game.teama.players], "subbedOffIds": game.teama.subbedOffIds, "subbedInIds": game.teama.subbedInIds},
+        "B": {"name": game.teamb.name, "captain": game.teamb.captain.id if game.teamb.captain else None, "players": [{"id": p.id, "name": p.name, "isRep": p.id in game.repIds} for p in game.teamb.players], "subbedOffIds": game.teamb.subbedOffIds, "subbedInIds": game.teamb.subbedInIds}
+      },
+      "innings": [
+        {
+          "id": i.inningId,
+          "number": i.inningNo,
+          "battingTeam": i.battingTeam.name,
+          "bowlingTeam": i.bowlingTeam.name,
+          "totals": {"runs": i.runs, "wickets": i.wickets, "balls": i.balls},
+          "flags": {"declared": i.declared, "followOn": i.followOn},
+          "crease": {
+            "currentBatters": [b.id for b in i.currentBatters],
+            "currentBowlers": [b.id for b in i.currentBowlers],
+            "currentPartnership": {
+              "runs": i.currentPartnership["runs"], 
+              "balls": i.currentPartnership["balls"], 
+              "batters": i.currentPartnership.get("batters", {})
+            },
+            "timeline": list(i.timeline),
+            "currentOverRuns": i.currentOverRuns,
+            "lastOverRuns": i.lastOverRuns,
+            "zeroByBowler": i.zeroByBowler,
+            "fallOfWickets": list(i.fallOfWickets),
+            "nextBatterId": i.nextBatterId,
+            "nextBowlerId": i.nextBowlerId
+          },
+          "batting": [
+            {
+              "id": p.id,
+              "name": p.name,
+              "runs": b.runs,
+              "balls": b.balls,
+              "sr": b.sr,
+              "dismissed": b.dismissed,
+              "dismissedBy": b.dismissedBy,
+              "isRep": p.id in game.repIds,
+              "consecutiveDots": b.consecutiveDots,
+              "BoundaryThisOver": b.BoundaryThisOver,
+              "AFKs": b.AFKs,
+              "fours": b.fours,
+              "sixes": b.sixes,
+              "timeline": list(b.timeline)
+            } for p, b in i.batters.items()
+          ],
+          "bowling": [
+            {
+              "id": p.id,
+              "name": p.name,
+              "runs": b.runsConceded,
+              "wickets": b.wickets,
+              "balls": b.balls,
+              "economy": round((b.runsConceded / b.balls) * 6, 2) if b.balls else 0.0,
+              "timeline": list(b.timeline),
+              "AFKs": b.AFKs,
+              "maidens": b.maidens,
+              "wicketsDigits": list(b.wicketsDigits)
+            } for p, b in i.bowlers.items()
+          ]
+        } for i in game.innings
+      ],
+      "ballsData": list(game.ballsData)
+    }
+    buf = BytesIO(json.dumps(data, indent=2).encode())
+    buf.seek(0)
+    return discord.File(fp=buf, filename=f"state_export_{game.gameId}.json")
   async def on_command_error(self, ctx, error):
     if isinstance(error,commands.CommandNotFound): pass
     elif isinstance(error, commands.MissingRequiredArgument):
@@ -157,9 +247,22 @@ class Ashes(commands.Bot):
       endingIndex = startingIndex + len(param)
       errorMsg = f"```py\n{commandName}\n{' '* startingIndex}{'^'* len(param)}\n```\n**{param}** is the required argument that is missing."
       await ctx.reply(errorMsg)
+    elif isinstance(error, commands.NotOwner):
+      return await ctx.send('This command is only runnable by the owner.')
   async def on_ready(self):
     self.gamesDeletionCheck.start()
 bot = Ashes()
+@bot.command()
+@commands.is_owner()
+async def close(ctx):
+  if len(ctx.bot.games) > 0:
+    for game in ctx.bot.games.values():
+      file = ctx.bot.export_live_instance(game)
+      await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
+    await ctx.send("There were games going on. But shutting myself down.")
+    return await ctx.bot.close()
+  await ctx.send("Shutting myself down")
+  return await ctx.bot.close()
 @bot.command()
 async def ping( ctx):
   duration= bot.latency * 1000 
@@ -182,5 +285,4 @@ async def prefix(ctx, newPrefix: str):
   await bot.settingsdb.execute("INSERT INTO settings (guildId,prefix) VALUES (?,?) ON CONFLICT(guildId) DO UPDATE SET prefix=excluded.prefix", (ctx.guild.id, newPrefix))
   await bot.settingsdb.commit()
   return await ctx.send(f"Bot's new prefix -> `{newPrefix}`")
-
 bot.run(token)

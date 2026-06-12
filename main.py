@@ -254,7 +254,7 @@ class Ashes(commands.Bot):
 bot = Ashes()
 @bot.command()
 @commands.is_owner()
-async def close(ctx):
+async def shut(ctx):
   if len(ctx.bot.games) > 0:
     for game in ctx.bot.games.values():
       file = ctx.bot.export_live_instance(game)

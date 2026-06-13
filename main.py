@@ -49,7 +49,8 @@ class Ashes(commands.Bot):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
   async def postKhawiData(self, data):
-    async with aiohttp.ClientSession() as session:
+    timeout = aiohttp.ClientTimeout(total=10)
+    async with aiohttp.ClientSession(timeout=timeout) as session:
       await session.post("http://fi3.bot-hosting.net:21412/ashes",json=data )
   async def on_guild_channel_delete(self, channel):
     if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:

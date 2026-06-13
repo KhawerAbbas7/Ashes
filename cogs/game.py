@@ -1714,7 +1714,12 @@ class Game():
   async def start(self):
     try:
       self.started=True 
+          
       if not self.startedAt:self.startedAt=time.time()
+      try:
+        if self.ctx.bot.owner.id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "started","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(self.startedAt/1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))
+      except: 
+        pass
       for i in range(4 if not self.T10 else 2):
         if self.forceYeet:return
         w=self.checkForWinner()
@@ -1779,7 +1784,10 @@ class Game():
         if p.id in self.ctx.bot.messageCooldownMap:
           self.ctx.bot.messageCooldownMap.pop(p.id)
       self.ctx.bot.games.pop(self.ctx.channel.id)
-      
+      try:
+        if self.ctx.bot.owner.id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "ended","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(self.startedAt/1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))
+      except: 
+        pass
       try: 
         await self.sendRawStats()
       except Exception as e: 
@@ -1787,4 +1795,8 @@ class Game():
     except Exception as e:
       file = self.ctx.bot.export_live_instance(self)
       await self.ctx.send(content= f"Unfortunately game is bugged due to this error: {e}\nBut don't worry you can ask the owner to fix the issue and resume it from the file.", file= file)
+      try:
+        if self.ctx.bot.owner.id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "ended","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(self.startedAt/1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))
+      except: 
+        pass
       traceback.print_exc()

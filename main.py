@@ -1,4 +1,4 @@
-import discord, os, json, time, sys
+import discord, os, json, time, sys, aiohttp
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import aiosqlite
@@ -47,6 +47,9 @@ class Ashes(commands.Bot):
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
+  async def postKhawiData(self, data):
+    async with aiohttp.ClientSession() as session:
+      await session.post("http://fi3.bot-hosting.net:21412/ashes",json=data )
   async def on_guild_channel_delete(self, channel):
     if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:
       await self.games[channel.id].saveData()

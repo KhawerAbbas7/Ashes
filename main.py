@@ -57,7 +57,7 @@ class Ashes(commands.Bot):
   async def postKhawiData(self, data):
     if self._debounceKhawiTask:
       self._debounceKhawiTask.cancel()
-    self._debounce_task = asyncio.create_task(self._debouncedKhawi(data))
+    self._debounceKhawiTask = asyncio.create_task(self._debouncedKhawi(data))
   async def _debouncedKhawi(self, data):
     try:
       await asyncio.sleep(5)

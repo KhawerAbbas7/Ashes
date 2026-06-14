@@ -62,7 +62,7 @@ class Ashes(commands.Bot):
     try:
       await asyncio.sleep(5)
       await self._sendKhawiRequest(data)
-    except: pass
+    except Exception as e: print(e)
   async def on_guild_channel_delete(self, channel):
     if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:
       await self.games[channel.id].saveData()

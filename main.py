@@ -1,4 +1,4 @@
-import discord, os, json, time, sys, aiohttp
+import discord, os, json, time, sys, aiohttp, asyncio
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 import aiosqlite

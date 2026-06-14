@@ -45,14 +45,24 @@ class Ashes(commands.Bot):
         ]
     }
     self.messageCooldownMap = {}
+    self._debounceKhawiTask = None
   @tasks.loop(seconds= 30)
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
-  async def postKhawiData(self, data):
+  async def _sendKhawiRequest(self, data):
     timeout = aiohttp.ClientTimeout(total=10)
     async with aiohttp.ClientSession(timeout=timeout) as session:
       await session.post("http://fi3.bot-hosting.net:21412/ashes",json=data )
+  async def postKhawiData(self, data):
+    if self._debounceKhawiTask:
+      self._debounceKhawiTask.cancel()
+    self._debounce_task = asyncio.create_task(self._debouncedKhawi(data))
+  async def _debouncedKhawi(self, data):
+    try:
+      await asyncio.sleep(5)
+      await self._sendKhawiRequest(data)
+    except: pass
   async def on_guild_channel_delete(self, channel):
     if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:
       await self.games[channel.id].saveData()

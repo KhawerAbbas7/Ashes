@@ -1717,7 +1717,7 @@ class Game():
           
       if not self.startedAt:self.startedAt=time.time()
       try:
-        if self.ctx.bot.owner_id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "started","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(self.startedAt*1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))
+        if self.ctx.bot.owner_id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "started","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "started","timestamps": {"start": int(self.startedAt*1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))
       except: 
         pass
       for i in range(4 if not self.T10 else 2):

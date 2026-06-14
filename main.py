@@ -5,6 +5,7 @@ import aiosqlite
 from cogs.views import *
 import psutil
 from psutil import cpu_percent
+from io import BytesIO
 load_dotenv()
 token=os.getenv("TOKEN")
 os.environ['JISHAKU_NO_UNDERSCORE'] = 'true'

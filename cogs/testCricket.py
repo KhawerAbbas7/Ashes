@@ -407,6 +407,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       g.subAPlayer(playerA, playerB)
       await ctx.send(embed= Embed(title='Impact Player', description=f'**{team.name}** have decided to sub in **{playerB}** for **{playerA}**', color=Color.from_str(team.color)))
       if playerA.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
+      if playerB.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "started","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.startedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
       
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   async def nextplayer(self, ctx, nextP:discord.User = None):

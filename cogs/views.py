@@ -99,12 +99,26 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     q_params=[uid]+filter_params_bat
   bo=await bot.fetchrow(q, tuple(q_params))
   ownerOf=f"{bot.get_user(bo[0])} ({bo[1]} runs off {bo[2]} balls)" if bo else "—"
+  q="SELECT COUNT(*) FROM (SELECT matchId FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1 GROUP BY matchId HAVING COUNT(*)>=2)"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM (SELECT matchId FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? AND "+filter_sql_bat+" GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1 GROUP BY matchId HAVING COUNT(*)>=2)"
+    q_params=[uid]+filter_params_bat
+  pairs_row=await bot.fetchrow(q, tuple(q_params))
+  pairs=pairs_row[0] if pairs_row else 0
   q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)"
   q_params=[uid,uid,uid]
   if filter_sql_bat:
     q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL AND "+filter_sql_bat+" GROUP BY partnerId)"
     q_params=[uid,uid,uid]+filter_params_bat
   best_partner= await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? AND "+filter_sql_bat+" GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1"
+    q_params=[uid]+filter_params_bat
+  ducks_row=await bot.fetchrow(q, tuple(q_params))
+  ducks=ducks_row[0] if ducks_row else 0
   q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL)"
   q_params=[uid,uid,uid]
   if filter_sql_bat:
@@ -149,6 +163,13 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bow+" GROUP BY inningId)"
     q_params=[uid]+filter_params_bow
   threefers,fivefers=await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL) t WHERE is_hattrick=1"
+  q_params=[uid]
+  if filter_sql_bow:
+    q="SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bow+") t WHERE is_hattrick=1"
+    q_params=[uid]+filter_params_bow
+  hattricks_row=await bot.fetchrow(q, tuple(q_params))
+  hattricks=hattricks_row[0] if hattricks_row else 0
   q="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?) GROUP BY d.matchId) t ON m.matchId=t.matchId"
   q_params=[uid,uid,uid]
   if filter_sql_d_bat:
@@ -178,11 +199,11 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bowl_econ=round((conceded/overs),2) if overs else 0
   bowl_avg = round((conceded/wkts),2) if wkts else 0.00
   bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
-  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Of": ownerOf,"MVPs": mvps}
+  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Of": ownerOf,"MVPs": mvps, 'Ducks': ducks, 'Pairs': pairs}
   battxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
   container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-  bowlStatsDict={"Innings": bowl_innings,"wickets": wkts,"Balls Bowled": balls_bowled,"Runs Conceded": conceded,"3fers": threefers,"5fers": fivefers,"Bowling Avg": bowl_avg,"Bowling SR": bowl_sr,"Economy": bowl_econ,"Best Bowling": best_bowling, "Matches": matches,"Matches Won": won, "Matches Lost": lost, "Matches Drawn": drawn, "Matches Tied": tied}
+  bowlStatsDict={"Innings": bowl_innings,"wickets": wkts,"Balls Bowled": balls_bowled,"Runs Conceded": conceded,"3fers": threefers,"5fers": fivefers,"Hat-tricks": hattricks,"Bowling Avg": bowl_avg,"Bowling SR": bowl_sr,"Economy": bowl_econ,"Best Bowling": best_bowling, "Matches": matches,"Matches Won": won, "Matches Lost": lost, "Matches Drawn": drawn, "Matches Tied": tied}
   bowltxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
   container.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))

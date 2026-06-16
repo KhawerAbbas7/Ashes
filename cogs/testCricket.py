@@ -441,7 +441,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(f"Bud is so disgusted with his team that he decided to send a player from another team.")
     if inn.battingTeam.id == team.id:
       if nextP.id in inn.cantBat or nextP.id in [b.id for b in inn.currentBatters]:
-        return await ctx.send(f"**{nextP}** is either currently batting or has been dismissed, in both cases you have failed ad a captain.")
+        return await ctx.send(f"**{nextP}** is either currently batting or has been dismissed, in both cases you have failed as a captain.")
       elif nextP.id in inn.battingTeam.subbedOffIds:
         return await ctx.send(f"**{nextP}** has been subbed off.")
       inn.nextBatterId = nextP.id

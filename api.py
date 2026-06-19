@@ -63,7 +63,7 @@ class RankingCog(commands.Cog):
       b_eco = round((bw_runs/bw_balls)*6, 2) if bw_balls > 0 else 0.0
       b_sr = round(bw_balls/bw_wkts, 2) if bw_wkts > 0 else 0.0
       dot_pct = round((bw_dots/bw_balls) * 100, 2) if bw_balls > 0 else 0.0
-      bowling = {"matches": bw_match or 0, "innings": bw_inn or 0, "balls": bw_balls or 0, "runs": bw_runs or 0, "wickets": bw_wkts or 0, "bbi": bbi, "average": b_avg, "economy": b_eco, "strikeRate": b_sr, "threeWickets": three_w, "fiveWickets": five_w, "tenWickets": ten_w_match, "dotBalls": bw_dots or 0, "dotPct": dot_pct, "foursConceded": bw_fours or 0, "sixesConceded": bw_sixes or 0, "hattricks": hattricks}
+      bowling = {"matches": b_match or 0, "innings": bw_inn or 0, "balls": bw_balls or 0, "runs": bw_runs or 0, "wickets": bw_wkts or 0, "bbi": bbi, "average": b_avg, "economy": b_eco, "strikeRate": b_sr, "threeWickets": three_w, "fiveWickets": five_w, "tenWickets": ten_w_match, "dotBalls": bw_dots or 0, "dotPct": dot_pct, "foursConceded": bw_fours or 0, "sixesConceded": bw_sixes or 0, "hattricks": hattricks}
       mvp_row = await self.bot.fetchrow("SELECT COUNT(*) FROM matches WHERE mvpId=?", [pid])
       mvps = mvp_row[0] if mvp_row else 0
       return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "batting": batting, "bowling": bowling, "general": {"mvps": mvps}}, headers=self.get_cors_headers())

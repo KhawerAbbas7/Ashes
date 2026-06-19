@@ -21,14 +21,12 @@ class RankingCog(commands.Cog):
     try:
       query = request.query.get('q', '').strip().lower()
       if not query: return web.json_response({"players": []}, headers=self.get_cors_headers())
-      sql = "SELECT DISTINCT batterId FROM deliveries UNION SELECT DISTINCT bowlerId FROM deliveries"
-      rows = await self.bot.fetchall(sql)
-      unique_ids = [r[0] for r in rows if r[0]]
-      matched = []
-      for uid in unique_ids:
-        u = await self.fetch_user_data(uid)
-        if query in u['name'].lower() or query in u.get('displayName', '').lower() or query == str(uid):
-          matched.append({"id": str(uid), "name": u['name'], "avatar": u['avatar']})
+      if query.isdigit():
+        users = list(filter(lambda x: query in str(x.id), self.bot.users))
+      else:
+        users = list(filter(lambda x: query in str(x.name) or query.lower() in x.display_name.lower(), self.bot.users))
+      for user in users[:20]:
+        matched.append({"id": user.id, "name": user.name, "avatar": user.display_avatar.url if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"})
           if len(matched) >= 20: break
       return web.json_response({"players": matched}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

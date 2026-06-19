@@ -30,7 +30,7 @@ class RankingCog(commands.Cog):
       else:
         users = list(filter(lambda x: query in str(x.name) or query.lower() in x.display_name.lower(), self.bot.users))
       for user in users[:20]:
-        matched.append({"id": user.id, "name": user.name, "avatar": user.display_avatar.url if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"})
+        matched.append({"id": str(user.id), "name": user.name, "avatar": user.display_avatar.url if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"})
         if len(matched) >= 20: break
       return web.json_response({"players": matched}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

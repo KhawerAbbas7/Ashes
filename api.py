@@ -35,6 +35,7 @@ class RankingCog(commands.Cog):
   async def get_player_stats(self, request):
     try:
       pid = int(request.match_info['playerId'])
+      recent_limit = min(50, max(1, int(request.query.get('recent', 5))))
       u = await self.fetch_user_data(pid)
       bat_basic = await self.bot.fetchrow("SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0),COALESCE(SUM(CASE WHEN runs=4 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=6 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=0 AND isWicket=0 THEN 1 END),0) FROM deliveries d WHERE batterId=?", [pid])
       b_match, b_inn, b_runs, b_balls, b_outs, b_fours, b_sixes, b_dots = bat_basic if bat_basic else (0,0,0,0,0,0,0,0)
@@ -66,8 +67,8 @@ class RankingCog(commands.Cog):
       bowling = {"matches": b_match or 0, "innings": bw_inn or 0, "balls": bw_balls or 0, "runs": bw_runs or 0, "wickets": bw_wkts or 0, "bbi": bbi, "average": b_avg, "economy": b_eco, "strikeRate": b_sr, "threeWickets": three_w, "fiveWickets": five_w, "tenWickets": ten_w_match, "dotBalls": bw_dots or 0, "dotPct": dot_pct, "foursConceded": bw_fours or 0, "sixesConceded": bw_sixes or 0, "hattricks": hattricks}
       mvp_row = await self.bot.fetchrow("SELECT COUNT(*) FROM matches WHERE mvpId=?", [pid])
       mvps = mvp_row[0] if mvp_row else 0
-      recent_match_sql="SELECT m.matchId, MAX(d.timestamp) FROM matches m JOIN deliveries d ON d.matchId=m.matchId WHERE d.batterId=? OR d.bowlerId=? GROUP BY m.matchId ORDER BY MAX(d.timestamp) DESC LIMIT 5"
-      recent_matches=await self.bot.fetchall(recent_match_sql, [pid, pid])
+      recent_match_sql="SELECT m.matchId, MAX(d.timestamp) FROM matches m JOIN deliveries d ON d.matchId=m.matchId WHERE d.batterId=? OR d.bowlerId=? GROUP BY m.matchId ORDER BY MAX(d.timestamp) DESC LIMIT ?"
+      recent_matches=await self.bot.fetchall(recent_match_sql, [pid, pid, recent_limit])
       recent=[]
       for mid, ts in recent_matches:
         bat_sql="SELECT SUM(runs),SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END),SUM(isWicket) FROM deliveries WHERE matchId=? AND batterId=? GROUP BY inningId ORDER BY MIN(timestamp) ASC"
@@ -78,7 +79,7 @@ class RankingCog(commands.Cog):
         bowl_strs=[f"{r[0]}-{r[1]}({r[2]//6}.{r[2]%6})" for r in bowl_rows]
         bat_str="&".join(bat_strs) if bat_strs else "DNB"
         bowl_str="&".join(bowl_strs) if bowl_strs else "DNB"
-        recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts})
+        recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts, "matchId": mid})
       return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "batting": batting, "bowling": bowling, "general": {"mvps": mvps}, "recentPerformances": recent}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_match(self, request):

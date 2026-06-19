@@ -23,11 +23,14 @@ class RankingCog(commands.Cog):
       if not query: return web.json_response({"players": []}, headers=self.get_cors_headers())
       if query.isdigit():
         users = list(filter(lambda x: query in str(x.id), self.bot.users))
+        if not users and len(query) >= 17:
+          user = await self.bot.fetch_user(int(query))
+          users = [user] if user else []
       else:
         users = list(filter(lambda x: query in str(x.name) or query.lower() in x.display_name.lower(), self.bot.users))
       for user in users[:20]:
         matched.append({"id": user.id, "name": user.name, "avatar": user.display_avatar.url if user.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={user.id}"})
-          if len(matched) >= 20: break
+        if len(matched) >= 20: break
       return web.json_response({"players": matched}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_player_stats(self, request):

@@ -244,7 +244,8 @@ class Ashes(commands.Bot):
               "timeline": list(b.timeline),
               "AFKs": b.AFKs,
               "maidens": b.maidens,
-              "wicketsDigits": list(b.wicketsDigits)
+              "wicketsDigits": list(b.wicketsDigits),
+              "lastOverMaiden": b.lastOverMaiden
             } for p, b in i.bowlers.items()
           ]
         } for i in game.innings

@@ -51,6 +51,7 @@ class BowlingInning():
     self.wicketsDigits = []
     self.AFKs = 0
     self.maidens = 0 
+    self.lastOverMaiden = False
     self.currentOverRuns = 0
   @property
   def isOnHattrick(self):
@@ -859,7 +860,7 @@ class Game():
     container.add_item(ui.TextDisplay(f"-# {self.matchStatus()}"))
     if self.currentInning.currentBowlers:
       bowler_p=self.currentInning.bowlers[self.currentInning.currentBowlers[0]]
-      if bowler_p.isOnHattrick or (self.currentInning.balls >=6 and self.currentInning.lastOverRuns == 0 and not self.currentInning.zeroByBowler):
+      if bowler_p.isOnHattrick or (self.currentInning.balls >=6 and bowler_p.lastOverMaiden and not self.currentInning.zeroByBowler):
         container.add_item(ui.TextDisplay(f"-# ⚠️Bowler can do 0"))
     view.add_item(container)
     return view if returnContainer is False else container
@@ -1080,7 +1081,7 @@ class Game():
       bowler_p=inn.bowlers[bowler]
       cando0=striker_p.consecutiveDots!=3
       bowlerAllowed = ['1','2','3','4','6']
-      if bowler_p.isOnHattrick or (inn.balls >= 6 and inn.lastOverRuns == 0 and not inn.zeroByBowler):
+      if bowler_p.isOnHattrick or (inn.balls >= 6 and bowler_p.lastOverMaiden and not inn.zeroByBowler):
         bowlerAllowed.append('0')
       if cando0 and not striker_p.cantDoBoundaryThisOver:
         allowed={'0','1','2','3','4','6'}
@@ -1546,10 +1547,13 @@ class Game():
     if inn.balls%6==0:
       inn.timeline.append("|")
       inn.lastOverRuns = inn.currentOverRuns
+      if inn.currentOverRuns == 0:
+        bowler_p.maidens += 1
+        bowler_p.lastOverMaiden = True
+      else:
+        bowler_p.lastOverMaiden = False
       inn.currentOverRuns = 0
       inn.zeroByBowler = 0
-      if bowler_p.currentOverRuns == 0:
-        bowler_p.maidens += 1
       for b in inn.currentBatters:
         inn.batters[b].BoundaryThisOver = 0
       if len(inn.currentBatters) > 1:
@@ -1705,6 +1709,7 @@ class Game():
         bi.maidens=b_data["maidens"]
         bi.timeline.extend(b_data["timeline"])
         bi.wicketsDigits=b_data.get("wicketsDigits",[])
+        bi.lastOverMaiden = b_data.get('lastOverMaiden')
         inn.bowlers[p]=bi
       inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBatters"]]
       inn.currentBowlers=deque([next(p for p in inn.bowlingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBowlers"]],maxlen=2)

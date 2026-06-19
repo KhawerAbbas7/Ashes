@@ -20,6 +20,7 @@ class RankingCog(commands.Cog):
   async def search_players(self, request):
     try:
       query = request.query.get('q', '').strip().lower()
+      matched = []
       if not query: return web.json_response({"players": []}, headers=self.get_cors_headers())
       if query.isdigit():
         users = list(filter(lambda x: query in str(x.id), self.bot.users))

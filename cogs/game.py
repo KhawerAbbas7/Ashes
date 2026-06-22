@@ -375,6 +375,7 @@ class Game():
     if userPlaying.id == self.hostId:
       self.hostId = team.captain.id
     team.subbedInIds.append(userImpact.id)
+    self.teama.checkForCaptain();self.teamb.checkForCaptain()
     return True
   def join(self, user):
     self.teama.players.append(Player().fromUser(user))

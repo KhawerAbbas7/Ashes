@@ -80,7 +80,17 @@ class RankingCog(commands.Cog):
         bat_str="&".join(bat_strs) if bat_strs else "DNB"
         bowl_str="&".join(bowl_strs) if bowl_strs else "DNB"
         recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts, "matchId": mid})
-      return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "batting": batting, "bowling": bowling, "general": {"mvps": mvps}, "recentPerformances": recent}, headers=self.get_cors_headers())
+              cutoff_end_ts, _ = self.get_cutoff_end()
+      min_ts = cutoff_end_ts - 2419200
+      bat_sql = f"WITH r AS (SELECT batterId AS id, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rt FROM deliveries WHERE batterId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} GROUP BY batterId HAVING rt>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
+      bat_rank_row = await self.bot.fetchrow(bat_sql, [pid])
+      bowl_sql = f"WITH r AS (SELECT bowlerId AS id, SUM(((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)-runs/5.0)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rt FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} GROUP BY bowlerId HAVING rt>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
+      bowl_rank_row = await self.bot.fetchrow(bowl_sql, [pid])
+      ar_sql = f"WITH r AS (SELECT id, SQRT(SUM(bat)*SUM(bowl)) AS rt FROM (SELECT batterId AS id, (runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bat, 0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} UNION ALL SELECT bowlerId AS id, 0 AS bat, ((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)-runs/5.0)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts}) GROUP BY id HAVING SUM(bat)>0 AND SUM(bowl)>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
+      ar_rank_row = await self.bot.fetchrow(ar_sql, [pid])
+      rankings = {"batting": {"rank": bat_rank_row[0] if bat_rank_row else None, "rating": round(bat_rank_row[1], 2) if bat_rank_row else 0}, "bowling": {"rank": bowl_rank_row[0] if bowl_rank_row else None, "rating": round(bowl_rank_row[1], 2) if bowl_rank_row else 0}, "allrounder": {"rank": ar_rank_row[0] if ar_rank_row else None, "rating": round(ar_rank_row[1], 2) if ar_rank_row else 0}}
+      return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "batting": batting, "bowling": bowling, "general": {"mvps": mvps}, "recentPerformances": recent, "rankings": rankings}, headers=self.get_cors_headers())
+      
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_match(self, request):
     try:

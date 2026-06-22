@@ -341,8 +341,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if g.hostId != ctx.author.id and ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
       return await ctx.send(embed= Embed(title='Host or Captain Only', description='This command is only intended to be run by host or captains.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
-    elif not teamName.replace(' ','').isalpha() or len(teamName) > 20 :
-      return await ctx.send(embed= Embed(title='Invalid Team Name', description='Team name must only be 20 characters or less and can only consist of alphabets and whitespace.', color=Color.from_str('#b30707')))
+    elif not teamName.replace(' ','').isalpha() or len(teamName) > 16 :
+      return await ctx.send(embed= Embed(title='Invalid Team Name', description='Team name must only be 16 characters or less and can only consist of alphabets and whitespace.', color=Color.from_str('#b30707')))
     elif teamIndex > 2 or teamIndex <1:
       return await ctx.send(embed= Embed(title='Invalid Team Index', description='Team index must only be 1 or 2.', color=Color.from_str('#b30707')))
     team = g.teama if teamIndex == 1 else g.teamb

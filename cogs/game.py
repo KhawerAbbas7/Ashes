@@ -78,11 +78,22 @@ class Inning():
     self.currentOverRuns = 0
     self.lastOverRuns = 0
     self.zeroByBowler = 0
+    self.partnerships = {}
     self.fallOfWickets = []
     self.nextBatterId = None
     self.nextBowlerId = None
   def resetPartnership(self):
-    self.currentPartnership = {"runs": 0, "balls": 0, "batters": {b.id: {"runs": 0, "balls": 0} for b in self.currentBatters}}
+    if len(self.currentPartnership["batters"]) == 2:
+      key = tuple(sorted(self.currentPartnership["batters"].keys()))
+      self.partnerships[key] = self.currentPartnership
+    if len(self.currentBatters) == 2:
+      key = tuple(sorted(b.id for b in self.currentBatters))
+      if key in self.partnerships:
+        self.currentPartnership = self.partnerships[key]
+      else:
+        self.currentPartnership = {"runs": 0, "balls": 0, "batters": {b.id: {"runs": 0, "balls": 0} for b in self.currentBatters}}
+    else:
+      self.currentPartnership = {"runs": 0, "balls": 0, "batters": {b.id: {"runs": 0, "balls": 0} for b in self.currentBatters}}
 class Team():
   def __init__(self, name: str = 'Team A', id: int = 1):
     self.name = name
@@ -958,7 +969,7 @@ class Game():
       pid = options[0]['id']
       inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
       inn.cantBat.append(pid)
-      inn.resetPartnership()
+      if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
       await self.updateMessage()
       await self.sendNewBatterGraphic(inn.currentBatters[0])
       return
@@ -968,7 +979,7 @@ class Game():
       inn.cantBat.append(pid)
       inn.nextBatterId = None
       await self.sendNewBatterGraphic(inn.currentBatters[0])
-      inn.resetPartnership()
+      if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
       await self.updateMessage()
       return
     view=ui.LayoutView(timeout=30)
@@ -981,7 +992,7 @@ class Game():
     pid=view.value or random.choice(options)['id']
     inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
     inn.cantBat.append(pid)
-    inn.resetPartnership()
+    if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
     await self.updateMessage()
     await self.sendNewBatterGraphic(inn.currentBatters[0])
     if not view.value: 

@@ -210,8 +210,10 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   keys=sorted(set(bat_pct)|set(bowl_pct))
   b="\n".join(f"{str(k).ljust(7)}{str(bat_pct.get(k,'')).ljust(7)}{bowl_pct.get(k,'')}" for k in keys)
   container.add_item(ui.TextDisplay(f"**Num%:**\n```py\n{'Num'.ljust(7)}{'Bat%'.ljust(7)}Bowl%\n{b}\n```"))
+  container.add_item(ui.TextDisplay(f"**Num%:**\n```py\n{'Num'.ljust(7)}{'Bat%'.ljust(7)}Bowl%\n{b}\n```"))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   container.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {footer_txt}"),accessory=FiltersBtn(author.id)))
+  container.add_item(ui.TextDisplay(f"-# For more enhanced view and stats visit https://ashesdb.vercel.app/player/{target.id}"))
   view.add_item(container)
   return view
 class PlayersSwapSelection(ui.Select):

@@ -800,6 +800,27 @@ class Game():
         self.tossStatus= None
     else:
       self.tossStatus = None
+  def textScore(self):
+    t = {}
+    for i in self.innings:
+      s = f"{i.runs}/{i.wickets}{'(f/o)' if i.inningNo == 3 and self.followOnTeam else ''}{'(D)' if i.declared else ''}"
+      if i.inningNo == self.currentInning.inningNo:
+        s += f" ({self.ballsToOvers(i.balls)}{'/10' if self.T10 else ''})"
+      if i.battingTeam.name in t:
+        t[i.battingTeam.name] += f" & {s}"
+      else:
+        t[i.battingTeam.name] = s
+    scoreLine = " | ".join(f"{k} {v}" for k, v in t.items())
+    inn = self.currentInning
+    batters = " ".join(f"{b.name} {inn.batters[b].runs}({inn.batters[b].balls})" for b in inn.currentBatters)
+    bowlers = " ".join(f"{b.name} {inn.bowlers[b].wickets}/{inn.bowlers[b].runsConceded}({self.ballsToOvers(inn.bowlers[b].balls)})" for b in inn.currentBowlers)
+    if len(self.currentInning.currentBatters) == 2:
+      p = self.currentInning.currentPartnership
+      pship= f"\n-# P'ship: {p['runs']} ({p['balls']})"
+    else: 
+      pship = ""
+    return f"**{scoreLine}**\n-# Batters: {batters}{pship}\n-# Bowlers: {bowlers}\n-# {self.matchStatus()}"
+    
   def score(self, returnContainer=False):
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
@@ -1555,7 +1576,7 @@ class Game():
           youRemainOffStrike = '\nYou are now on strike.'
         await asyncio.sleep(0.3)
         await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}")
-        await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
+        await self.sendToNonStriker(f"{self.textScore()}\n\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
         inn.timeline.append(f"{bat}")
         if bat%2==1 and len(inn.currentBatters) > 1:
           inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]

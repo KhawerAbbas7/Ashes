@@ -80,7 +80,7 @@ class RankingCog(commands.Cog):
         bat_str="&".join(bat_strs) if bat_strs else "DNB"
         bowl_str="&".join(bowl_strs) if bowl_strs else "DNB"
         recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts, "matchId": mid})
-              cutoff_end_ts, _ = self.get_cutoff_end()
+      cutoff_end_ts, _ = self.get_cutoff_end()
       min_ts = cutoff_end_ts - 2419200
       bat_sql = f"WITH r AS (SELECT batterId AS id, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rt FROM deliveries WHERE batterId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} GROUP BY batterId HAVING rt>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
       bat_rank_row = await self.bot.fetchrow(bat_sql, [pid])

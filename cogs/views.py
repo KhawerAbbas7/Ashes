@@ -1051,7 +1051,7 @@ class ShamefulLBview(ui.LayoutView):
     #for b in buttons: actionRow.add_item(b)
     container.add_item(actionRow)
     self.add_item(container)
-  async def on_timeout(self, i):
+  async def on_timeout(self):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
@@ -1074,7 +1074,7 @@ class LBview(ui.LayoutView):
     #for b in buttons: actionRow.add_item(b)
     container.add_item(actionRow)
     self.add_item(container)
-  async def on_timeout(self, i):
+  async def on_timeout(self):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True

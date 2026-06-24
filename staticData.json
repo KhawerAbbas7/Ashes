@@ -87,5 +87,32 @@
       "description": "Captained in first ever tournament of Ashes - Ramadan Test Championship (The Dugout).",
       "img_url": "https://i.ibb.co/j9WLbRzf/RTC-1-Cap.png"
     }
-  }
+  },
+  "Gifs": {
+      "Batting": [
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Joe%20Root%20Celebrates%20his%20first%20100%20in%20Australia.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Kevim%20Pieterson%20Celebrates%20his%20150%20in%20Ashes%202005%20at%20oval.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Sachin%20Tendulkar%20celebrates%20his%2030th%20test%20ton%20vs%20England%20at%20leeds%202002.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Rohit%20Sharma%20Century%20Celebration%20Against%20England%20Chennai.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Younis%20Khan%20celebrates%20his%20100%20vs%20England%20at%20Lords.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/stokes%20celebrates%20vs%20england.gif"
+        ],
+      "Bowling": [
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Mitchell%20Starc%20Celebrates%20his%20first%20wicket%20of%202025-26%20Ashes.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Trent%20Boult%20Celebrates%20Wicket%20vs%20England%20Moeen%20Ali%202015%20.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Anderson%20Celebrates%20Wicket.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Murali%20Celebrates%20Wicket%20vs%20England%20at%20Edgbastan%202006.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Anil%20Kumble%20Wicket%20Celebration%20Sydney%202003-04.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Ravi%20Chandran%20Ashwin%20Wicket%20Celebration.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Noman%20Ali%20Celebrates%20After%20dismissing%20Mulder%202025.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Sajid%20Khan%20Celebrates%20After%20dismissing%20Jamie%20Smith%202024.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Travis%20Head%20wicket%20celebration%20v%20Rishab%20Pant.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Dale%20Steyn%20Celebrates%20After%20dismissing%20Katich%20MCG%202008.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Jasprit%20Bumrah%20Celebrates%20After%20dismissing%20Travis%20Head%202024.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif",
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/warne.gif", 
+        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Malcolm%20Marshall%20Celebration%20vs%20Australia%20Adelaide%201984.gif"
+        ]
+    }
 }

@@ -29,21 +29,7 @@ class Ashes(commands.Bot):
     self.games = {}
     self.owner_id = 759713678013890560
     self.staticData = {}
-    self.Gifs = {
-      "Batting": [
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Kusal%20Parera%20Celebrates%20against%20South%20Africa%20151.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Younis%20Khan%20celebrates%20his%20100%20vs%20England%20at%20Lords.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/stokes%20celebrates%20vs%20england.gif"
-        ],
-      "Bowling": [
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Noman%20Ali%20Celebrates%20After%20dismissing%20Mulder%202025.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Sajid%20Khan%20Celebrates%20After%20dismissing%20Jamie%20Smith%202024.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Travis%20Head%20wicket%20celebration%20v%20Rishab%20Pant.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Dale%20Steyn%20Celebrates%20After%20dismissing%20Katich%20MCG%202008.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Jasprit%20Bumrah%20Celebrates%20After%20dismissing%20Travis%20Head%202024.gif",
-        "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Wasim%20Akram%20Celebrates%20After%20dismissing%20Marsh%201990%20MCG.gif"
-        ]
-    }
+    self.Gifs = {}
     self.messageCooldownMap = {}
     self._debounceKhawiTask = None
   @tasks.loop(seconds= 30)
@@ -88,6 +74,7 @@ class Ashes(commands.Bot):
     return True
   def loadStaticData(self):
     self.staticData = json.load(open('staticData.json', 'r'))
+    self.Gifs = self.staticData['Gifs']
   async def setup_hook(self):
     self.loadStaticData()
     self.add_check(self.checkIfAllowedCategory)

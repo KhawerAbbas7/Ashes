@@ -284,7 +284,7 @@ async def ping( ctx):
   botstats = f"Guilds: {len(ctx.bot.guilds)}\nCurrent Games: {len(ctx.bot.games)}\nMatches so far: {matches[0]}\nPlayers: {players[0]}\nCPU Usage: {cpu_percent()}%\nLatency: {duration}ms\nDatabase size: {human_readable_size(dbsize[0])}"
   embed.description = botstats
   return await ctx.send(embed=embed, content="")
-@bot.command()
+@bot.command(aliases = "مدد")
 async def help(ctx):
   v = Helpview(ctx)
   await ctx.send(view= v)

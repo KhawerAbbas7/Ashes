@@ -1174,7 +1174,7 @@ class Game():
         await striker.send(f"You didn't respond in time. Replaying the ball.\n{'' if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
         await asyncio.sleep(0.3)
         if bowler_p.AFKs == 3:
-          await bowler.send(f"You didn't respond in time. Replaying the ball.\nYou are retiring from the crease\n-# We know your girlfriend deseres more attention than a fucking discord bot!'")
+          await bowler.send(f"You didn't respond in time. Replaying the ball.\nYou are retiring from the crease\n-# We know your girlfriend deserves more attention than a fucking discord bot!'")
           bowler_p.AFKs = 0
           inn.nextBowlerId = None
           await self.selectBowler()

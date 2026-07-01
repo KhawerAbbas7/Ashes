@@ -234,10 +234,10 @@ class OversSelection(ui.Select):
     options = [
       discord.SelectOption(label= "90 Overs", description= f'Follow-on: {max(25, math.ceil((90*6) * 5 / 36))}', value = 90),
       discord.SelectOption(label= "60 Overs", description= f'Follow-on: {max(25, math.ceil((60*6) * 5 / 36))}', value = 60),
-      discord.SelectOption(label= "45 Overs", description= f'Follow-on: {max(25, math.ceil((45*6) * 5 / 36))}', value = 45),
-      discord.SelectOption(label= "30 Overs", description= f'Follow-on: {max(25, math.ceil((30*6) * 5 / 36))}', value = 30),
-      discord.SelectOption(label= "20 Overs", description= f'Follow-on: {max(25, math.ceil((20*6) * 5 / 36))}', value = 20),
-      discord.SelectOption(label= "15 Overs", description= f'Follow-on: {max(25, math.ceil((15*6) * 5 / 36))}', value = 15),
+      discord.SelectOption(label= "45 Overs", description= f'Follow-on: {max(10, math.ceil((45*6) * 5 / 36))}', value = 45),
+      discord.SelectOption(label= "30 Overs", description= f'Follow-on: {max(10, math.ceil((30*6) * 5 / 36))}', value = 30),
+      discord.SelectOption(label= "20 Overs", description= f'Follow-on: {max(10, math.ceil((20*6) * 5 / 36))}', value = 20),
+      discord.SelectOption(label= "15 Overs", description= f'Follow-on: {max(10, math.ceil((15*6) * 5 / 36))}', value = 15),
       ]
     super().__init__(placeholder= "Select Overs", min_values=1, max_values=1, options=options)
   async def callback(self, interaction: discord.Interaction):

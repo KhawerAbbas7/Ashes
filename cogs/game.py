@@ -193,7 +193,7 @@ class Game():
   @property
   def followOnLimit(self):
     if self.DEBUG: return 5
-    return max(25, math.ceil(self.maxBalls * 5 / 36))
+    return max(10, math.ceil(self.maxBalls * 5 / 36))
   @property
   def matchTotalBalls(self):
     return sum([i.balls for i in self.innings])

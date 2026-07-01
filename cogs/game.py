@@ -1,4 +1,4 @@
-import random, traceback,os, time,json
+import random, traceback,os, time,json, math
 from cogs.views import *
 from discord import Embed, Color,ui
 from collections import deque
@@ -193,12 +193,7 @@ class Game():
   @property
   def followOnLimit(self):
     if self.DEBUG: return 5
-    if self.maxBalls == 540:
-      return 75
-    elif self.maxBalls == 360:
-      return 50
-    else:
-      return 25
+    return max(25, math.ceil(self.maxBalls * 5 / 36))
   @property
   def matchTotalBalls(self):
     return sum([i.balls for i in self.innings])

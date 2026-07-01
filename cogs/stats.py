@@ -156,23 +156,27 @@ class Statistics(commands.Cog, name= "Statistics"):
       player2 = ctx.author
     if player2.id == player1.id:
       return await ctx.send("You have provide two distinct players to compare.")
-    metrics = ['MATCHES', 'RUNS','Batting AVG', 'BATTIMG S/R', 'WICKETS', 'BOWLING AVG']
-    matches,total_runs,balls_faced,wickets = await ctx.bot.fetchrow("SELECT (SELECT COALESCE(COUNT(DISTINCT matchId),0) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?", (player1.id, ))
-    wkts,conceded,balls_bowled =await ctx.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?", (player1.id,)) 
-    player1_vals = np.array([matches,total_runs, round(total_runs/wickets,2) if wickets else total_runs, round((total_runs/balls_faced)*100, 2) if balls_faced else 0.00, wkts, round(conceded/wkts, 2) if wkts else 0.00])
-    matches,total_runs,balls_faced,wickets = await ctx.bot.fetchrow("SELECT (SELECT COALESCE(COUNT(DISTINCT matchId),0) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?", (player2.id, ))
-    wkts,conceded,balls_bowled =await ctx.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?", (player2.id,)) 
-    player2_vals = np.array([matches,total_runs, round(total_runs/wickets,2) if wickets else total_runs, round((total_runs/balls_faced)*100, 2) if balls_faced else 0.00, wkts, round(conceded/wkts, 2) if wkts else 0.00])
+    metrics = ['MATCHES', 'RUNS', 'Batting AVG', 'BATTING S/R', 'WICKETS', 'BOWLING AVG']
+    q_bat = "SELECT (SELECT COALESCE(COUNT(DISTINCT matchId),0) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?"
+    q_bowl = "SELECT COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
+    p1_bat = await ctx.bot.fetchrow(q_bat, (player1.id,)) or (0, 0, 0, 0)
+    p1_bowl = await ctx.bot.fetchrow(q_bowl, (player1.id,)) or (0, 0, 0)
+    player1_vals = np.array([p1_bat[0], p1_bat[1], round(p1_bat[1]/p1_bat[3], 2) if p1_bat[3] else p1_bat[1], round((p1_bat[1]/p1_bat[2])*100, 2) if p1_bat[2] else 0.00, p1_bowl[0], round(p1_bowl[1]/p1_bowl[0], 2) if p1_bowl[0] else 0.00], dtype=float)
+    p2_bat = await ctx.bot.fetchrow(q_bat, (player2.id,)) or (0, 0, 0, 0)
+    p2_bowl = await ctx.bot.fetchrow(q_bowl, (player2.id,)) or (0, 0, 0)
+    player2_vals = np.array([p2_bat[0], p2_bat[1], round(p2_bat[1]/p2_bat[3], 2) if p2_bat[3] else p2_bat[1], round((p2_bat[1]/p2_bat[2])*100, 2) if p2_bat[2] else 0.00, p2_bowl[0], round(p2_bowl[1]/p2_bowl[0], 2) if p2_bowl[0] else 0.00], dtype=float)
     n_metrics = len(metrics)
     totals = player1_vals + player2_vals
-    player1_props = player1_vals / totals
+    with np.errstate(divide='ignore', invalid='ignore'):
+      player1_props = np.where(totals == 0, 0.5, player1_vals / totals)
+      player2_props = np.where(totals == 0, 0.5, player2_vals / totals)
     fig, ax = plt.subplots(figsize=(8, n_metrics * 0.8333333333333334), facecolor='#04151f', layout='tight', subplot_kw={'xticks': [], 'yticks': [], 'frame_on': False})
     y_positions = np.arange(n_metrics - 1, -1, -1)
     ax.text(0.20, n_metrics + 0.2, player1.name, color="#d90429", ha="center", va="center", fontsize=16, fontweight="bold")
     ax.text(0.80, n_metrics + 0.2, player2.name, color="white", ha="center", va="center", fontsize=16, fontweight="bold")
     ax.barh(y_positions, player1_props, height=0.25, color='#d90429')
-    ax.barh(y_positions, player2_vals / totals, height=0.25, left=player1_props, color='#ffffff')
-    for y, val1, val2, metric in zip(y_positions, player1_vals, player1_vals, metrics):
+    ax.barh(y_positions, player2_props, height=0.25, left=player1_props, color='#ffffff')
+    for y, val1, val2, metric in zip(y_positions, player1_vals, player2_vals, metrics):
       s1 = f"{val1:.2f}" if val1 % 1 else str(int(val1))
       s2 = f"{val2:.2f}" if val2 % 1 else str(int(val2))
       ax.text(-0.05, y, s1, color='white', ha='right', va='center', fontweight='bold', fontsize=12)
@@ -180,8 +184,10 @@ class Statistics(commands.Cog, name= "Statistics"):
       ax.text(0.5, y + 0.35, metric, color='white', ha='center', va='center', fontweight='bold', fontsize=12)
     ax.set_xlim(0, 1)
     buffer = io.BytesIO()
-    plt.savefig(buffer, format="png", dpi=300);plt.close()
+    plt.savefig(buffer, format="png", dpi=300)
+    plt.close()
     buffer.seek(0)
     await ctx.send(file=discord.File(buffer, filename="compare.png"))
     buffer.close()
+
 async def setup(bot):await bot.add_cog(Statistics(bot))

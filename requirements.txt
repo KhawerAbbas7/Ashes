@@ -7,3 +7,5 @@ aiosqlite
 prettytable
 psutil
 Cordia>=1.2.3
+matplotlib
+numpy

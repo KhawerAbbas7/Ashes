@@ -1,9 +1,11 @@
-import discord
+import discord, io
 from discord import Embed, Color
 from discord import ui 
 from prettytable import PrettyTable
 from discord.ext import commands, tasks
 from cogs.views import *
+import matplotlib.pyplot as plt
+import numpy as np
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
 
 class Statistics(commands.Cog, name= "Statistics"):
@@ -148,4 +150,38 @@ class Statistics(commands.Cog, name= "Statistics"):
       container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
     view.add_item(container)
     return await ctx.send(view=view)
+  @commands.command(aliases= [''], description= 'Compare two players')
+  async def compare(self, ctx, player1: discord.User, player2: discord.User = None):
+    if not player2:
+      player2 = ctx.author
+    if player2.id == player1.id:
+      return await ctx.send("You have provide two distinct players to compare.")
+    metrics = ['MATCHES', 'RUNS','Batting AVG', 'BATTIMG S/R', 'WICKETS', 'BOWLING AVG']
+    matches,total_runs,balls_faced,wickets = await ctx.bot.fetchrow("SELECT (SELECT COALESCE(COUNT(DISTINCT matchId),0) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?", (player1.id, ))
+    wkts,conceded,balls_bowled =await ctx.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?", (player1.id,)) 
+    player1_vals = np.array([matches,total_runs, round(total_runs/wickets,2) if wickets else total_runs, round((total_runs/balls_faced)*100, 2) if balls_faced else 0.00, wkts, round(conceded/wkts, 2) if wkts else 0.00])
+    matches,total_runs,balls_faced,wickets = await ctx.bot.fetchrow("SELECT (SELECT COALESCE(COUNT(DISTINCT matchId),0) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?", (player2.id, ))
+    wkts,conceded,balls_bowled =await ctx.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?", (player2.id,)) 
+    player2_vals = np.array([matches,total_runs, round(total_runs/wickets,2) if wickets else total_runs, round((total_runs/balls_faced)*100, 2) if balls_faced else 0.00, wkts, round(conceded/wkts, 2) if wkts else 0.00])
+    n_metrics = len(metrics)
+    totals = player1_vals + player2_vals
+    player1_props = player1_vals / totals
+    fig, ax = plt.subplots(figsize=(8, n_metrics * 0.8333333333333334), facecolor='#04151f', layout='tight', subplot_kw={'xticks': [], 'yticks': [], 'frame_on': False})
+    y_positions = np.arange(n_metrics - 1, -1, -1)
+    ax.text(0.20, n_metrics + 0.2, player1.name, color="#d90429", ha="center", va="center", fontsize=16, fontweight="bold")
+    ax.text(0.80, n_metrics + 0.2, player2.name, color="white", ha="center", va="center", fontsize=16, fontweight="bold")
+    ax.barh(y_positions, player1_props, height=0.25, color='#d90429')
+    ax.barh(y_positions, player2_vals / totals, height=0.25, left=player1_props, color='#ffffff')
+    for y, val1, val2, metric in zip(y_positions, player1_vals, player1_vals, metrics):
+      s1 = f"{val1:.2f}" if val1 % 1 else str(int(val1))
+      s2 = f"{val2:.2f}" if val2 % 1 else str(int(val2))
+      ax.text(-0.05, y, s1, color='white', ha='right', va='center', fontweight='bold', fontsize=12)
+      ax.text(1.05, y, s2, color='white', ha='left', va='center', fontweight='bold', fontsize=12)
+      ax.text(0.5, y + 0.35, metric, color='white', ha='center', va='center', fontweight='bold', fontsize=12)
+    ax.set_xlim(0, 1)
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format="png", dpi=300);plt.close()
+    buffer.seek(0)
+    await ctx.send(file=discord.File(buffer, filename="compare.png"))
+    buffer.close()
 async def setup(bot):await bot.add_cog(Statistics(bot))

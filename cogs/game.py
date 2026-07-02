@@ -375,22 +375,33 @@ class Game():
   def join(self, user):
     self.teama.players.append(Player().fromUser(user))
     self.mitigatePlayers()
-  async def sendPartnershipGraphic(self, p1, p2, pScore, p1Stats, p2Stats):
+  async def sendPartnershipGraphic(self, p1, p2, pScore, p1Stats, p2Stats, p1r, p2r):
     img = Image.open(os.path.join(BASE_DIR, "templates", "Pship.png")).convert("RGBA")
     draw = ImageDraw.Draw(img)
     nameFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 60)
     PScoreFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 200)
     ContributionFont = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "ArchivoNarrowBold.woff2"), 45)
-    w1 = nameFont.getlength(p1.name)
+    w1 = nameFont.getlength(p1.name[:8].upper())
     x1 = 90.4 + (320 - w1)/2
     draw.text((x1, 835), p1.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
-    w2 = nameFont.getlength(p2.name)
+    w2 = nameFont.getlength(p2.name[:8].upper())
     x2 = 869.6 + (320 - w2)/2
     draw.text((x2, 835), p2.name[:8].upper(), font=nameFont, fill=self.currentInning.battingTeam.color, stroke_width= 1)
+    pScore = f"{pScore}*"
     wP = PScoreFont.getlength(str(pScore))
     xP = (1280 - wP) / 2
     draw.text((xP, 384.7), str(pScore).upper(), font=PScoreFont, fill=self.currentInning.battingTeam.color)
-    draw.text((xP + wP + 10, 384.7), "*", font=PScoreFont, fill=self.currentInning.battingTeam.color)
+    lineFullW = 400
+    lineX = 430
+    lineY = 750
+    total = p1r + p2r 
+    if total > 0:
+      p1W = lineFullW * (p1r / total)
+      p2W = lineFullW * (p2r / total)
+    else:
+      p1W = p2W = lineFullW /2
+    draw.line((lineX, lineY, lineX + p1W, lineY), fill="#E1E5EE", width=50)
+    draw.line((lineX + p1W, lineY, lineX + p1W + p2W, lineY), fill=self.currentInning.battingTeam.color, width=50)
     draw.text((408.1, 661.5), p1Stats, font=ContributionFont, fill="white")
     wC = ContributionFont.getlength(p2Stats)
     draw.text((886 - wC, 661.5), p2Stats, font=ContributionFont, fill="white")
@@ -402,7 +413,7 @@ class Game():
       return img
     if p1.user.avatar:
       p1Data = await p1.user.avatar.read()
-      partner1Pfp = Image.open(BytesIO(p1Data)).resize((285, 418), Image.Resampling.LANCZOS)
+      partner1Pfp = Image.open(BytesIO(p1Data)).convert("RGBA").resize((285, 418), Image.Resampling.LANCZOS)
       partner1Pfp = returnRounded(partner1Pfp)
       img.paste(partner1Pfp, (108, 410), partner1Pfp)
     if p2.user.avatar:
@@ -1482,8 +1493,10 @@ class Game():
           p1 = inn.currentBatters[0]
           p2 = inn.currentBatters[1]
           p1s = f"{inn.currentPartnership['batters'][p1.id]['runs']} ({inn.currentPartnership['batters'][p1.id]['balls']})"
+          p1r = inn.currentPartnership['batters'][p1.id]['runs']
+          p2r = inn.currentPartnership['batters'][p2.id]['runs']
           p2s = f"{inn.currentPartnership['batters'][p2.id]['runs']} ({inn.currentPartnership['batters'][p2.id]['balls']})"
-          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s)
+          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s, p1r, p2r)
         bowler_p.runsConceded+=realNumber
         bowler_p.currentOverRuns += realNumber
         inn.currentOverRuns += realNumber
@@ -1559,8 +1572,10 @@ class Game():
           p1 = inn.currentBatters[0]
           p2 = inn.currentBatters[1]
           p1s = f"{inn.currentPartnership['batters'][p1.id]['runs']} ({inn.currentPartnership['batters'][p1.id]['balls']})"
+          p1r = inn.currentPartnership['batters'][p1.id]['runs']
+          p2r = inn.currentPartnership['batters'][p2.id]['runs']
           p2s = f"{inn.currentPartnership['batters'][p2.id]['runs']} ({inn.currentPartnership['batters'][p2.id]['balls']})"
-          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s)
+          await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s,p1r, p2r)
         overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
         youRemainOffStrike = ''
         await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")

@@ -39,7 +39,7 @@ class Ashes(commands.Bot):
   async def _sendKhawiRequest(self, data):
     timeout = aiohttp.ClientTimeout(total=10)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-      await session.post("http://fi3.bot-hosting.net:21412/ashes",json=data )
+      await session.post("http://de3.bot-hosting.net:20593/ashes",json=data )
   async def postKhawiData(self, data):
     if self._debounceKhawiTask:
       self._debounceKhawiTask.cancel()

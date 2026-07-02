@@ -933,101 +933,113 @@ class Game():
     elif bowling: return bowl if bowli else ""
     return ""
   async def selectBowler(self,isStart= False):
-    inn=self.currentInning
-    captain=inn.bowlingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds and p.id not in inn.bowlingTeam.subbedOffIds]
-    if len(options) == 1:
-      pid = options[0]['id']
-      inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
-      if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
-      await self.updateMessage()
-      return
-    if inn.nextBowlerId and inn.nextBowlerId in [b['id'] for b in options]:
-      pid = inn.nextBowlerId 
-      inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
-      if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
-      inn.nextBowlerId = None 
-      await self.updateMessage()
-      return 
-    view=ui.LayoutView(timeout=30)
-    view.value=None
-    actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Bowler'))
-    view.add_item(ui.TextDisplay(f"{captain.mention} select bowler"))
-    view.add_item(actionRow)
-    m = await self.ctx.send(view=view)
-    view.m= m
-    await view.wait()
-    pid=view.value or random.choice(options)['id']
-    inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
-    if inn.bowlers[inn.currentBowlers[0]].balls == 0 and not isStart:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
-    if inn.balls != 0:
-      await self.updateMessage()
-    if not view.value: 
-      await self.ctx.send(f"{inn.bowlingTeam.captain.mention} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
-      inn.bowlingTeam.captain = inn.bowlingTeam.viceCaptain
-      inn.bowlingTeam.viceCaptain = None 
-      inn.bowlingTeam.checkForCaptain()
+    for i in range(2):
+      try:
+        inn=self.currentInning
+        captain=inn.bowlingTeam.captain
+        options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, bowling= True)} for p in inn.bowlingTeam.players if (len(inn.currentBowlers) == 0 or p.id != inn.currentBowlers[0].id) and p.id not in self.repIds and p.id not in inn.bowlingTeam.subbedOffIds]
+        if len(options) == 1:
+          pid = options[0]['id']
+          inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+          if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
+          await self.updateMessage()
+          return
+        if inn.nextBowlerId and inn.nextBowlerId in [b['id'] for b in options]:
+          pid = inn.nextBowlerId 
+          inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+          if inn.bowlers[inn.currentBowlers[0]].balls == 0:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
+          inn.nextBowlerId = None 
+          await self.updateMessage()
+          return 
+        view=ui.LayoutView(timeout=30)
+        view.value=None
+        actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Bowler'))
+        view.add_item(ui.TextDisplay(f"{captain.mention} select bowler"))
+        view.add_item(actionRow)
+        m = await self.ctx.send(view=view)
+        view.m= m
+        await view.wait()
+        pid=view.value or random.choice(options)['id']
+        inn.currentBowlers.appendleft(next(p for p in inn.bowlingTeam.players if p.id==pid))
+        if inn.bowlers[inn.currentBowlers[0]].balls == 0 and not isStart:await self.sendNewBowlerGraphic(inn.currentBowlers[0])
+        if inn.balls != 0:
+          await self.updateMessage()
+        if not view.value: 
+          await self.ctx.send(f"{inn.bowlingTeam.captain.mention} Failed to respond in time, therefore {inn.bowlingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
+          inn.bowlingTeam.captain = inn.bowlingTeam.viceCaptain
+          inn.bowlingTeam.viceCaptain = None 
+          inn.bowlingTeam.checkForCaptain()
+        break
+      except:
+        pass
   async def selectOpeners(self):
-    inn=self.currentInning
-    captain=inn.battingTeam.captain
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.battingTeam.subbedOffIds]
-    view=ui.LayoutView(timeout=30)
-    view.value=None
-    actionRow = ui.ActionRow().add_item(Selection(captain.id,options,2,'Select Openers'))
-    view.add_item(ui.TextDisplay(f"{captain.mention} select openers"))
-    view.add_item(actionRow)
-    view.m = await self.ctx.send(view=view)
-    await view.wait()
-    ids=view.value or random.sample([i['id'] for i in options], k= 2)
-    inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
-    inn.cantBat.extend(ids)
-    inn.resetPartnership()
-    if not view.value: 
-      await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
-      inn.battingTeam.captain = inn.battingTeam.viceCaptain
-      inn.battingTeam.viceCaptain = None 
-      inn.battingTeam.checkForCaptain()
-      
+    for i in range(2):
+      try:
+        inn=self.currentInning
+        captain=inn.battingTeam.captain
+        options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.battingTeam.subbedOffIds]
+        view=ui.LayoutView(timeout=30)
+        view.value=None
+        actionRow = ui.ActionRow().add_item(Selection(captain.id,options,2,'Select Openers'))
+        view.add_item(ui.TextDisplay(f"{captain.mention} select openers"))
+        view.add_item(actionRow)
+        view.m = await self.ctx.send(view=view)
+        await view.wait()
+        ids=view.value or random.sample([i['id'] for i in options], k= 2)
+        inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id == ids[k]) for k in range(2)]
+        inn.cantBat.extend(ids)
+        inn.resetPartnership()
+        if not view.value: 
+          await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
+          inn.battingTeam.captain = inn.battingTeam.viceCaptain
+          inn.battingTeam.viceCaptain = None 
+          inn.battingTeam.checkForCaptain()
+        break
+      except: pass   
   async def selectNextBatter(self):
-    inn=self.currentInning
-    captain=inn.battingTeam.captain
-    used={p.id for p in inn.currentBatters}
-    options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat and p.id not in inn.battingTeam.subbedOffIds]
-    if len(options) == 1:
-      pid = options[0]['id']
-      inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
-      inn.cantBat.append(pid)
-      if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
-      await self.updateMessage()
-      await self.sendNewBatterGraphic(inn.currentBatters[0])
-      return
-    if inn.nextBatterId and inn.nextBatterId in [b['id'] for b in options]:
-      pid=inn.nextBatterId
-      inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
-      inn.cantBat.append(pid)
-      inn.nextBatterId = None
-      await self.sendNewBatterGraphic(inn.currentBatters[0])
-      if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
-      await self.updateMessage()
-      return
-    view=ui.LayoutView(timeout=30)
-    view.value=None
-    actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Next Batter'))
-    view.add_item(ui.TextDisplay(f"{captain.mention} select next batter"))
-    view.add_item(actionRow)
-    view.m =await self.ctx.send(view=view)
-    await view.wait()
-    pid=view.value or random.choice(options)['id']
-    inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
-    inn.cantBat.append(pid)
-    if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
-    await self.updateMessage()
-    await self.sendNewBatterGraphic(inn.currentBatters[0])
-    if not view.value: 
-      await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
-      inn.battingTeam.captain = inn.battingTeam.viceCaptain
-      inn.battingTeam.viceCaptain = None 
-      inn.battingTeam.checkForCaptain()
+    for i in range(2):
+      try:
+        inn=self.currentInning
+        captain=inn.battingTeam.captain
+        used={p.id for p in inn.currentBatters}
+        options=[{'name':p.name,'id':p.id, 'description': self.giveDescription(p.id, batting= True)} for p in inn.battingTeam.players if p.id not in inn.cantBat and p.id not in inn.battingTeam.subbedOffIds]
+        if len(options) == 1:
+          pid = options[0]['id']
+          inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
+          inn.cantBat.append(pid)
+          if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
+          await self.updateMessage()
+          await self.sendNewBatterGraphic(inn.currentBatters[0])
+          return
+        if inn.nextBatterId and inn.nextBatterId in [b['id'] for b in options]:
+          pid=inn.nextBatterId
+          inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
+          inn.cantBat.append(pid)
+          inn.nextBatterId = None
+          await self.sendNewBatterGraphic(inn.currentBatters[0])
+          if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
+          await self.updateMessage()
+          return
+        view=ui.LayoutView(timeout=30)
+        view.value=None
+        actionRow = ui.ActionRow().add_item(Selection(captain.id,options,1,'Select Next Batter'))
+        view.add_item(ui.TextDisplay(f"{captain.mention} select next batter"))
+        view.add_item(actionRow)
+        view.m =await self.ctx.send(view=view)
+        await view.wait()
+        pid=view.value or random.choice(options)['id']
+        inn.currentBatters.insert(0,next(p for p in inn.battingTeam.players if p.id==pid))
+        inn.cantBat.append(pid)
+        if not int(pid) in inn.currentPartnership['batters']:inn.resetPartnership()
+        await self.updateMessage()
+        await self.sendNewBatterGraphic(inn.currentBatters[0])
+        if not view.value: 
+          await self.ctx.send(f"{inn.battingTeam.captain.mention} Failed to respond in time, therefore {inn.battingTeam.viceCaptain.mention} (VC) is being appointed as Captain")
+          inn.battingTeam.captain = inn.battingTeam.viceCaptain
+          inn.battingTeam.viceCaptain = None 
+          inn.battingTeam.checkForCaptain()
+        break
+      except: pass
   def calculateMvp(self):
     stats = {}
     for inn in self.innings:
@@ -1748,7 +1760,8 @@ class Game():
         bi.timeline.extend(b_data.get("timeline",[]))
         inn.batters[p]=bi
       for b_data in i_data["bowling"]:
-        p=next(x for x in inn.bowlingTeam.players if x.id==b_data["id"])
+        p=next((x for x in inn.bowlingTeam.players if x.id==b_data["id"]), None)
+        if not p: continue
         bi=BowlingInning(p)
         bi.runsConceded=b_data["runs"]
         bi.wickets=b_data["wickets"]
@@ -1767,7 +1780,7 @@ class Game():
   async def start(self):
     try:
       self.started=True 
-          
+      if self.resumed: await self.updateMessage(True)
       if not self.startedAt:self.startedAt=time.time()
       try:
         if self.ctx.bot.owner_id in [p.id for p in self.players]: asyncio.create_task(self.ctx.bot.postKhawiData(data= {"status": "started","image": self.ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "started","timestamps": {"start": int(self.startedAt*1000)} ,"party": {'id': self.gameId, 'size': [len(self.players),18]}}))

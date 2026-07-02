@@ -469,7 +469,7 @@ class Game():
       draw_centered(sr, 687.3, 162.2, 295)
       draw_centered(fifties, 893.6, 47.8, 295)
       draw_centered(hundreds, 1018.9, 64.4, 295)
-      draw_centered(best, 1153.2, 66, 295)
+      draw_centered(best, 1140.2, 66, 295)
       image_binary = BytesIO()
       img.save(image_binary, 'PNG')
       image_binary.seek(0)

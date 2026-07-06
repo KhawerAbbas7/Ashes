@@ -27,7 +27,7 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
-    self.owner_id = 759713678013890560
+    self.dev_id = 759713678013890560
     self.staticData = {}
     self.Gifs = {}
     self.messageCooldownMap = {}

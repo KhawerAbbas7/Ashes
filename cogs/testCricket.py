@@ -40,7 +40,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.join(ctx.author)
     self.bot.games[ctx.channel.id] = g
     await ctx.channel.send(embed=e)
-    if ctx.author.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "lobby","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,18]}})
+    if ctx.author.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "lobby","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,18]}})
   @commands.command(aliases= ['j'], description= 'Join an existing match.')
   async def join(self, ctx, rep:str= None):
     isRep = rep in ['r', 'rep']
@@ -64,7 +64,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(f'{ctx.author.name} has joined the game as a rep.')
     g.join(ctx.author)
     await ctx.send(f'{ctx.author.name} has joined the game')
-    if ctx.author.id == ctx.bot.owner_id or ctx.bot.owner_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "lobby","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players),18]}})
+    if ctx.author.id == ctx.bot.dev_id or ctx.bot.dev_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "lobby","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players),18]}})
   @commands.command(aliases= ['l'], description= 'Leave a game.')
   async def leave(self, ctx):
     if ctx.channel.id not in self.bot.games:
@@ -83,7 +83,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{ctx.author} has left the game.')
-    if ctx.author.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
+    if ctx.author.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
   @commands.command(aliases= ['T10'], description= 'Change the format to T10.',extras={'usableBy': 'Host only.'})
   async def t10on(self, ctx):
     if ctx.channel.id not in self.bot.games:
@@ -116,7 +116,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if view.value in [None, 'No']: return 
     ctx.bot.games.pop(ctx.channel.id)
     await ctx.send("Game yeeted!")
-    if ctx.bot.owner_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
+    if ctx.bot.dev_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
     
   @commands.command(aliases= ['unlock'],extras={'usableBy': 'Host only.'}, description= 'Lock the lobby so no one can join.')
   async def lock(self, ctx):
@@ -179,7 +179,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       g.mitigatePlayers()
       g.bannedUsers.append(user.id)
       await ctx.send(embed= Embed(title=f'{user} Banned.', description=f'{user} has been banned and cannot join this lobby.', color=Color.from_str('#b30707')))
-      if user.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
+      if user.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
     
   @commands.command(aliases= ['fuck'],extras={'usableBy': 'Host only.'}, description= 'Kick a player from the lobby, only usable before start.')
   async def kick(self, ctx, user: discord.User):
@@ -201,7 +201,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{user} has been kicked off from the game')
-    if user.id == ctx.bot.owner_id :await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
+    if user.id == ctx.bot.dev_id :await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
     
   @commands.command(aliases= ['userscore'], description= 'View the performance of yourself or someone in the current game.')
   async def score(self, ctx, user: discord.User= None):
@@ -319,7 +319,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if view.value == "Yes":
       g.drawnByAgreement = True
       await ctx.send("**Draw request accepted**")
-      if ctx.author.id == ctx.bot.owner_id or ctx.bot.owner_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players,18)]}})
+      if ctx.author.id == ctx.bot.dev_id or ctx.bot.dev_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players,18)]}})
           
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['t'], description= 'Call the toss.', extras={'usableBy': 'Host or Captains only.'})
@@ -407,8 +407,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
         return
       g.subAPlayer(playerA, playerB)
       await ctx.send(embed= Embed(title='Impact Player', description=f'**{team.name}** have decided to sub in **{playerB}** for **{playerA}**', color=Color.from_str(team.color)))
-      if playerA.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
-      if playerB.id == ctx.bot.owner_id:await ctx.bot.postKhawiData(data= {"status": "started","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "started","timestamps": {"start": int(g.startedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
+      if playerA.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
+      if playerB.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "started","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "started","timestamps": {"start": int(g.startedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
       
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   async def nextplayer(self, ctx, nextP:discord.User = None):

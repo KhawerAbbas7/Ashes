@@ -489,7 +489,7 @@ class Game():
   async def sendNewBowlerGraphic(self, bowlerPlayer, returnFile = False):
     uid=bowlerPlayer.id
     bot=self.ctx.bot
-    q1="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(isWicket),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
+    q1="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
     res1=await bot.fetchrow(q1,(uid,uid,uid))
     matches=str(res1[0] or 0)
     inns=str(res1[1] or 0)

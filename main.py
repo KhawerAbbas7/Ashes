@@ -23,7 +23,7 @@ async def get_pre(bot, message):
     return commands.when_mentioned_or(*prefix_return)(bot, message)
 class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
-    super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None)
+    super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None, owner_ids= {1127649150079606865, 759713678013890560})
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}

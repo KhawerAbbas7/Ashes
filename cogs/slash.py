@@ -7,11 +7,11 @@ class UserInstallable(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
     self.bot = bot
   @app_commands.command(name="say", description="Say something;owners only")
-  async def say(self, interaction, message: str, messageId: int = None):
+  async def say(self, interaction, message: str, messageid: int = None):
     if interaction.user.id not in interaction.client.owner_ids:return 
     c = interaction.channel 
     await interaction.response.send_message("Done", ephemeral= True)
-    m = c.get_partial_message(messageId) if messageId else None
+    m = c.get_partial_message(messageid) if messageid else None
     if m:
       return m.reply(message)
     return await c.send(message)

@@ -17,7 +17,8 @@ class RankingCog(commands.Cog):
     await self.site.start()
   async def dbl(self, request):
     auth = request.headers.get('Authorization')
-    if auth != '&whs_93185607822d67244e1ddd00ba90a1b6929b8bc2b80bbf88662aa4a509883e4f':return web.json_response({"status": "unauthorized"}, status=401)
+    print(auth)
+    if auth != '&whs_9aa2add17418947961c9e196295d6ab56a8560c2660a2edff72adc2968abd6f4':return web.json_response({"status": "unauthorized"}, status=401)
     data = await request.json()
     print(data)
   async def search_players(self, request):

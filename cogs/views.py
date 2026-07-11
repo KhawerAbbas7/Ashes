@@ -1039,6 +1039,7 @@ class ShopButton(ui.Button):
       await i.followup.send(content= f"You have successfully bought {self.itemId} for {price:,}")
 class ShopView(ui.LayoutView):
   def __init__(self,ctx, balance, boughtItems) -> None:
+    super().__init__(timeout= 60)
     self.ctx = ctx
     self.items = {
       "3fer": {'price': 300000, 'description': 'Show a custom message when reach your 3fer.'}, 

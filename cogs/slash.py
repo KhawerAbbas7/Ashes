@@ -13,7 +13,7 @@ class UserInstallable(commands.Cog):
     await interaction.response.send_message("Done", ephemeral= True)
     m = c.get_partial_message(int(messageid)) if messageid else None
     if m:
-      return m.reply(message)
+      return await m.reply(message)
     return await c.send(message)
   @app_commands.command(name="stats", description="get statistics for yourself or someone else")
   @app_commands.describe(member='the user to check, leave it if you want to check yours.', ephemeral='If u want message to be secret')

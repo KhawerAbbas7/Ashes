@@ -8,7 +8,7 @@ CREATE TABLE cooldowns(
   command TEXT NOT NULL,
   lastClaimAt INTEGER NOT NULL,
   expiresAt INTEGER NOT NULL,
-  reminded INTEGER DEFAULT 0
+  reminded INTEGER DEFAULT 0,
   PRIMARY KEY (userId, command),
   FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
 );

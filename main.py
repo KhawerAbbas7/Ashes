@@ -35,7 +35,7 @@ class Ashes(commands.Bot):
   @tasks.loop(seconds= 30)
   async def votesReminders(self):
     timeNow = int(time.time())
-    rows = await self.cfetchall("SELECT userId FROM cooldowns WHERE reminded=? AND (? - lastClaimAt) >= 43200 ", (0, timeNow))
+    rows = await self.cfetchall("SELECT userId FROM cooldowns WHERE reminded=? AND (? - lastClaimAt) >= 43200 AND command= ?", (0, timeNow, 'vote'))
     for r in rows:
       user = self.get_user(r[0])
       if user:
@@ -47,7 +47,7 @@ class Ashes(commands.Bot):
           await user.send(view= view)
         except:
           pass
-      await self.cexecute("UPDATE cooldowns SET reminded= ? WHERE userId = ?", (1, r[0]))
+      await self.cexecute("UPDATE cooldowns SET reminded= ? WHERE userId = ? AND command = ?", (1, r[0], 'vote'))
   @tasks.loop(seconds= 30)
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():

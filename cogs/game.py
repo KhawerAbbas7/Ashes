@@ -1116,10 +1116,15 @@ class Game():
       if text:container.add_item(ui.TextDisplay(text))
       container.add_item(gallery)
       if achievement:
-        container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
-        container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
-        if achievement != "hattrick":
-          container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
+        bowler_id = self.currentInning.currentBowlers[0].id
+        custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = ?", (bowler_id, achievement.strip()))
+        if not custom or custom[0]== '' or len(custom[0]) == 0:
+          container.add_item(ui.Separator(visible=True, spacing=discord.SeparatorSpacing.small))
+          container.add_item(ui.TextDisplay(f"**Also {achievement} for {self.currentInning.currentBowlers[0].name}**"))
+          if achievement != "hattrick":
+            container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
+        else:
+          await self.ctx.send(content= custom[0])
       c.add_item(container)
       await self.ctx.send(file= i, view= c)
   async def getInputs(self):
@@ -1569,11 +1574,23 @@ class Game():
           if bat == 6: striker_p.sixes += 1
           striker_p.BoundaryThisOver += 1
         if striker_p.runs < 30 and striker_p.runs + bat >= 30:
-          await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '30') is None else self.getGif(striker.id, '30')})")
+          custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '30'", (striker.id,))
+          if custom and custom[0]: 
+            await self.ctx.send(custom[0])
+          else:
+            await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '30') is None else self.getGif(striker.id, '30')})")
         elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
-          await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '50') is None else self.getGif(striker.id, '50')})")
+          custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '50'", (striker.id,))
+          if custom and custom[0]: 
+            await self.ctx.send(custom[0])
+          else:
+            await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '50') is None else self.getGif(striker.id, '50')})")
         elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
-          await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
+          custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '100'", (striker.id,))
+          if custom and custom[0]: 
+            await self.ctx.send(custom[0])
+          else:
+            await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
         striker_p.runs+=bat
         bowler_p.runsConceded+=bat
         prev_pship= inn.currentPartnership["runs"]

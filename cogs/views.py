@@ -848,6 +848,17 @@ class Selection(ui.Select):
       view.add_item(ui.TextDisplay(f"Selected {' & '.join(selected) if isinstance(selected,list) else selected}"))
       await self.view.m.edit(view= view)
     self.view.stop()
+class setMessage(ui.Modal, title="Set Message"):
+  message = ui.Label(text= "Insert the message",description= "This message will be displayed on your celebration.", component= ui.TextInput(placeholder="Any inappropriate message can get you banned btw.", required= True, default = 0,style=discord.TextStyle.long,max_length=150),)
+  def __init__(self, user, itemId):
+    self.user = user
+    self.itemId = itemId
+    super().__init__()
+  async def on_submit(self, interaction: discord.Interaction):
+    value = self.message.component.value 
+    bot = interaction.client
+    await bot.cexecute("UPDATE inventory SET itemValue = ? WHERE userId = ? AND itemId = ?", (value, interaction.user.id, self.itemId))
+    await interaction.response.send_message(content= f"Successfully set the celebration message.", ephemeral= True)
 class ProfileFilters(ui.Modal, title="Profile Filters"):
   lastNMatches = ui.Label(text= "Insert the number of last N games to filter ",description= "0 = All Time", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)
   lastNInnings = ui.Label(text= "Insert the number of last N innings to filter ",description= "0 = All Time, Must not be used with Last N matches", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)
@@ -886,6 +897,14 @@ class FiltersBtn(ui.Button):
   async def callback(self, i):
     if i.user.id != self.userId: return
     await i.response.send_modal(ProfileFilters(self.view.target, self.view.ctx))
+class setMessageBtn(ui.Button):
+  def __init__(self, userId, itemId):
+    self.userId = userId
+    self.itemId = itemId
+    super().__init__(label='Set Message', style=discord.ButtonStyle.green)
+  async def callback(self, i):
+    if i.user.id != self.userId: return
+    await i.response.send_modal(setMessage(self.userId, self.itemId))
 class DeclareBTN(ui.Button):
   def __init__(self):
     super().__init__(label='Declare', style=discord.ButtonStyle.danger)
@@ -992,6 +1011,52 @@ class HelpButton(ui.Button):
     elif self.lab == 'Commands':
       v = Helpview(self.view.ctx)
       await i.response.edit_message(content=None,view=v)
+class ShopButton(ui.Button):
+  def __init__(self,lab:str, disabledd: bool, itemId: str, Style= discord.ButtonStyle.red):
+    self.itemId = itemId
+    super().__init__(label= lab, style=Style, disabled= disabledd)
+  async def callback(self, i):
+    price = self.view.items[self.itemId]['price']
+    bot = i.client 
+    bal = await bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (i.user.id,))
+    bal = bal[0] if bal else 0
+    if bal >= price:
+      await i.response.defer(ephemeral=True)
+      view=ui.LayoutView(timeout=60)
+      view.value=None
+      buttons = [Button('Yes',discord.ButtonStyle.green,i.user.id), Button('No',discord.ButtonStyle.red ,i.user.id)]
+      container = ui.Container(accent_color = discord.Colour.from_str("#9b0a82"))
+      actionRow = ui.ActionRow()
+      for b in buttons: actionRow.add_item(b)
+      container.add_item(ui.TextDisplay(f"Are you sure to buy `{self.itemId}` for {price:,}?"))
+      container.add_item(actionRow)
+      view.add_item(container)
+      await i.followup.send(view=view, ephemeral= True)
+      await view.wait()
+      if view.value != 'Yes':return
+      await bot.cexecute("UPDATE users SET coins = coins - ? WHERE userId = ?", (price, i.user.id))
+      await bot.cexecute("INSERT INTO inventory (userId, item) VALUES (?,?)", (i.user.id, self.itemId))
+      await i.followup.send(content= f"You have successfully bought {self.itemId} for {price:,}")
+class ShopView(ui.LayoutView):
+  def __init__(self,ctx, balance, boughtItems) -> None:
+    self.ctx = ctx
+    self.items = {
+      "3fer": {'price': 300000, 'description': 'Show a custom message when reach your 3fer.'}, 
+      "30": {'price': 300000, 'description': 'Show a custom message when reach your thirty.'}, 
+      "5fer": {'price': 500000, 'description': 'Show a custom message when reach your 5fer.'}, 
+      "50": {'price': 500000, 'description': 'Show a custom message when reach your fifty.'}, 
+      "hattrick": {'price': 800000, 'description': 'Show a custom message when reach your hattrick.'}, 
+      "100": {'price': 1000000, 'description': 'Show a custom message when reach your century.'}, 
+    }
+    container = ui.Container(accent_color = discord.Colour.from_str("#3596a1"))
+    for item in self.items:
+      container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
+      if item in boughtItems:
+        container.add_item(ui.Section(ui.TextDisplay(f"**{item}**\n-# {self.items[item]['description']}"),accessory=setMessageBtn(ctx.author.id, item)))
+      else:
+        container.add_item(ui.Section(ui.TextDisplay(f"**{item}**\n-# {self.items[item]['description']}"),accessory=ShopButton(lab=f"{self.items[item]['price']:,}",disabledd= not balance >= self.items[item]['price'], itemId= item, Style= discord.ButtonStyle.green if balance >= self.items[item]['price'] else discord.ButtonStyle.red))
+    self.add_item(container)
+  async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class Helpview(ui.LayoutView):
   def __init__(self,ctx, page= 0) -> None:
     self.ctx = ctx = ctx 

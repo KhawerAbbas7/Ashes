@@ -10,11 +10,16 @@ class RankingCog(commands.Cog):
     self.runner = None
   async def cog_load(self):
     app = web.Application()
-    app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),])
+    app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),web.post('/dbl', self.dbl)])
     self.runner = web.AppRunner(app)
     await self.runner.setup()
     self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
     await self.site.start()
+  async def dbl(self, request):
+    auth = request.headers.get('Authorization')
+    if auth != '&whs_93185607822d67244e1ddd00ba90a1b6929b8bc2b80bbf88662aa4a509883e4f':return web.json_response({"status": "unauthorized"}, status=401)
+    data = await request.json()
+    print(data)
   async def search_players(self, request):
     try:
       query = request.query.get('q', '').strip().lower()

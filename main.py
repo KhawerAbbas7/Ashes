@@ -80,14 +80,19 @@ class Ashes(commands.Bot):
     self.add_check(self.checkIfAllowedCategory)
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
+    self.currencydb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'currency.db'))
     await self.db.execute("PRAGMA foreign_keys = ON")
     await self.db.execute("PRAGMA journal_mode = WAL")
     await self.settingsdb.execute("PRAGMA foreign_keys = ON")
     await self.settingsdb.execute("PRAGMA journal_mode = WAL")
+    await self.currencydb.execute("PRAGMA foreign_keys = ON")
+    await self.currencydb.execute("PRAGMA journal_mode = WAL")
     script = open("schema.sql").read()
     settingsscript = open("settingsdbschema.sql").read()
+    currencyscript = open("currency.sql").read()
     await self.db.executescript(script)
     await self.settingsdb.executescript(settingsscript)
+    await self.currencydb.executescript(currencyscript)
     await self.load_extension('jishaku')
     await self.load_extension('api')
     for file in os.listdir('cogs'):
@@ -151,6 +156,15 @@ class Ashes(commands.Bot):
   async def execute(self, query, params=()):
     await self.db.execute(query, params)
     await self.db.commit()
+  async def cfetchrow(self, query, params=()):
+    async with self.currencydb.execute(query, params) as cursor:
+      return await cursor.fetchone()
+  async def cfetchall(self, query, params=()):
+    async with self.currencydb.execute(query, params) as cursor:
+      return await cursor.fetchall()
+  async def cexecute(self, query, params=()):
+    await self.currencydb.execute(query, params)
+    await self.currencydb.commit()
   def export_live_instance(self, game):
     data = {
       "meta": {

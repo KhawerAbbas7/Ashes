@@ -2,6 +2,8 @@ import discord
 from discord.ext import commands
 from aiohttp import web
 import json
+import hmac
+import hashlib
 from datetime import datetime, timedelta
 class RankingCog(commands.Cog):
   def __init__(self, bot: commands.Bot):

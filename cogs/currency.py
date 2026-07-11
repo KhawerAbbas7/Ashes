@@ -38,7 +38,7 @@ class Currency(commands.Cog, name= "Currency"):
     bal = await ctx.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (ctx.author.id,))
     bal = bal[0] if bal else 0
     if amount > bal:
-      return await ctx.send(embed= Embed(title='Nuh uh', description=f'Look I respect your generousity but I can\'t let this happen, paying more than you have nuh uh.', color=Colour.from_str('#b30707'))
+      return await ctx.send(embed= Embed(title='Nuh uh', description=f'Look I respect your generousity but I can\'t let this happen, paying more than you have nuh uh.', color=Colour.from_str('#b30707')))
     buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam.captain.id), Button('No',discord.ButtonStyle.red ,otherTeam.captain.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None
@@ -73,7 +73,7 @@ class Currency(commands.Cog, name= "Currency"):
     cooldown = await ctx.bot.cfetchrow("SELECT expiresAt,lastClaimAt FROM cooldowns WHERE userId = ? AND command = ?", (ctx.author.id, 'daily'))
     streak = 1
     if cooldown and cooldown[0] >= time.time():
-      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707'))
+      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707')))
     if cooldown:
       streakRetained = False
       streak = await ctx.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (ctx.author.id, 'daily'))
@@ -100,7 +100,7 @@ class Currency(commands.Cog, name= "Currency"):
     cooldown = await ctx.bot.cfetchrow("SELECT expiresAt,lastClaimAt FROM cooldowns WHERE userId = ? AND command = ?", (ctx.author.id, 'weekly'))
     streak = 1
     if cooldown and cooldown[0] >= time.time():
-      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707'))
+      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707')))
     if cooldown:
       streakRetained = False
       streak = await ctx.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (ctx.author.id, 'weekly'))
@@ -127,7 +127,7 @@ class Currency(commands.Cog, name= "Currency"):
     cooldown = await ctx.bot.cfetchrow("SELECT expiresAt,lastClaimAt FROM cooldowns WHERE userId = ? AND command = ?", (ctx.author.id, 'monthly'))
     streak = 1
     if cooldown and cooldown[0] >= time.time():
-      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707'))
+      return await ctx.send(embed= Embed(title='Command on cooldown', description=f'The command is on cooldown, please try again later at <t:{cooldown[0]}:F>.', color=Colour.from_str('#b30707')))
     if cooldown:
       streakRetained = False
       streak = await ctx.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (ctx.author.id, 'monthly'))

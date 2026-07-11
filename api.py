@@ -45,7 +45,7 @@ class RankingCog(commands.Cog):
           lastClaimAt = cooldown[1]
           if (time.time()- lastClaimAt) <= 24* 60 * 60:
             streakRetained = True
-        streak = streak[0] +1 if streak and streakRetained else 1
+          streak = streak[0] +1 if streak and streakRetained else 1
         effective_streak = min(60, streak)
         reward = 2000 + (effective_streak - 1) * 100 
         claimTime = int(time.time())

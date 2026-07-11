@@ -47,7 +47,7 @@ class Currency(commands.Cog, name= "Currency"):
     bal = bal[0] if bal else 0
     if amount > bal:
       return await ctx.send(embed= Embed(title='Nuh uh', description=f'Look I respect your generousity but I can\'t let this happen, paying more than you have nuh uh.', color=Colour.from_str('#b30707')))
-    buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam.captain.id), Button('No',discord.ButtonStyle.red ,otherTeam.captain.id)]
+    buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))

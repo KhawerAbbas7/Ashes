@@ -50,7 +50,7 @@ class RankingCog(commands.Cog):
         reward = 2000 + (effective_streak - 1) * 100 
         claimTime = int(time.time())
         expires = claimTime+ 43200 
-        await self.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt,reminded) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt, reminded= expiresAt.reminded", (user.id, 'vote', claimTime, expires, 0))
+        await self.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt,reminded) VALUES (?,?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt, reminded= expiresAt.reminded", (user.id, 'vote', claimTime, expires, 0))
         bal = await self.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (user.id,))
         bal = bal[0] if bal else 0
         await self.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (user.id, reward))

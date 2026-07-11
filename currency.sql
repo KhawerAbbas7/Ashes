@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS cooldowns(
   expiresAt INTEGER NOT NULL,
   reminded INTEGER DEFAULT 0,
   PRIMARY KEY (userId, command));
-CREATE TABLE streaks(
+CREATE TABLE IF NOT EXISTS streaks(
   userId INTEGER NOT NULL,
   command TEXT NOT NULL,
   streak INTEGER NOT NULL DEFAULT 0,

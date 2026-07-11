@@ -6,7 +6,7 @@ from cogs.views import makeProfileView
 class UserInstallable(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
     self.bot = bot
-  @app_commands.command(name="say", description="")
+  @app_commands.command(name="say", description="Say something;owners only")
   async def say(self, interaction, message: str):
     if interaction.user.id not in interaction.client.owner_ids:return 
     c = interaction.channel 

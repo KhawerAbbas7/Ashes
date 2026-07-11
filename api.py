@@ -16,12 +16,20 @@ class RankingCog(commands.Cog):
     self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
     await self.site.start()
   async def dbl(self, request):
-    auth = request.headers.get('Authorization')
-    print(auth)
-    if auth != 'whs_10da44216d13dc9d80b24229b6f943d84c1caa49966de53432259193c910091c': return web.json_response({"status": "unauthorized"}, status=401)
-    raw_data = await request.text()
-    data = json.loads(raw_data) if raw_data else {}
-    print(raw_data,data)
+    signature = request.headers.get('x-topgg-signature')
+    if not signature: return web.json_response({"status": "unauthorized"}, status=401)
+    raw_body = await request.text()
+    try:
+      t_part, v1_part = signature.split(',')
+      timestamp = t_part.split('=')[1]
+      received_sig = v1_part.split('=')[1]
+    except ValueError: return web.json_response({"status": "unauthorized"}, status=401)
+    secret = 'whs_10da44216d13dc9d80b24229b6f943d84c1caa49966de53432259193c910091c'
+    message = f"{timestamp}.{raw_body}".encode('utf-8')
+    expected = hmac.new(secret.encode('utf-8'), message, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(expected, received_sig): return web.json_response({"status": "unauthorized"}, status=401)
+    data = json.loads(raw_body) if raw_body else {}
+    print(data)
     return web.json_response({"status": "success"}, status=200)
 
 

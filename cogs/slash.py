@@ -11,7 +11,8 @@ class UserInstallable(commands.Cog):
     if interaction.user.id not in interaction.client.owner_ids:return 
     c = interaction.channel 
     await interaction.response.send_message("Done", ephemeral= True)
-    if messageId and m:= c.get_partial_message(messageId):
+    m = c.get_partial_message(messageId) if messageId else None
+    if m:
       return m.reply(message)
     return await c.send(message)
   @app_commands.command(name="stats", description="get statistics for yourself or someone else")

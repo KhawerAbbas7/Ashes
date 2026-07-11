@@ -4,7 +4,6 @@ from dotenv import load_dotenv
 import aiosqlite
 from cogs.views import *
 import psutil
-from discord import app_commands
 from psutil import cpu_percent
 from io import BytesIO
 load_dotenv()
@@ -28,7 +27,6 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
-    self.tree = app_commands.CommandTree(self)
     self.dev_id = 759713678013890560
     self.staticData = {}
     self.Gifs = {}
@@ -115,7 +113,7 @@ class Ashes(commands.Bot):
     await self.load_extension('api')
     for file in os.listdir('cogs'):
       if file.endswith('py') and file not in ['game.py', 'views.py']:await self.load_extension('cogs.' + file[:-3])
-    await self.tree.sync()
+    #await self.tree.sync()
   async def on_message(self, message):
     if not message.author.bot and message.channel.type == discord.ChannelType.private and (message.content.startswith(".") or message.content.startswith("+")):
       if message.author.id in self.messageCooldownMap and time.time() - self.messageCooldownMap[message.author.id] < 5:
@@ -290,12 +288,6 @@ class Ashes(commands.Bot):
     self.gamesDeletionCheck.start()
     self.votesReminders.start()
 bot = Ashes()
-@bot.tree.command()
-async def hello(interaction: discord.Interaction, message: str):
-  if interaction.user.id not in bot.owner_ids:
-    return 
-  c = interaction.channel 
-  return await c.send(message)
   
 @bot.command(aliases = ['close'])
 @commands.is_owner()

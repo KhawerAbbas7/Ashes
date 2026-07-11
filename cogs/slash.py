@@ -6,6 +6,11 @@ from cogs.views import makeProfileView
 class UserInstallable(commands.Cog):
   def __init__(self, bot: commands.Bot) -> None:
     self.bot = bot
+  @app_commands.command(name="say", description="")
+  async def say(self, interaction, message: str):
+    if interaction.user.id not in interaction.client.owner_ids:return 
+    c = interaction.channel 
+    return await c.send(message)
   @app_commands.command(name="stats", description="get statistics for yourself or someone else")
   @app_commands.describe(member='the user to check, leave it if you want to check yours.', ephemeral='If u want message to be secret')
   @app_commands.allowed_installs(guilds=True, users=True)

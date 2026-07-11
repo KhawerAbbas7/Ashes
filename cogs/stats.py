@@ -150,7 +150,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
     view.add_item(container)
     return await ctx.send(view=view)
-  @commands.command(aliases= [''], description= 'Compare two players')
+  @commands.command(aliases= [], description= 'Compare two players')
   async def compare(self, ctx, player1: discord.User, player2: discord.User = None):
     if not player2:
       player2 = ctx.author

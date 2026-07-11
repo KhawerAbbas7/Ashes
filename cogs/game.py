@@ -1049,6 +1049,7 @@ class Game():
       for p, b in inn.bowlers.items():
         if p.id not in stats: stats[p.id] = {'p': p, 'pts': 0}
         stats[p.id]['pts'] += b.wickets * 12
+        stats[p.id]['pts'] -= b.runsConceded * 0.01
     winner = next((t for t in [self.teama, self.teamb] if t.name == self.winner), None)
     if winner:
       for p in winner.players:
@@ -1858,7 +1859,7 @@ class Game():
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         if self.mvp:
           mvppoints = self.mvppoints
-          amount = int(mvppoints *15)
+          amount = int(mvppoints *25)
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (self.mvp.id, amount))
         formatted=f"MVP: **{mvp.name}**(+{amount} coins)\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()

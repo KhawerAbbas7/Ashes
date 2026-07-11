@@ -41,7 +41,7 @@ class RankingCog(commands.Cog):
         streak = 1
         if cooldown:
           streakRetained = False
-          streak = await self.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (user.id, 'vote')
+          streak = await self.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (user.id, 'vote'))
           lastClaimAt = cooldown[1]
           if (time.time()- lastClaimAt) <= 24* 60 * 60:
             streakRetained = True

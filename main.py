@@ -33,6 +33,22 @@ class Ashes(commands.Bot):
     self.messageCooldownMap = {}
     self._debounceKhawiTask = None
   @tasks.loop(seconds= 30)
+  async def votesReminders(self):
+    timeNow = int(time.time())
+    rows = await self.cfetchall("SELECT userId FROM cooldowns WHERE reminded=? AND (? - lastClaimAt) >= 43200 ", (0, timeNow))
+    for r in rows:
+      user = self.get_user(r[0])
+      if user:
+        view=ui.LayoutView(timeout=30)
+        container=ui.Container(accent_color=Colour.from_str("#277de4"))
+        container.add_item(ui.TextDisplay(f"### Topgg vote is now available!!\n[Click here](https://top.gg/bot/1443165621100740668/vote) to cast your vote."))
+        view.add_item(container)
+        try:
+          await user.send(view= view)
+        except:
+          pass
+      await self.cexecute("UPDATE cooldowns SET reminded= ? WHERE userId = ?", (1, r[0]))
+  @tasks.loop(seconds= 30)
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
@@ -269,6 +285,7 @@ class Ashes(commands.Bot):
       return await ctx.send('This command is only runnable by the owner.')
   async def on_ready(self):
     self.gamesDeletionCheck.start()
+    self.votesReminders.start()
 bot = Ashes()
 @bot.command(aliases = ['close'])
 @commands.is_owner()
@@ -279,12 +296,11 @@ async def shut(ctx):
         file = ctx.bot.export_live_instance(game)
         await game.ctx.send("Bot is being forced to shut down but don't worry here is the file through which you can ask the owner to resume it.", file = file)
     await ctx.send("There were games going on. But shutting myself down.")
-    await ctx.bot.settingsdb.close()
-    await ctx.bot.db.close()
+    await ctx.bot.settingsdb.close();await ctx.bot.db.close();await ctx.bot.currencydb.close()
     await ctx.bot.close()
     sys.exit(1)
   await ctx.send("Shutting myself down")
-  await ctx.bot.settingsdb.close();await ctx.bot.db.close()
+  await ctx.bot.settingsdb.close();await ctx.bot.db.close();await ctx.bot.currencydb.close()
   await ctx.bot.close()
   sys.exit(1)
 @bot.command()

@@ -31,6 +31,14 @@ class Currency(commands.Cog, name= "Currency"):
     items = [row[0] for row in inv]
     v = ShopView(ctx, bal, items)
     await ctx.send(view=v)
+  @commands.command(aliases= ['v'], description= 'Vote for bot and earn some money.')
+  async def vote(self, ctx):
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    container.add_item(ui.TextDisplay(f"Vote here -> [TOPGG](https://top.gg/bot/1443165621100740668/vote)"))
+    view.add_item(container)
+    await ctx.send(view=view)
   @commands.command(aliases= ['transfer'], description= 'Feeling generous?, give some money to someone.')
   async def give(self, ctx, target: discord.User, amount: K_Converter):
     if ctx.author.id == target.id:

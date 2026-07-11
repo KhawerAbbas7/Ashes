@@ -3,7 +3,10 @@ from discord.ext import commands
 from aiohttp import web
 import json
 import hmac
-import hashlib
+import hashlib, os
+from discord import Embed, Colour
+from discord import ui 
+from discord.ext import commands, tasks
 from datetime import datetime, timedelta
 class RankingCog(commands.Cog):
   def __init__(self, bot: commands.Bot):
@@ -26,12 +29,39 @@ class RankingCog(commands.Cog):
       timestamp = t_part.split('=')[1]
       received_sig = v1_part.split('=')[1]
     except ValueError: return web.json_response({"status": "unauthorized"}, status=401)
-    secret = 'whs_10da44216d13dc9d80b24229b6f943d84c1caa49966de53432259193c910091c'
+    secret = os.getenv("TOPGGToken")
     message = f"{timestamp}.{raw_body}".encode('utf-8')
     expected = hmac.new(secret.encode('utf-8'), message, hashlib.sha256).hexdigest()
     if not hmac.compare_digest(expected, received_sig): return web.json_response({"status": "unauthorized"}, status=401)
     data = json.loads(raw_body) if raw_body else {}
-    print(data)
+    if data:
+      user = self.bot.get_user(int(data['data']['user']['platform_id']))
+      if user:
+        cooldown = await self.bot.cfetchrow("SELECT expiresAt,lastClaimAt FROM cooldowns WHERE userId = ? AND command = ?", (user.id, 'vote'))
+        streak = 1
+        if cooldown:
+          streakRetained = False
+          streak = await self.bot.cfetchrow("SELECT streak FROM streaks WHERE userId = ? AND command = ?", (user.id, 'vote')
+          lastClaimAt = cooldown[1]
+          if (time.time()- lastClaimAt) <= 24* 60 * 60:
+            streakRetained = True
+        streak = streak[0] +1 if streak and streakRetained else 1
+        effective_streak = min(60, streak)
+        reward = 2000 + (effective_streak - 1) * 100 
+        claimTime = int(time.time())
+        expires = claimTime+ 43200 
+        await self.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt,reminded) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt, reminded= expiresAt.reminded", (user.id, 'vote', claimTime, expires, 0))
+        bal = await self.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (user.id,))
+        bal = bal[0] if bal else 0
+        await self.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (user.id, reward))
+        await self.bot.cexecute("INSERT INTO streaks (userId, command, streak) VALUES (?,?, ?) ON CONFLICT(userId, command) DO UPDATE SET streak =excluded.streak", (user.id, 'vote',streak))
+        view=ui.LayoutView(timeout=30)
+        container=ui.Container(accent_color=Colour.from_str("#277de4"))
+        container.add_item(ui.TextDisplay(f"### Thank You for voting\n{bal} + {reward} = {bal + reward}\n-# Streak: {streak}"))
+        view.add_item(container)
+        try:
+          await user.send(view= view)
+        except: pass
     return web.json_response({"status": "success"}, status=200)
 
 

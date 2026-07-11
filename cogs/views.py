@@ -1054,7 +1054,7 @@ class ShopView(ui.LayoutView):
       if item in boughtItems:
         container.add_item(ui.Section(ui.TextDisplay(f"**{item}**\n-# {self.items[item]['description']}"),accessory=setMessageBtn(ctx.author.id, item)))
       else:
-        container.add_item(ui.Section(ui.TextDisplay(f"**{item}**\n-# {self.items[item]['description']}"),accessory=ShopButton(lab=f"{self.items[item]['price']:,}",disabledd= not balance >= self.items[item]['price'], itemId= item, Style= discord.ButtonStyle.green if balance >= self.items[item]['price'] else discord.ButtonStyle.red))
+        container.add_item(ui.Section(ui.TextDisplay(f"**{item}**\n-# {self.items[item]['description']}"),accessory=ShopButton(lab=f"{self.items[item]['price']:,}",disabledd= not balance >= self.items[item]['price'], itemId= item, Style= discord.ButtonStyle.green if balance >= self.items[item]['price'] else discord.ButtonStyle.red)))
     self.add_item(container)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class Helpview(ui.LayoutView):

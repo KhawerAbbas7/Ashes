@@ -282,11 +282,9 @@ async def shut(ctx):
     await ctx.bot.settingsdb.close()
     await ctx.bot.db.close()
     await ctx.bot.close()
-    sys._exit(0)
   await ctx.send("Shutting myself down")
   await ctx.bot.settingsdb.close();await ctx.bot.db.close()
   await ctx.bot.close()
-  sys._exit(0)
 @bot.command()
 async def ping( ctx):
   duration= bot.latency * 1000 

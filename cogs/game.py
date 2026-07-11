@@ -1053,8 +1053,9 @@ class Game():
     winner = next((t for t in [self.teama, self.teamb] if t.name == self.winner), None)
     if winner:
       for p in winner.players:
-        if p.id in stats: 
-          stats[p.id]['pts']*= 1.2
+        if p.id in stats:
+          if stats[p.id]['pts'] > 0:
+            stats[p.id]['pts']*= 1.2
     best = max(stats.values(), key=lambda x: x['pts'])
     self.mvp = best['p']
     self.mvppoints = best['pts']

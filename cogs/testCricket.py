@@ -214,19 +214,22 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Waiting for Game to Start', description='Game is yet to begin.', color=Color.from_str('#b30707')))
     bat=[]
     bowl=[]
-    timeline=[]
+    timelines={}
     tookWickets = []
     player = next(p for p in g.players if p.id == user.id)
     for inn in g.innings:
       if player in inn.batters:
         tookWickets = []
         i=inn.batters[player]
-        timeline = i.timeline
-        if i.balls>0: bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
+        score = f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}"
+        timelines[f"Batting Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": [], 'score': score}
+        if i.balls>0 or i.dismissed: 
+          score = f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}"
+          bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
       if player in inn.bowlers:
         i=inn.bowlers[player]
         tookWickets = i.wicketsDigits
-        timeline = i.timeline
+        timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})"}
         if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
@@ -235,13 +238,15 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if bat:text += f"**Batting:** {bat}\n"
     if bowl:text += f"**Bowling:** {bowl}"
     container.add_item(ui.TextDisplay(text))
-    if timeline:
-      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))
-    if tookWickets:
-      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-      w = " • ".join([f'**{t}**' for t in tookWickets])
-      container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
+    if timelines:
+      for timeline in timelines:
+        container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(f"**{timeline}**\n{timelines[timeline]['score']}"))
+        container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timelines[timeline]['timeline']])))
+        if timelines[timeline]['tookWickets']:
+          #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+          w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])
+          container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases= ['pl'], description= 'View the roster for each team.')

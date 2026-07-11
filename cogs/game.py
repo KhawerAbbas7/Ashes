@@ -1056,6 +1056,7 @@ class Game():
           stats[p.id]['pts']*= 1.2
     best = max(stats.values(), key=lambda x: x['pts'])
     self.mvp = best['p']
+    self.mvppoints = best['pts']
     return best['p']
   async def startInning(self):
     if self.checkForWinner() or self.forceYeet: return
@@ -1855,7 +1856,11 @@ class Game():
       if not self.drawnByAgreement and not self.forfeitedById:
         mvp= self.calculateMvp()
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-        formatted=f"MVP: **{mvp.name}**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
+        if self.mvp:
+          mvppoints = self.mvppoints
+          amount = int(mvppoints *15)
+          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (self.mvp.id, amount))
+        formatted=f"MVP: **{mvp.name}**(+{amount} coins)\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       else:

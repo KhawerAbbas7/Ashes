@@ -9,16 +9,12 @@ CREATE TABLE cooldowns(
   lastClaimAt INTEGER NOT NULL,
   expiresAt INTEGER NOT NULL,
   reminded INTEGER DEFAULT 0,
-  PRIMARY KEY (userId, command),
-  FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
-);
+  PRIMARY KEY (userId, command));
 CREATE TABLE streaks(
   userId INTEGER NOT NULL,
   command TEXT NOT NULL,
   streak INTEGER NOT NULL DEFAULT 0,
-  PRIMARY KEY (userId, command),
-  FOREIGN KEY (userId) REFERENCES users(userId) ON DELETE CASCADE
-);
+  PRIMARY KEY (userId, command));
 CREATE TABLE IF NOT EXISTS inventory(
   userId INTEGER NOT NULL, 
   item TEXT NOT NULL,

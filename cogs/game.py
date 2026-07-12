@@ -1794,8 +1794,9 @@ class Game():
         bi.wicketsDigits=b_data.get("wicketsDigits",[])
         bi.lastOverMaiden = b_data.get('lastOverMaiden')
         inn.bowlers[p]=bi
-      inn.currentBatters=[next(p for p in inn.battingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBatters"]]
-      inn.currentBowlers=deque([next(p for p in inn.bowlingTeam.players if p.id==pid) for pid in i_data["crease"]["currentBowlers"]],maxlen=2)
+      inn.currentBatters=[p for pid in i_data["crease"]["currentBatters"] if (p:=next((x for x in inn.battingTeam.players if x.id==pid),None))]
+      inn.currentBowlers=deque([p for pid in i_data["crease"]["currentBowlers"] if (p:=next((x for x in inn.bowlingTeam.players if x.id==pid),None))],maxlen=2)
+
       inn.cantBat=[p.id for p,b in inn.batters.items() if b.dismissed or p.id in [x.id for x in inn.currentBatters]]
       self.innings.append(inn)
     self.teama.checkForCaptain();self.teamb.checkForCaptain()
@@ -1814,8 +1815,15 @@ class Game():
         if w:break
         if len(self.innings)<=i:
           await self.startInning()
-        elif self.innings[i].declared or not self.innings[i].currentBatters:
+        elif self.innings[i].declared or (not self.innings[i].currentBatters and len(self.innings[i].cantBat) >= len(self.innings[i].battingTeam.players)):
           continue
+        if not self.innings[i].currentBatters:
+          if len(self.innings[i].cantBat) == 0:
+            await self.selectOpeners()
+          else:
+            await self.selectNextBatter()
+        if not self.innings[i].currentBowlers:
+          await self.selectBowler(isStart=(self.innings[i].balls == 0))
         while True:
           if self.forceYeet: return
           g = await self.getInputs()

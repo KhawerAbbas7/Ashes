@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 from cogs.views import *
 import matplotlib.pyplot as plt
 import numpy as np
+from discord.ext.commands.cooldowns import BucketType
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
 
 class Statistics(commands.Cog, name= "Statistics"):
@@ -13,6 +14,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.command(aliases= ['me'], description= 'View statistics for yourself or others.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def profile(self, ctx, target: discord.User = None):
     if not target: target=ctx.author
     v = await makeProfileView(target,ctx)
@@ -20,6 +22,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       return await ctx.send(f"{target} is yet to play any Ashes game.")
     await ctx.send(view= v)
   @commands.command(aliases= ['vs'], description= 'View statistics for any individual versus another.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def matchup(self, ctx, player1: discord.User, player2: discord.User = None):
     if not player1:
       return await ctx.send("You have provide at least one player to have VS statistics.")
@@ -64,6 +67,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases= ['lb'], description= 'View the leading performer across different categories.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def leaderboard(self, ctx):
     table = PrettyTable(padding_width=5)
     table.field_names = ["Player", "Runs", "Balls"]
@@ -81,6 +85,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     v = LBview(ctx, table)
     v.m =await ctx.send(view=v)
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def hallofshame(self, ctx):
     table = PrettyTable(padding_width=5)
     table.field_names = ["Player", "AFKs"]
@@ -151,6 +156,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     view.add_item(container)
     return await ctx.send(view=view)
   @commands.command(aliases= [], description= 'Compare two players')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def compare(self, ctx, player1: discord.User, player2: discord.User = None):
     if not player2:
       player2 = ctx.author

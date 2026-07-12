@@ -284,6 +284,8 @@ class Ashes(commands.Bot):
       await ctx.reply(errorMsg)
     elif isinstance(error, commands.NotOwner):
       return await ctx.send('This command is only runnable by the owner.')
+    elif isinstance(error, commands.MaxConcurrencyReached):
+      return await ctx.send('Please wait for previous request to end.')
   async def on_ready(self):
     self.gamesDeletionCheck.start()
     self.votesReminders.start()

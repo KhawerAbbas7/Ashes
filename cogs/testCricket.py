@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 from cogs.game import Game
 from cogs.views import *
 from io import BytesIO
+from discord.ext.commands.cooldowns import BucketType
 class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
@@ -301,6 +302,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       await ctx.send("**Match forfieted**")
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['dr'], description= 'Offer the draw to the opposing captain.', extras={'usableBy': 'Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def drawrequest(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -328,6 +330,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
           
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['t'], description= 'Call the toss.', extras={'usableBy': 'Host or Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def toss(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -369,6 +372,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     await ctx.send(f"{host} is the new host.")
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['sub'],description= 'Substitute a player with another player.', extras={'usableBy': 'Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def impact(self, ctx, playerA:discord.User, playerB: discord.User):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -416,6 +420,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if playerB.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "started","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "started","timestamps": {"start": int(g.startedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players), 18]}})
       
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def nextplayer(self, ctx, nextP:discord.User = None):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))

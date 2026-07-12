@@ -3,6 +3,7 @@ from discord import Embed, Colour
 from discord import ui 
 from discord.ext import commands, tasks
 from cogs.views import *
+from discord.ext.commands.cooldowns import BucketType
 class K_Converter(commands.Converter):
   async def convert(self, ctx, argument):
     argument = argument.lower()
@@ -24,6 +25,7 @@ class Currency(commands.Cog, name= "Currency"):
   def __init__(self, bot):
     self.bot = bot
   @commands.command(aliases= ['market'], description= 'View shop')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def shop(self, ctx):
     bal = await ctx.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (ctx.author.id,))
     bal = bal[0] if bal else 0
@@ -39,7 +41,52 @@ class Currency(commands.Cog, name= "Currency"):
     container.add_item(ui.TextDisplay(f"Vote here -> [TOPGG](https://top.gg/bot/1443165621100740668/vote)"))
     view.add_item(container)
     await ctx.send(view=view)
+  @commands.command(aliases= [], description= '')
+  @commands.is_owner()
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
+  async def rembal(self, ctx, target: discord.User, amount: K_Converter):
+    buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"Ok ok!! but legal reasons i have to ask one more time, do you really want to remove the amount {amount:,} from {target}?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      await ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins - coins", (target.id, amount))
+      view=ui.LayoutView(timeout=30)
+      container=ui.Container(accent_color=Colour.from_str("#56804c"))
+      container.add_item(ui.TextDisplay(f"Removed {amount:,} from {target}."))
+      view.add_item(container)
+      await ctx.send(view= view)
+  @commands.command(aliases= [], description= '')
+  @commands.is_owner()
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
+  async def addbal(self, ctx, target: discord.User, amount: K_Converter):
+    buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"Ok ok!! but legal reasons i have to ask one more time, do you really want to give {amount:,} to {target}?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      await ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (target.id, amount))
+      view=ui.LayoutView(timeout=30)
+      container=ui.Container(accent_color=Colour.from_str("#56804c"))
+      container.add_item(ui.TextDisplay(f"{target.mention} bro you won at life!! {ctx.author} have decided to give you {amount:,}."))
+      view.add_item(container)
+      await ctx.send(view= view)
   @commands.command(aliases= ['transfer'], description= 'Feeling generous?, give some money to someone.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def give(self, ctx, target: discord.User, amount: K_Converter):
     if ctx.author.id == target.id:
       return await ctx.send(embed= Embed(title='Look!', description=f'I think you wanna marry yourself but this won\'t end your virginity.', color=Colour.from_str('#b30707')))

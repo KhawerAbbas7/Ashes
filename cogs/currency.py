@@ -59,7 +59,7 @@ class Currency(commands.Cog, name= "Currency"):
     await ctx.send(view=view)
     await view.wait()
     if view.value == "Yes":
-      await ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins - coins", (target.id, amount))
+      await ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =coins -excluded.coins ", (target.id, amount))
       view=ui.LayoutView(timeout=30)
       container=ui.Container(accent_color=Colour.from_str("#56804c"))
       container.add_item(ui.TextDisplay(f"Removed {amount:,} from {target}."))

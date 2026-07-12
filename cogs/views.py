@@ -1014,7 +1014,7 @@ class HelpButton(ui.Button):
 class ShopButton(ui.Button):
   def __init__(self,lab:str, disabledd: bool, itemId: str, Style= discord.ButtonStyle.red):
     self.itemId = itemId
-    super().__init__(label= lab, style=Style, disabled= disabledd)
+    super().__init__(emoji= "<:AshesCoin:1525822431066062879>",label= lab, style=Style, disabled= disabledd)
   async def callback(self, i):
     price = self.view.items[self.itemId]['price']
     bot = i.client 

@@ -57,7 +57,7 @@ class RankingCog(commands.Cog):
         await self.bot.cexecute("INSERT INTO streaks (userId, command, streak) VALUES (?,?, ?) ON CONFLICT(userId, command) DO UPDATE SET streak =excluded.streak", (user.id, 'vote',streak))
         view=ui.LayoutView(timeout=30)
         container=ui.Container(accent_color=Colour.from_str("#277de4"))
-        container.add_item(ui.TextDisplay(f"### Thank You for voting\n{bal} + {reward} = {bal + reward}\n-# Streak: {streak}"))
+        container.add_item(ui.TextDisplay(f"### Thank You for voting\n{bal} + {reward} = {bal + reward}{self.bot.AshesCoin}\n-# Streak: {streak}"))
         view.add_item(container)
         try:
           await user.send(view= view)

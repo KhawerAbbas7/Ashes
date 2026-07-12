@@ -1864,7 +1864,7 @@ class Game():
           mvppoints = self.mvppoints
           amount = int(mvppoints *25)
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (self.mvp.id, amount))
-        formatted=f"MVP: **{mvp.name}**(+{amount} coins)\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
+        formatted=f"MVP: **{mvp.name}**(+{amount} {self.bot.AshesCoin})\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       else:

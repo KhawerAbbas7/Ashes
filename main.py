@@ -27,6 +27,7 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
+    self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
     self.Gifs = {}
@@ -41,7 +42,7 @@ class Ashes(commands.Bot):
       if user:
         view=ui.LayoutView(timeout=30)
         container=ui.Container(accent_color=Colour.from_str("#277de4"))
-        container.add_item(ui.TextDisplay(f"### Topgg vote is now available!!\n[Click here](https://top.gg/bot/1443165621100740668/vote) to cast your vote."))
+        container.add_item(ui.TextDisplay(f"### Topgg vote is now available!!\n[Click here](https://top.gg/bot/1443165621100740668/vote) to cast your vote and keep your streak."))
         view.add_item(container)
         try:
           await user.send(view= view)

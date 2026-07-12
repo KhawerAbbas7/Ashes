@@ -230,8 +230,9 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if player in inn.bowlers:
         i=inn.bowlers[player]
         tookWickets = i.wicketsDigits
-        timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})"}
-        if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+        if i.balls>0:
+          timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})"}
+          bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
@@ -243,7 +244,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       for timeline in timelines:
         container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
         container.add_item(ui.TextDisplay(f"**{timeline}**\n{timelines[timeline]['score']}"))
-        container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timelines[timeline]['timeline']])))
+        if timelines[timeline]['timeline']:
+          container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timelines[timeline]['timeline']])))
         if timelines[timeline]['tookWickets']:
           #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
           w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])

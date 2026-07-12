@@ -1768,7 +1768,8 @@ class Game():
       inn.nextBatterId=i_data["crease"].get("nextBatterId")
       inn.nextBowlerId=i_data["crease"].get("nextBowlerId")
       for b_data in i_data["batting"]:
-        p=next(x for x in inn.battingTeam.players if x.id==b_data["id"])
+        p=next((x for x in inn.battingTeam.players if x.id==b_data["id"]), None)
+        if not p: continue
         bi=BattingInning(p)
         bi.runs=b_data["runs"]
         bi.balls=b_data["balls"]

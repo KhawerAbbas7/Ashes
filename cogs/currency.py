@@ -241,7 +241,7 @@ class Currency(commands.Cog, name= "Currency"):
     effective_streak = min(12, streak)
     reward = 20000 + (effective_streak - 1) * 5000 
     claimTime = int(time.time())
-    expires = claimTime+ 604800
+    expires = claimTime+ 2592000
     await ctx.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt", (ctx.author.id, 'monthly', claimTime, expires))
     bal = await ctx.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (ctx.author.id,))
     bal = bal[0] if bal else 0

@@ -857,7 +857,7 @@ class setMessage(ui.Modal, title="Set Message"):
   async def on_submit(self, interaction: discord.Interaction):
     value = self.message.component.value 
     bot = interaction.client
-    await bot.cexecute("UPDATE inventory SET itemValue = ? WHERE userId = ? AND itemId = ?", (value, interaction.user.id, self.itemId))
+    await bot.cexecute("UPDATE inventory SET itemValue = ? WHERE userId = ? AND item = ?", (value, interaction.user.id, self.itemId))
     await interaction.response.send_message(content= f"Successfully set the celebration message.", ephemeral= True)
 class ProfileFilters(ui.Modal, title="Profile Filters"):
   lastNMatches = ui.Label(text= "Insert the number of last N games to filter ",description= "0 = All Time", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)

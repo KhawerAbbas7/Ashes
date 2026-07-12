@@ -626,7 +626,7 @@ class LBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT bowlerId,SUM(isWicket) AS wkts, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY bowlerId ORDER BY wkts DESC LIMIT 10", ())
+      rows=await bot.fetchall("SELECT bowlerId,SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END) AS wkts, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY bowlerId ORDER BY wkts DESC LIMIT 10", ())
       for i,r in enumerate(rows,1):
         batterId, runs, balls = r
         batter = bot.get_user(batterId ) or batterId 

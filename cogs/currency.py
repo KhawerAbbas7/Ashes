@@ -140,7 +140,7 @@ class Currency(commands.Cog, name= "Currency"):
     bal = bal[0] if bal else 0
     view=ui.LayoutView(timeout=30)
     container=ui.Container(accent_color=target.color)
-    container.add_item(ui.Section(f"### {target.name}'s Coins\n{ctx.bot.AshesCoin}{bal}", accessory= discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
+    container.add_item(ui.Section(f"### {target.name}'s Coins\n{ctx.bot.AshesCoin}{bal}", accessory= discord.ui.Thumbnail(target.avatar.url if target.avatar else ctx.bot.user.avatar.url)))
     view.add_item(container)
     await ctx.send(view= view)
   @commands.command(aliases= [], description= 'Claim the money after every hour but only in Official server and if you have played today.')

@@ -1156,8 +1156,6 @@ class Game():
         allowed={'1','2','3'}
       else:
         allowed={'1','2','3','4','6'}
-      def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
-      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in bowlerAllowed
       battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})"
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
@@ -1169,6 +1167,9 @@ class Game():
       bowlview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       msg1= await striker.send(view=batview)
       msg2 = await bowler.send(view=bowlview)
+      def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
+      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in bowlerAllowed
+      await asyncio.sleep(0.5)
       bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
       bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
       async def runCountdown():

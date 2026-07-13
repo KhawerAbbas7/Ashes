@@ -1880,7 +1880,7 @@ class Game():
           amount = int(mvppoints *25)
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (self.mvp.id, amount))
         sorted_predictions = sorted(self.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
-        predictionsStr = ", ".join(f"{self.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
+        predictionsStr = ", ".join(f"{self.ctx.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
         if len(predictionsStr) >= 700:
           predictionsStr = predictionsStr[:700] + "..."
         for k, v in sorted_predictions:
@@ -1891,7 +1891,7 @@ class Game():
         
       else:
         sorted_predictions = sorted(self.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
-        predictionsStr = ", ".join(f"{self.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
+        predictionsStr = ", ".join(f"{self.ctx.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
         if len(predictionsStr) >= 700:
           predictionsStr = predictionsStr[:700] + "..."
         for k, v in sorted_predictions:

@@ -1884,7 +1884,7 @@ class Game():
         if len(predictionsStr) >= 700:
           predictionsStr = predictionsStr[:700] + "..."
         for k, v in sorted_predictions:
-          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(amount*100)))
+          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(v*100)))
         formatted=f"MVP: **{mvp.name}**(+{amount} {self.ctx.bot.AshesCoin})\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
@@ -1895,7 +1895,7 @@ class Game():
         if len(predictionsStr) >= 700:
           predictionsStr = predictionsStr[:700] + "..."
         for k, v in sorted_predictions:
-          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(amount*100)))
+          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(v*100)))
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
         if not self.DEBUG and not self.T10:await self.saveData()

@@ -50,6 +50,7 @@ class Ashes(commands.Bot):
         except:
           pass
       await self.cexecute("UPDATE cooldowns SET reminded= ? WHERE userId = ? AND command = ?", (1, r[0], 'vote'))
+      await asyncio.sleep(1)
   @tasks.loop(seconds= 30)
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():

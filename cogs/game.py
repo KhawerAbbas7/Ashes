@@ -129,6 +129,8 @@ class Game():
   def __init__(self, ctx):
     self.T10 = False
     self.resumed = False
+    self.matchTotalPredictions = {}
+    self.thisBallPredictions = {}
     self.lobbyCreatedAt = time.time()
     self.lobbyLocked = False
     self.bannedUsers = []
@@ -1443,6 +1445,10 @@ class Game():
       inn.zeroByBowler = 1
     if bat!=0: striker_p.consecutiveDots=0
     else: striker_p.consecutiveDots+=1
+    for key, value in self.thisBallPredictions.items():
+      if value == bat:
+        self.matchTotalPredictions[key] = self.matchTotalPredictions.get(key,0) +1
+    self.thisBallPredictions = {}
     if bat==bowl:
       inn.commentary.appendleft({"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bat}) to {striker.name} ({bat}), Bowled Em!!"})
       striker_p.dismissed = True 
@@ -1873,12 +1879,25 @@ class Game():
           mvppoints = self.mvppoints
           amount = int(mvppoints *25)
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (self.mvp.id, amount))
-        formatted=f"MVP: **{mvp.name}**(+{amount} {self.ctx.bot.AshesCoin})\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
+        sorted_predictions = sorted(self.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
+        predictionsStr = ", ".join(f"{self.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
+        if len(predictionsStr) >= 700:
+          predictionsStr = predictionsStr[:700] + "..."
+        for k, v in sorted_predictions:
+          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(amount*100)))
+        formatted=f"MVP: **{mvp.name}**(+{amount} {self.ctx.bot.AshesCoin})\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
+        
       else:
+        sorted_predictions = sorted(self.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
+        predictionsStr = ", ".join(f"{self.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
+        if len(predictionsStr) >= 700:
+          predictionsStr = predictionsStr[:700] + "..."
+        for k, v in sorted_predictions:
+          await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(amount*100)))
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
-        formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})"
+        formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
       for p in self.players:

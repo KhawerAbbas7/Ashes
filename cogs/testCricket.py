@@ -9,6 +9,15 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
     self.bot = bot
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
+  @commands.Cog.listener('on_message')
+  async def foo(self, message):
+    if message.channel and message.channel.id in self.bot.games:
+      g = self.bot.games[message.channel.id]
+      if g.started:
+        if not any(b.id == message.author.id for b in g.currentInning.currentBatters) and (not g.currentInning.currentBowlers or g.currentInning.currentBowlers[0].id != message.author.id):
+          if message.content.isdigit() and (guess := int(message.content)) in [1,2,3,4,6]:
+            if not message.author.id in g.thisBallPredictions:
+              g.thisBallPredictions[message.author.id] = guess
   @commands.command(aliases=['export'], description='.')
   @commands.is_owner()
   async def exp(self, ctx):
@@ -271,6 +280,24 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     else:
       humanReadable  = f"in {inSeconds} seconds"
     await ctx.send(f'This game will be deleted at <t:{int(g.lobbyCreatedAt + 1800)}:F> ({humanReadable})')
+  @commands.command(aliases= ['plb'], description= 'View the prediction leaderboard for current game.')
+  async def predictlb(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if not g.started or not g.updateMsg:
+      return await ctx.send(embed= Embed(title='Waiting for Game to Start', description='Game is yet to begin.', color=Color.from_str('#b30707')))
+    if not g.matchTotalPredictions:
+      return await ctx.send(embed= Embed(title='No correct guesses', description='So far no correct guesses.', color=Color.from_str('#b30707')))
+    sorted_predictions = sorted(g.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
+    predictionsStr = "\n".join(f"{i}. {ctx.bot.get_user(k)}: {v}"for i,(k, v) in enumerate(sorted_predictions,1))
+    if len(predictionsStr) >= 1600:
+      predictionsStr = predictionsStr[:1600] + "..."
+    view = ui.LayoutView(timeout= None)
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
+    container.add_item(ui.TextDisplay(f"### Prediction Leaderboard\n{predictionsStr}"))
+    view.add_item(container)
+    await ctx.send(view=view)
   @commands.command(aliases= [], description= 'Get the link for live score message.')
   async def live(self, ctx):
     if ctx.channel.id not in self.bot.games:

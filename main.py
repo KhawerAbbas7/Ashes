@@ -42,7 +42,7 @@ class Ashes(commands.Bot):
       user = self.get_user(r[0])
       if user:
         view=ui.LayoutView(timeout=30)
-        container=ui.Container(accent_color=Colour.from_str("#277de4"))
+        container=ui.Container(accent_color=discord.Colour.from_str("#277de4"))
         container.add_item(ui.TextDisplay(f"### Topgg vote is now available!!\n[Click here](https://top.gg/bot/1443165621100740668/vote) to cast your vote and keep your streak."))
         view.add_item(container)
         try:

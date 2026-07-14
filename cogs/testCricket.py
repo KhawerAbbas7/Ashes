@@ -24,6 +24,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     file = ctx.bot.export_live_instance(ctx.bot.games[ctx.channel.id])
     await ctx.send(content= "Here is the export file of this game which can be used for later resumption.", file = file)
   @commands.command(aliases=['break'], description='Take a break in a game, you can resume it later', extras={'usableBy': 'Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def pause(self, ctx):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -52,6 +53,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       ctx.bot.games.pop(ctx.channel.id)
       if ctx.author.id == ctx.bot.dev_id or ctx.bot.dev_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players,18)]}})
   @commands.command(aliases=[], description='Resume a game', extras={'usableBy': 'Captains only.'})
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def resume(self, ctx):
     message = ctx.message
     if message.reference and (replyMsg:= message.reference.resolved):

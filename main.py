@@ -198,6 +198,7 @@ class Ashes(commands.Bot):
         "channel": game.ctx.channel.id,
         "repLimit": game.repLimit,
         "repIds": game.repIds,
+        "matchTotalPredictions": game.matchTotalPredictions,
         "tossStatus": game.tossStatus,
         "batFirstTeam": game.batFirstTeam.id if game.batFirstTeam else None,
         "followOnTeam": game.followOnTeam.id if game.followOnTeam else None

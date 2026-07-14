@@ -23,9 +23,75 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   async def exp(self, ctx):
     file = ctx.bot.export_live_instance(ctx.bot.games[ctx.channel.id])
     await ctx.send(content= "Here is the export file of this game which can be used for later resumption.", file = file)
+  @commands.command(aliases=['break'], description='Take a break in a game, you can resume it later', extras={'usableBy': 'Captains only.'})
+  async def pause(self, ctx):
+    if ctx.channel.id not in self.bot.games:
+      return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
+    g = self.bot.games[ctx.channel.id]
+    if ctx.author.id not in [g.teama.captain.id, g.teamb.captain.id]:
+      return await ctx.send(embed= Embed(title='Captain Only', description='This command is only intended to be run by captains.', color=Color.from_str('#b30707')))
+    if not g.started:return await ctx.send(embed= Embed(title='Match not started', description='Bro wants to pause it before start.', color=Color.from_str('#b30707')))
+    if g.resumed:return await ctx.send(embed= Embed(title='Error', description='Match can\'t be paused after resumption.', color=Color.from_str('#b30707')))
+    requestingTeam = g.teama if ctx.author.id == g.teama.captain.id else g.teamb
+    otherTeam = g.teamb if ctx.author.id == g.teama.captain.id else g.teama
+    buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam.captain.id), Button('No',discord.ButtonStyle.red ,otherTeam.captain.id)]
+    view = ui.LayoutView(timeout= 60)
+    view.value = None
+    container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+    actionRow = ui.ActionRow()
+    for b in buttons: actionRow.add_item(b)
+    container.add_item(ui.TextDisplay(f"<@{otherTeam.captain.id}> **{requestingTeam.name}** is requesting for a pause (It can later be resumed), do you agree?"))
+    container.add_item(actionRow)
+    view.add_item(container)
+    await ctx.send(view=view)
+    await view.wait()
+    if view.value == "Yes":
+      file = ctx.bot.export_live_instance(ctx.bot.games[ctx.channel.id])
+      g.forceYeet = True
+      await ctx.send("**Pause request accepted**\nReply to this message when you want to resume the game.", file=file)
+      ctx.bot.games.pop(ctx.channel.id)
+      if ctx.author.id == ctx.bot.dev_id or ctx.bot.dev_id in [p.id for p in g.players]:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [len(g.players,18)]}})
+  @commands.command(aliases=[], description='Resume a game', extras={'usableBy': 'Captains only.'})
+  async def resume(self, ctx):
+    message = ctx.message
+    if message.reference and (replyMsg:= message.reference.resolved):
+      if replyMsg.author.id != ctx.bot.author.id or not replyMsg.attachments:
+        return await ctx.send(embed= Embed(title='Not a valid message', description='Run this command while replying to a data file which was given by bot while pausing.', color=Color.from_str('#b30707')))
+      file_content = await replyMsg.attachments[0].read()
+      data = json.loads(file_content.decode('utf-8'))
+      result = await ctx.bot.fetchrow("SELECT 1 FROM matches WHERE matchId = ?", (data['meta']['id'],))
+      if bool(result):
+        return await ctx.send(embed= Embed(title='This Game Has Already Been Played', description='This game has already been played.', color=Color.from_str('#b30707')))
+      captainA = ctx.bot.get_user(data['teams']['A']['captain']) or await ctx.bot.fetch_user(data['teams']['A']['captain'])
+      captainB = ctx.bot.get_user(data['teams']['B']['captain']) or await ctx.bot.fetch_user(data['teams']['B']['captain'])
+
+      if ctx.author.id not in [captainA.id, captainB.id]:
+        return await ctx.send(embed= Embed(title='Captains Only', description=f'Only {captainA} & {captainB} can run this command.', color=Color.from_str('#b30707')))
+      requestingTeam = data['teams']['A'] if ctx.author.id == captainA.id else data['teams']['B']
+      otherTeam = data['teams']['B'] if ctx.author.id == captainA.id else data['teams']['A']
+      buttons = [Button('Yes',discord.ButtonStyle.green,otherTeam["captain"]), Button('No',discord.ButtonStyle.red ,otherTeam["captain"])]
+      view = ui.LayoutView(timeout= 60)
+      view.value = None
+      container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b"))
+      actionRow = ui.ActionRow()
+      for b in buttons: actionRow.add_item(b)
+      container.add_item(ui.TextDisplay(f"<@{otherTeam['captain']}> **{requestingTeam['name']}** is requesting for a resumption of game, do you agree?"))
+      container.add_item(actionRow)
+      view.add_item(container)
+      await ctx.send(view=view)
+      await view.wait()
+      if view.value == "Yes":
+        game = Game(ctx)
+        game.resumed = True
+        await game.load_from_state(data) 
+        ctx.bot.games[ctx.channel.id] = game
+        await ctx.send("Game state loaded successfully. Resuming match...")
+        await game.start()
+    else:
+      return await ctx.send(embed= Embed(title='Not a valid message', description='Run this command while replying to a data file which was given by bot while pausing.', color=Color.from_str('#b30707')))
   @commands.command()
   @commands.is_owner()
-  async def resume(self, ctx):
+  async def forceresume(self, ctx):
     message = ctx.message
     if message.reference and (replyMsg:= message.reference.resolved):
       file_content = await replyMsg.attachments[0].read()
@@ -51,7 +117,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     self.bot.games[ctx.channel.id] = g
     await ctx.channel.send(embed=e)
     if ctx.author.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "lobby","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,18]}})
-  @commands.command(aliases= ['j'], description= 'Join an existing match.')
+  @commands.command(aliases= ['j'], description= 'Join a match.')
   async def join(self, ctx, rep:str= None):
     isRep = rep in ['r', 'rep']
     if ctx.channel.id not in self.bot.games:

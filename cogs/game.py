@@ -1712,6 +1712,7 @@ class Game():
     self.hostId=data["meta"]["host"]
     self.startedAt=data["meta"]["startTime"]
     self.maxBalls=data["meta"]["settings"]["maxBalls"]
+    self.matchTotalPredictions=data["meta"]["matchTotalPredictions"]
     self.T10=data["meta"]["settings"].get("T10",False)
     self.repLimit=data["meta"]["repLimit"]
     self.repIds=data["meta"]["repIds"]
@@ -1872,7 +1873,7 @@ class Game():
       summary=self.matchSummaryCard()
       await self.ctx.send(file=summary)
       duration= time.time() - self.startedAt
-      if not self.drawnByAgreement and not self.forfeitedById:
+      if not self.drawnByAgreement and not self.forfeitedById and not self.forceYeet:
         mvp= self.calculateMvp()
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         if self.mvp:
@@ -1889,7 +1890,7 @@ class Game():
         if not self.DEBUG and not self.T10:await self.saveData()
         await self.ctx.send(f"{formatted}")
         
-      else:
+      elif self.drawnByAgreement:
         sorted_predictions = sorted(self.matchTotalPredictions.items(), key=lambda x: x[1], reverse=True)
         predictionsStr = ", ".join(f"{self.ctx.bot.get_user(k)}: (+{v * 100} {self.ctx.bot.AshesCoin})"for k, v in sorted_predictions)
         if len(predictionsStr) >= 700:
@@ -1909,7 +1910,8 @@ class Game():
       except: 
         pass
       try: 
-        await self.sendRawStats()
+        if not self.forceYeet:
+          await self.sendRawStats()
       except Exception as e: 
         traceback.print_exc()
     except Exception as e:

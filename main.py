@@ -43,7 +43,8 @@ class Ashes(commands.Bot):
       if user:
         view=ui.LayoutView(timeout=30)
         container=ui.Container(accent_color=discord.Colour.from_str("#277de4"))
-        container.add_item(ui.TextDisplay(f"### Topgg vote is now available!!\n[Click here](https://top.gg/bot/1443165621100740668/vote) to cast your vote and keep your streak."))
+        b = ui.Button(label="vote here", style=discord.ButtonStyle.link, url="https://top.gg/bot/1443165621100740668/vote")
+        container.add_item(ui.Section(f"Your vote at TOPGG is now available, vote now to keep your streak active.", accessory= b))
         view.add_item(container)
         try:
           await user.send(view= view)

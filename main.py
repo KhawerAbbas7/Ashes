@@ -96,7 +96,7 @@ class Ashes(commands.Bot):
   def loadStaticData(self):
     self.staticData = json.load(open('staticData.json', 'r'))
     self.Gifs = self.staticData['Gifs']
-    self.bannedUsers = self.staticData['BannedUsers']
+    self.bannedUsers = {int(k): v for k, v in self.staticData['BannedUsers'].items()}
   async def banCheck(self, ctx):
     if ctx.author and ctx.author.id in self.bannedUsers:
       reason= self.bannedUsers[ctx.aothor.id]

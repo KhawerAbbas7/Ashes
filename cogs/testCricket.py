@@ -57,7 +57,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   async def resume(self, ctx):
     message = ctx.message
     if message.reference and (replyMsg:= message.reference.resolved):
-      if replyMsg.author.id != ctx.bot.author.id or not replyMsg.attachments:
+      if replyMsg.author.id != ctx.bot.user.id or not replyMsg.attachments:
         return await ctx.send(embed= Embed(title='Not a valid message', description='Run this command while replying to a data file which was given by bot while pausing.', color=Color.from_str('#b30707')))
       file_content = await replyMsg.attachments[0].read()
       data = json.loads(file_content.decode('utf-8'))

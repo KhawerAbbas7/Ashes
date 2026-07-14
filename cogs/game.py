@@ -1821,6 +1821,8 @@ class Game():
         if self.forceYeet:return
         w=self.checkForWinner()
         if w:break
+      
+        if i < len(self.innings) - 1: continue
         if len(self.innings)<=i:
           await self.startInning()
         elif self.innings[i].declared or (not self.innings[i].currentBatters and len(self.innings[i].cantBat) >= len(self.innings[i].battingTeam.players)):

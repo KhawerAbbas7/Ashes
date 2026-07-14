@@ -31,6 +31,7 @@ class Ashes(commands.Bot):
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
+    self.bannedUsers = {}
     self.Gifs = {}
     self.messageCooldownMap = {}
     self._debounceKhawiTask = None
@@ -95,9 +96,16 @@ class Ashes(commands.Bot):
   def loadStaticData(self):
     self.staticData = json.load(open('staticData.json', 'r'))
     self.Gifs = self.staticData['Gifs']
+    self.bannedUsers = self.staticData['BannedUsers']
+  async def banCheck(self, ctx):
+    if ctx.author and ctx.author.id in self.bannedUsers:
+      reason= self.bannedUsers[ctx.aothor.id]
+      raise commands.CheckFailure(f"You're banned from this bot. Reason: {reason}")
+    else: return True
   async def setup_hook(self):
     self.loadStaticData()
     self.add_check(self.checkIfAllowedCategory)
+    self.add_check(self.banCheck)
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
     self.currencydb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'currency.db'))
@@ -291,6 +299,8 @@ class Ashes(commands.Bot):
       return await ctx.send('This command is only runnable by the owner.')
     elif isinstance(error, commands.MaxConcurrencyReached):
       return await ctx.send('Please wait for previous request to end.')
+    elif isinstance(error, commands.CheckFailure):
+      return await ctx.send(str(error))
   async def on_ready(self):
     self.gamesDeletionCheck.start()
     self.votesReminders.start()

@@ -114,5 +114,8 @@
         "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/warne.gif", 
         "https://raw.githubusercontent.com/KhawerAbbas7/MyGifs/refs/heads/main/public/gifs/Malcolm%20Marshall%20Celebration%20vs%20Australia%20Adelaide%201984.gif"
         ]
-    }
+    },
+  "BannedUsers": {
+    808154617442861076: "Poor sportsman spirit."
+  }
 }

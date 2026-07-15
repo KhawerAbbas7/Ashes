@@ -99,7 +99,7 @@ class Ashes(commands.Bot):
     self.bannedUsers = {int(k): v for k, v in self.staticData['BannedUsers'].items()}
   async def banCheck(self, ctx):
     if ctx.author and ctx.author.id in self.bannedUsers:
-      reason= self.bannedUsers[ctx.aothor.id]
+      reason= self.bannedUsers[ctx.author.id]
       raise commands.CheckFailure(f"You're banned from this bot. Reason: {reason}")
     else: return True
   async def setup_hook(self):

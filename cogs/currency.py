@@ -186,7 +186,7 @@ class Currency(commands.Cog, name= "Currency"):
         streakRetained = True
       streak = streak[0] +1 if streak and streakRetained else 1
     effective_streak = min(30, streak)
-    reward = 1000 + (effective_streak - 1) * 200 
+    reward = 1000 + (effective_streak - 1) * 1000 
     claimTime = int(time.time())
     expires = claimTime+ 86400
     await ctx.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt", (ctx.author.id, 'daily', claimTime, expires))
@@ -213,7 +213,7 @@ class Currency(commands.Cog, name= "Currency"):
         streakRetained = True
       streak = streak[0] +1 if streak and streakRetained else 1
     effective_streak = min(10, streak)
-    reward = 7000 + (effective_streak - 1) * 1000 
+    reward = 7000 + (effective_streak - 1) * 3000
     claimTime = int(time.time())
     expires = claimTime+ 604800
     await ctx.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt", (ctx.author.id, 'weekly', claimTime, expires))
@@ -240,7 +240,7 @@ class Currency(commands.Cog, name= "Currency"):
         streakRetained = True
       streak = streak[0] +1 if streak and streakRetained else 1
     effective_streak = min(12, streak)
-    reward = 20000 + (effective_streak - 1) * 5000 
+    reward = 20000 + (effective_streak - 1) * 20000 
     claimTime = int(time.time())
     expires = claimTime+ 2592000
     await ctx.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt) VALUES (?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt", (ctx.author.id, 'monthly', claimTime, expires))

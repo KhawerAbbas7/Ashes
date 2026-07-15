@@ -47,7 +47,7 @@ class RankingCog(commands.Cog):
             streakRetained = True
           streak = streak[0] +1 if streak and streakRetained else 1
         effective_streak = min(60, streak)
-        reward = 2000 + (effective_streak - 1) * 100 
+        reward = 2000 + (effective_streak - 1) * 1000
         claimTime = int(time.time())
         expires = claimTime+ 43200 
         await self.bot.cexecute("INSERT INTO cooldowns (userId, command, lastClaimAt, expiresAt,reminded) VALUES (?,?,?,?,?) ON CONFLICT(userId, command) DO UPDATE SET lastClaimAt=excluded.lastClaimAt, expiresAt = excluded.expiresAt, reminded= excluded.reminded", (user.id, 'vote', claimTime, expires, 0))
@@ -63,8 +63,6 @@ class RankingCog(commands.Cog):
           await user.send(view= view)
         except: pass
     return web.json_response({"status": "success"}, status=200)
-
-
   async def search_players(self, request):
     try:
       query = request.query.get('q', '').strip().lower()

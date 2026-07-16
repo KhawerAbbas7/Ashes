@@ -161,7 +161,7 @@ class Game():
     if self.started or len(self.players) >= 6: return 
     if (time.time() - self.lobbyCreatedAt) >= 1800:
       self.ctx.bot.games.pop(self.ctx.channel.id)
-      return await self.ctx.send("30 Minutes, Less than 6 players, ig it's time yeet this.")
+      return await self.ctx.send("30 Minutes, Less than 6 players, I am deleting this lobby.")
   async def editGracefully(self, m, content= None, **kwargs):
     for _ in range(3):
       try:

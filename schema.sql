@@ -47,3 +47,5 @@ CREATE TABLE IF NOT EXISTS deliveries(
   FOREIGN KEY(matchId) REFERENCES matches(matchId) ON DELETE CASCADE,
   FOREIGN KEY(inningId) REFERENCES innings(inningId) ON DELETE CASCADE
 );
+CREATE INDEX IF NOT EXISTS idx_del_bat ON deliveries(batterId); CREATE INDEX IF NOT EXISTS idx_del_bwl ON deliveries(bowlerId); CREATE INDEX IF NOT EXISTS idx_del_mat ON deliveries(matchId); CREATE INDEX IF NOT EXISTS idx_del_inn ON deliveries(inningId);
+CREATE INDEX IF NOT EXISTS idx_del_timestamp ON deliveries(timestamp); CREATE INDEX IF NOT EXISTS idx_del_matchup ON deliveries(batterId, bowlerId); CREATE INDEX IF NOT EXISTS idx_innings_match ON innings(matchId); CREATE INDEX IF NOT EXISTS idx_matches_mvp ON matches(mvpId);

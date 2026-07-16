@@ -6,6 +6,7 @@ from discord.ext import commands, tasks
 from cogs.views import *
 import matplotlib.pyplot as plt
 import numpy as np
+from utils import *
 from discord.ext.commands.cooldowns import BucketType
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
 
@@ -15,7 +16,7 @@ class Statistics(commands.Cog, name= "Statistics"):
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.command(aliases= ['me'], description= 'View statistics for yourself or others.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def profile(self, ctx, target: discord.User = None):
+  async def profile(self, ctx, target: NonBotUser = None):
     if not target: target=ctx.author
     v = await makeProfileView(target,ctx)
     if v == "No Games":
@@ -23,7 +24,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     await ctx.send(view= v)
   @commands.command(aliases= ['vs'], description= 'View statistics for any individual versus another.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def matchup(self, ctx, player1: discord.User, player2: discord.User = None):
+  async def matchup(self, ctx, player1: NonBotUser, player2: NonBotUser = None):
     if not player1:
       return await ctx.send("You have provide at least one player to have VS statistics.")
     elif not player2:
@@ -103,7 +104,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     v = ShamefulLBview(ctx, table, "Most AFKs")
     v.m =await ctx.send(view=v)
   @commands.command(aliases= ['Badges'], description= 'View the achievements/Badges.')
-  async def achievements(self, ctx, target: discord.User = None):
+  async def achievements(self, ctx, target: NonBotUser = None):
     if not target: target = ctx.author
     Badges = []
     row=await ctx.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?",(target.id,target.id,1768935600))
@@ -157,7 +158,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     return await ctx.send(view=view)
   @commands.command(aliases= [], description= 'Compare two players')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def compare(self, ctx, player1: discord.User, player2: discord.User = None):
+  async def compare(self, ctx, player1: NonBotUser, player2: NonBotUser = None):
     if not player2:
       player2 = ctx.author
     if player2.id == player1.id:

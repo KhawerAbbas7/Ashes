@@ -3,26 +3,10 @@ from discord import Embed, Colour
 from discord import ui 
 from discord.ext import commands, tasks
 from cogs.views import *
+from utils import *
 import random 
 from datetime import datetime, timezone, timedelta
 from discord.ext.commands.cooldowns import BucketType
-class K_Converter(commands.Converter):
-  async def convert(self, ctx, argument):
-    argument = argument.lower()
-    if argument.endswith('k'):
-      argument = argument.rstrip('k')
-      if argument.isdigit():
-        if int(argument) < 1: 
-          raise commands.BadArgument('Invalid Amount, Minimum amount should be 1')
-        else: return int(argument)*1000
-      else:
-        raise commands.BadArgument('Invalid Amount')
-    else:
-      if argument.isdigit():
-        if int(argument) < 1: raise commands.BadArgument('Invalid Amount, Minimum amount should be 1')
-        else: return int(argument)
-      else:
-        raise commands.BadArgument('Invalid Amount')
 class Currency(commands.Cog, name= "Currency"):
   def __init__(self, bot):
     self.bot = bot
@@ -47,7 +31,7 @@ class Currency(commands.Cog, name= "Currency"):
   @commands.command(aliases= [], description= '')
   @commands.is_owner()
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def rembal(self, ctx, target: discord.User, amount: K_Converter):
+  async def rembal(self, ctx, target: NonBotUser, amount: K_Converter):
     buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None
@@ -69,7 +53,7 @@ class Currency(commands.Cog, name= "Currency"):
   @commands.command(aliases= [], description= '')
   @commands.is_owner()
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def addbal(self, ctx, target: discord.User, amount: K_Converter):
+  async def addbal(self, ctx, target: NonBotUser, amount: K_Converter):
     buttons = [Button('Yes',discord.ButtonStyle.green,ctx.author.id), Button('No',discord.ButtonStyle.red ,ctx.author.id)]
     view = ui.LayoutView(timeout= 60)
     view.value = None
@@ -90,7 +74,7 @@ class Currency(commands.Cog, name= "Currency"):
       await ctx.send(view= view)
   @commands.command(aliases= ['transfer'], description= 'Feeling generous?, give some money to someone.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def give(self, ctx, target: discord.User, amount: K_Converter):
+  async def give(self, ctx, target: NonBotUser, amount: K_Converter):
     if ctx.author.id == target.id:
       return await ctx.send(embed= Embed(title='Look!', description=f'I think you wanna marry yourself but this won\'t end your virginity.', color=Colour.from_str('#b30707')))
     bal = await ctx.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (ctx.author.id,))
@@ -135,7 +119,7 @@ class Currency(commands.Cog, name= "Currency"):
     await ctx.send(view=view)
     
   @commands.command(aliases= ['bal'], description= 'View the balance of yourself or others.')
-  async def wallet(self, ctx, target: discord.User = None):
+  async def wallet(self, ctx, target: NonBotUser = None):
     if not target: target=ctx.author
     bal = await ctx.bot.cfetchrow("SELECT coins FROM users WHERE userId = ?", (target.id,))
     bal = bal[0] if bal else 0

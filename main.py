@@ -110,8 +110,6 @@ class Ashes(commands.Bot):
     if ctx.author and ctx.author.id in self.bannedUsers:
       reason= self.bannedUsers[ctx.author.id]
       raise commands.CheckFailure(f"You're banned from this bot. Reason: {reason}")
-    if ctx.args and any(isinstance(a, discord.User) and a.bot for a in ctx.args):
-      raise commands.CheckFailure(f"Bot can't be passed as an argument.")
     else: return True
   async def setup_hook(self):
     self.loadStaticData()
@@ -321,7 +319,7 @@ class Ashes(commands.Bot):
       return await ctx.send('This command is only runnable by the owner.')
     elif isinstance(error, commands.MaxConcurrencyReached):
       return await ctx.send('Please wait for previous request to end.')
-    elif isinstance(error, commands.CheckFailure):
+    elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
       return await ctx.send(str(error))
   async def on_ready(self):
     self.gamesDeletionCheck.start()

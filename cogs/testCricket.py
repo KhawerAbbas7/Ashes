@@ -4,6 +4,7 @@ from discord.ext import commands, tasks
 from cogs.game import Game
 from cogs.views import *
 from io import BytesIO
+from utils import *
 from discord.ext.commands.cooldowns import BucketType
 class TestCricket(commands.Cog, name= "Test Cricket"):
   def __init__(self, bot):
@@ -221,7 +222,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.repLimit = limit
     await ctx.send(f'The score limit for representative player has been set to {limit}, reps will automatically be declared out upon reaching the limit.')
   @commands.command(aliases= [],extras={'usableBy': 'Host only.'}, description= 'Unban someone from the lobby.')
-  async def unban(self, ctx, user: discord.User):
+  async def unban(self, ctx, user: NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -232,7 +233,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     g.bannedUsers.remove(user.id)
     return await ctx.send(embed= Embed(title=f'{user} Unbanned.', description=f'{user} has been unbanned and join this lobby.', color=Color.from_str('#07b334')))
   @commands.command(aliases= [],extras={'usableBy': 'Host only.'}, description= 'Ban someone from the lobby.')
-  async def ban(self, ctx, user: discord.User):
+  async def ban(self, ctx, user: NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -260,7 +261,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if user.id == ctx.bot.dev_id:await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
     
   @commands.command(aliases= ['fuck'],extras={'usableBy': 'Host only.'}, description= 'Kick a player from the lobby, only usable before start.')
-  async def kick(self, ctx, user: discord.User):
+  async def kick(self, ctx, user: NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -282,7 +283,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if user.id == ctx.bot.dev_id :await ctx.bot.postKhawiData(data= {"status": "exited","image": ctx.bot.user.avatar.url,"details": "Playing Ashes","state": "lobby","timestamps": {"start": int(g.lobbyCreatedAt*1000)} ,"party": {'id': g.gameId, 'size': [2,len(g.players)]}})
     
   @commands.command(aliases= ['userscore'], description= 'View the performance of yourself or someone in the current game.')
-  async def score(self, ctx, user: discord.User= None):
+  async def score(self, ctx, user: NonBotUser= None):
     if not user: user = ctx.author
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -458,7 +459,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     await ctx.send(f"{oldTeamName} will now be called as **{team.name}**")
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['ch'],description= 'Change the host.', extras={'usableBy': 'Host.'})
-  async def changehost(self, ctx, host:discord.User):
+  async def changehost(self, ctx, host:NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -470,7 +471,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['sub'],description= 'Substitute a player with another player.', extras={'usableBy': 'Captains only.'})
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def impact(self, ctx, playerA:discord.User, playerB: discord.User):
+  async def impact(self, ctx, playerA:NonBotUser, playerB: NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -518,7 +519,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def nextplayer(self, ctx, nextP:discord.User = None):
+  async def nextplayer(self, ctx, nextP:NonBotUser = None):
     g = next((g for g in ctx.bot.games if ctx.author.id in (g.teama.captain.id, g.teamb.captain.id)), None)
     if ctx.channel.id not in self.bot.games and not g:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
@@ -567,7 +568,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       inn.nextBowlerId = nextP.id
       return await ctx.send(f"**{nextP}** will be bowling next over.")
   @commands.command(aliases= ['cvc', 'vc'],description= 'Change the vice captain of a team.', extras={'usableBy': 'Captains only.'})
-  async def changevicecap(self, ctx, cap:discord.User):
+  async def changevicecap(self, ctx, cap:NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
@@ -584,7 +585,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     
     #await ctx.send(view=g.showPlayers())
   @commands.command(aliases= ['cc'],description= 'Change the captain of a team.', extras={'usableBy': 'Host or Captains only.'})
-  async def changecap(self, ctx, cap:discord.User):
+  async def changecap(self, ctx, cap:NonBotUser):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]

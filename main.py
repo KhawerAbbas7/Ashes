@@ -28,6 +28,7 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
+    self.statsCache = {}
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
@@ -177,12 +178,23 @@ class Ashes(commands.Bot):
           self.messageCooldownMap[message.author.id] = time.time()
     return await self.process_commands(message)
   async def fetchrow(self, query, params=()):
+    key = (query, tuple(params))
+    if key in self.statsCache:
+      return self.statsCache[key]
     async with self.db.execute(query, params) as cursor:
-      return await cursor.fetchone()
+      r = await cursor.fetchone()
+      self.statsCache[key] = r
+      return r
   async def fetchall(self, query, params=()):
+    key = (query, tuple(params))
+    if key in self.statsCache:
+      return self.statsCache[key]
     async with self.db.execute(query, params) as cursor:
-      return await cursor.fetchall()
+      r = await cursor.fetchall()
+      self.statsCache[key] = r 
+      return r
   async def execute(self, query, params=()):
+    statsCache = {}
     await self.db.execute(query, params)
     await self.db.commit()
   async def cfetchrow(self, query, params=()):

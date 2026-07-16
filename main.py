@@ -65,7 +65,8 @@ class Ashes(commands.Bot):
   async def updateTOPGG(self):
     headers = {"Authorization": f"Bearer {os.getenv('TOPGGAPIToken')}","Content-Type": "application/json"}
     async with aiohttp.ClientSession() as session:
-      async with session.patch("https://top.gg/api/v1/projects/@me/metrics", headers= headers, json={"server_count": len(self.guilds), "shard_count": 1})
+      async with session.patch("https://top.gg/api/v1/projects/@me/metrics", headers= headers, json={"server_count": len(self.guilds), "shard_count": 1}):
+        pass
   async def postKhawiData(self, data):
     if self._debounceKhawiTask:
       self._debounceKhawiTask.cancel()

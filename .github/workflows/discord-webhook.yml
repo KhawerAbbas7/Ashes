@@ -1,0 +1,11 @@
+name: Discord Commit Notifier
+on: [push]
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          jq -n --arg msg "${{ github.event.head_commit.message }}" --arg actor "${{ github.actor }}" --arg repo "${{ github.repository }}" --arg sha "${{ github.sha }}" --arg ref "${{ github.ref_name }}" '{"embeds": [{"title": "New Commit in \($repo)", "url": "https://github.com/\($repo)/commit/\($sha)", "color": 7506394, "author": {"name": $actor, "icon_url": "https://github.com/\($actor).png"}, "description": "**Message:**\n\($msg)", "fields": [{"name": "Branch", "value": "`\($ref)`", "inline": true}, {"name": "SHA", "value": "[`\($sha)`](https://github.com/\($repo)/commit/\($sha))", "inline": true}]}]}' | curl -s -H "Content-Type: application/json" -d @- $DISCORD_WEBHOOK
+          

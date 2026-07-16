@@ -520,7 +520,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   @commands.command(aliases= ['np'],description= 'Select next bowler or batter.', extras={'usableBy': 'Captains only.'})
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def nextplayer(self, ctx, nextP:NonBotUser = None):
-    g = next((g for g in ctx.bot.games if ctx.author.id in (g.teama.captain.id, g.teamb.captain.id)), None)
+    g = next((g for g in ctx.bot.games.values() if ctx.author.id in (g.teama.captain.id, g.teamb.captain.id)), None)
     if ctx.channel.id not in self.bot.games and not g:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = g or self.bot.games[ctx.channel.id]

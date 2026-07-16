@@ -22,4 +22,4 @@ class NonBotUser(commands.Converter):
     user = await commands.UserConverter().convert(ctx, argument)
     if user.bot:
       raise commands.BadArgument("Bot can't be passed as an argument.")
-    return UserConverter
+    return user

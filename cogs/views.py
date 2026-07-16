@@ -1,8 +1,7 @@
-import discord, math, asyncio
+import discord, math
 from discord import ui
 from prettytable import PrettyTable
 from datetime import datetime, timezone, timedelta
-
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
 def timestampToPKT(ts):
   return (datetime.fromtimestamp(ts,timezone(timedelta(hours=5))).strftime('%-H:%M %d-%b-%y'))
@@ -46,124 +45,176 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   uid=target.id
   if lastNBatInnings==0 and lastNBowlInnings==0 and lastNInnings>0:
     lastNBatInnings=lastNBowlInnings=lastNInnings
-  if isinstance(ctx,discord.ext.commands.Context):
-    bot=ctx.bot
-    author=ctx.author
+  if isinstance(ctx, discord.ext.commands.Context):
+    bot = ctx.bot
+    author = ctx.author
   else:
-    bot=ctx.client
-    author=ctx.user
+    bot = ctx.client
+    author = ctx.user
   row=await bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?",(uid,uid))
-  if not row or row[0]==0:
-    return "No Games"
+  ogEmoji="<:OG:1463581581984792669>"
+  if not row or row[0]==0: return "No Games"
   row=await bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?",(uid,uid,1768935600))
   og=row[0]!=0
-  f_bat,p_bat,f_bow,p_bow,f_d_bat,p_d_bat,f_d_bow,p_d_bow,ftxt=await build_filters(uid,lastNMatches,lastNBatInnings,lastNBowlInnings,fromTs,toTs)
-  v=ui.LayoutView(timeout=30)
-  v.target=target
-  v.ctx=ctx
-  c=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
-  c.add_item(ui.Section(f"### {target}'s Stats",accessory=discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
-  c.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  filter_sql_bat,filter_params_bat,filter_sql_bow,filter_params_bow,filter_sql_d_bat,filter_params_d_bat,filter_sql_d_bow,filter_params_d_bow,footer_txt=await build_filters(uid,lastNMatches,lastNBatInnings,lastNBowlInnings,fromTs,toTs)
+  view=ui.LayoutView(timeout=30);view.target=target;view.ctx=ctx
+  container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
+  container.add_item(ui.Section(f"### {target}'s Stats", accessory= discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   if og or uid in [882988325810614353]:
-    c.add_item(ui.TextDisplay("<:OG:1463581581984792669>\n-# I have played a key role in the development and success of this bot."))
-    c.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+    container.add_item(ui.TextDisplay(f"{ogEmoji}\n-# I have played a key role in the development and success of this bot."))
+    container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   if uid in bot.staticData['Tournaments']['1459434908932902914']['WTC SEASON 1']['Winning Players']:
-    c.add_item(ui.TextDisplay("**WTC SEASON 1 WINNER 🏆**" if uid!=1021706711003832352 else "**WTC SEASON 1 WINNER 🏆** as Captain 🥶"))
-  queries=[]
-  q="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?"+(f" AND {f_bat}" if f_bat else "")
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT COUNT(*) FROM matches WHERE mvpId=?"+(f" AND matchId IN (SELECT matchId FROM deliveries WHERE batterId=? AND {f_bat})" if f_bat else "")
-  queries.append(bot.fetchrow(q,tuple([uid,uid]+p_bat if f_bat else [uid])))
-  q="SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT bowlerId,SUM(isWicket) w,COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY bowlerId ORDER BY w DESC,b ASC LIMIT 1"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT bowlerId,SUM(runs) r,COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY bowlerId ORDER BY r DESC,b ASC LIMIT 1"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT COUNT(*) FROM (SELECT matchId FROM (SELECT matchId,inningId,SUM(runs) AS total_runs,MAX(isWicket) AS got_out FROM deliveries WHERE batterId=?"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY matchId,inningId) WHERE total_runs=0 AND got_out=1 GROUP BY matchId HAVING COUNT(*)>=2)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY partnerId)"
-  queries.append(bot.fetchrow(q,tuple([uid,uid,uid]+p_bat)))
-  q="SELECT COUNT(*) FROM (SELECT matchId,inningId,SUM(runs) AS total_runs,MAX(isWicket) AS got_out FROM deliveries WHERE batterId=?"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY matchId,inningId) WHERE total_runs=0 AND got_out=1"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+")"
-  queries.append(bot.fetchrow(q,tuple([uid,uid,uid]+p_bat)))
-  q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"+(f" AND {f_bow}" if f_bow else "")
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bow)))
-  q="SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bow}" if f_bow else "")+" GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bow)))
-  q="SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY inningId)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bat)))
-  q="SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else "")+" GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?"
-  queries.append(bot.fetchrow(q,tuple((p_bat+p_bat+[uid]) if f_bat else [uid])))
-  q="SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL"+(f" AND {f_d_bat}" if f_d_bat else "")+" GROUP BY d.inningId)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_d_bat)))
-  q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bow}" if f_bow else "")+" GROUP BY inningId)"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bow)))
-  q="SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(f" AND {f_bow}" if f_bow else "")+") t WHERE is_hattrick=1"
-  queries.append(bot.fetchrow(q,tuple([uid]+p_bow)))
-  q="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?)"+(f" AND {f_d_bat}" if f_d_bat else "")+" GROUP BY d.matchId) t ON m.matchId=t.matchId"
-  queries.append(bot.fetchrow(q,tuple([uid,uid,uid]+p_d_bat)))
-  for n in [0,1,2,3,4,6]:
-    queries.append(bot.fetchrow("SELECT COUNT(*) FROM deliveries WHERE batterId=? AND batterNum=? AND bowlerNum IS NOT NULL"+(f" AND {f_bat}" if f_bat else ""),tuple([uid,n]+p_bat)))
-    queries.append(bot.fetchrow("SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL"+(f" AND {f_bow}" if f_bow else ""),tuple([uid,n]+p_bow)))
-  res=await asyncio.gather(*queries)
-  matches,innings,total_runs,balls_faced,wickets=res[0] if res[0] else (0,0,0,0,0)
-  mvps=res[1][0] if res[1] else 0
-  bb=res[2]
+    container.add_item(ui.TextDisplay(f"**WTC SEASON 1 WINNER 🏆**" if uid != 1021706711003832352 else "**WTC SEASON 1 WINNER 🏆** as Captain 🥶"))
+  q="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?"
+  q_params=[uid]
+  if filter_sql_bat:
+    q+=" AND "+filter_sql_bat;q_params+=filter_params_bat
+  matches,innings,total_runs,balls_faced,wickets= await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM matches WHERE mvpId=?"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM matches WHERE mvpId=? AND matchId IN (SELECT matchId FROM deliveries WHERE batterId=? AND "+filter_sql_bat+")"
+    q_params=[uid,uid]+filter_params_bat
+  mvps=await bot.fetchrow(q,tuple(q_params));mvps=mvps[0]
+  q="SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+    q_params=[uid]+filter_params_bat
+  bb=await bot.fetchrow(q, tuple(q_params))
   best_batting=f"{bb[0]}({bb[1]}){'*' if bb[2]==1 else ''}" if bb else "—"
-  bo1=res[3]
-  bunny=f"{bot.get_user(bo1[0])} ({bo1[1]} times in {bo1[2]} balls)" if bo1 else "—"
-  bo2=res[4]
-  ownerOf=f"{bot.get_user(bo2[0])} ({bo2[1]} runs off {bo2[2]} balls)" if bo2 else "—"
-  pairs=res[5][0] if res[5] else 0
-  best_partner=res[6]
-  ducks=res[7][0] if res[7] else 0
-  unique_partners=res[8][0] if res[8] else 0
-  bowl_matches,bowl_innings,wkts,conceded,balls_bowled=res[9] if res[9] else (0,0,0,0,0)
-  bbw=res[10]
-  best_bowling=f"{bbw[0]}/{bbw[1]} ({ballsToOvers(bbw[2])})" if bbw else "—"
-  fh=res[11]
-  fifties,hundreds=fh if fh else (0,0)
-  top_scores=res[12][0] if res[12] else 0
-  team_pct=res[13][0] if res[13] else 0
-  tf=res[14]
-  threefers,fivefers=tf if tf else (0,0)
-  hattricks=res[15][0] if res[15] else 0
-  wldt=res[16]
-  won,lost,drawn,tied=wldt if wldt else (0,0,0,0)
-  bat_pct={}
-  bowl_pct={}
-  idx=17
-  for n in [0,1,2,3,4,6]:
-    bc=res[idx][0] if res[idx] else 0
-    bat_pct[n]=round((bc/balls_faced)*100,2) if balls_faced else 0
-    bwc=res[idx+1][0] if res[idx+1] else 0
-    bowl_pct[n]=round((bwc/balls_bowled)*100,2) if balls_bowled else 0
-    idx+=2
+  q="SELECT bowlerId, SUM(isWicket) w, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY w DESC, b ASC LIMIT 1"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT bowlerId, SUM(isWicket) w, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY bowlerId ORDER BY w DESC, b ASC LIMIT 1"
+    q_params=[uid]+filter_params_bat
+  bo=await bot.fetchrow(q, tuple(q_params))
+  bunny=f"{bot.get_user(bo[0])} ({bo[1]} times in {bo[2]} balls)" if bo else "—"
+  q="SELECT bowlerId, SUM(runs) r, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY r DESC, b ASC LIMIT 1"
+  
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT bowlerId, SUM(runs) r, COUNT(*) b FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY bowlerId ORDER BY r DESC, b ASC LIMIT 1"
+    q_params=[uid]+filter_params_bat
+  bo=await bot.fetchrow(q, tuple(q_params))
+  ownerOf=f"{bot.get_user(bo[0])} ({bo[1]} runs off {bo[2]} balls)" if bo else "—"
+  q="SELECT COUNT(*) FROM (SELECT matchId FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1 GROUP BY matchId HAVING COUNT(*)>=2)"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM (SELECT matchId FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? AND "+filter_sql_bat+" GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1 GROUP BY matchId HAVING COUNT(*)>=2)"
+    q_params=[uid]+filter_params_bat
+  pairs_row=await bot.fetchrow(q, tuple(q_params))
+  pairs=pairs_row[0] if pairs_row else 0
+  q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL GROUP BY partnerId)"
+  q_params=[uid,uid,uid]
+  if filter_sql_bat:
+    q="SELECT partnerId,MAX(runs) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) runs FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL AND "+filter_sql_bat+" GROUP BY partnerId)"
+    q_params=[uid,uid,uid]+filter_params_bat
+  best_partner= await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? AND "+filter_sql_bat+" GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1"
+    q_params=[uid]+filter_params_bat
+  ducks_row=await bot.fetchrow(q, tuple(q_params))
+  ducks=ducks_row[0] if ducks_row else 0
+  q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL)"
+  q_params=[uid,uid,uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(DISTINCT partnerId) FROM (SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL AND "+filter_sql_bat+")"
+    q_params=[uid,uid,uid]+filter_params_bat
+  unique_partners = await bot.fetchrow(q, tuple(q_params))
+  unique_partners = unique_partners[0] if unique_partners else 0
+  q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
+  q_params=[uid]
+  if filter_sql_bow:
+    q="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=? AND "+filter_sql_bow
+    q_params=[uid]+filter_params_bow
+  bowl_matches,bowl_innings,wkts,conceded,balls_bowled=await bot.fetchrow(q, tuple(q_params))
+  q="SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)"
+  q_params=[uid]
+  if filter_sql_bow:
+    q="SELECT w,r,b FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bow+" GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)"
+    q_params=[uid]+filter_params_bow
+  bb=await bot.fetchrow(q, tuple(q_params))
+  best_bowling=f"{bb[0]}/{bb[1]} ({ballsToOvers(bb[2])})" if bb else "—"
+  q="SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY inningId)"
+    q_params=[uid]+filter_params_bat
+  fifties,hundreds=await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?"
+  q_params=[uid]
+  if filter_sql_bat:
+    q="SELECT COUNT(*) FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY inningId,batterId) t JOIN (SELECT inningId,MAX(r) mr FROM (SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bat+" GROUP BY inningId,batterId) x GROUP BY inningId) m ON t.inningId=m.inningId AND t.r=m.mr WHERE t.batterId=?"
+    q_params=filter_params_bat+filter_params_bat+[uid] if filter_params_bat else [uid]
+  top_scores=await bot.fetchrow(q, tuple(q_params));top_scores = top_scores[0]
+  q="SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL GROUP BY d.inningId)"
+  q_params=[uid]
+  if filter_sql_d_bat:
+    q="SELECT ROUND(SUM(pr)*100.0/SUM(tr),2) FROM (SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END) pr,SUM(d.runs) tr FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL AND "+filter_sql_d_bat+" GROUP BY d.inningId)"
+    q_params=[uid]+filter_params_d_bat
+  team_pct=await bot.fetchrow(q, tuple(q_params));team_pct=team_pct[0] or 0
+  q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
+  q_params=[uid]
+  if filter_sql_bow:
+    q="SELECT SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bow+" GROUP BY inningId)"
+    q_params=[uid]+filter_params_bow
+  threefers,fivefers=await bot.fetchrow(q, tuple(q_params))
+  q="SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL) t WHERE is_hattrick=1"
+  q_params=[uid]
+  if filter_sql_bow:
+    q="SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND "+filter_sql_bow+") t WHERE is_hattrick=1"
+    q_params=[uid]+filter_params_bow
+  hattricks_row=await bot.fetchrow(q, tuple(q_params))
+  hattricks=hattricks_row[0] if hattricks_row else 0
+  q="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?) GROUP BY d.matchId) t ON m.matchId=t.matchId"
+  q_params=[uid,uid,uid]
+  if filter_sql_d_bat:
+    q="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?) AND "+filter_sql_d_bat+" GROUP BY d.matchId) t ON m.matchId=t.matchId"
+    q_params=[uid,uid,uid]+filter_params_d_bat
+  won,lost,drawn,tied=await bot.fetchrow(q,tuple(q_params))
+  nums=[0,1,2,3,4,6]
+  bat_pct={};bowl_pct={}
+  for n in nums:
+    q="SELECT COUNT(*) FROM deliveries WHERE batterId=? AND batterNum=? AND bowlerNum IS NOT NULL"
+    q_params=[uid,n]
+    if filter_sql_bat:
+      q="SELECT COUNT(*) FROM deliveries WHERE batterId=? AND batterNum=? AND bowlerNum IS NOT NULL AND "+filter_sql_bat
+      q_params=[uid,n]+filter_params_bat
+    c= await bot.fetchrow(q, tuple(q_params));c=c[0]
+    bat_pct[n]=round((c/balls_faced)*100,2) if balls_faced else 0
+    q="SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL"
+    q_params=[uid,n]
+    if filter_sql_bow:
+      q="SELECT COUNT(*) FROM deliveries WHERE bowlerId=? AND bowlerNum=? AND batterNum IS NOT NULL AND "+filter_sql_bow
+      q_params=[uid,n]+filter_params_bow
+    c=await bot.fetchrow(q, tuple(q_params));c=c[0]
+    bowl_pct[n]=round((c/balls_bowled)*100,2) if balls_bowled else 0
   bat_sr=round((total_runs*100/balls_faced),2) if balls_faced else 0.00
   bat_avg=round((total_runs/wickets),2) if wickets else total_runs
   overs=balls_bowled/6
   bowl_econ=round((conceded/overs),2) if overs else 0
-  bowl_avg=round((conceded/wkts),2) if wkts else 0.00
+  bowl_avg = round((conceded/wkts),2) if wkts else 0.00
   bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
-  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg":bat_avg,"Strike Rate":bat_sr,"Not Outs":innings-wickets,"Body Count":unique_partners,"Team Runs %":f"{team_pct}","50s":fifties,"100s":hundreds,"Top Scored":top_scores,"BBI":best_batting,"Best Partner":f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)" if best_partner else "—","Bunny Of":bunny,"Owner Of":ownerOf,"MVPs":mvps,'Ducks':ducks,'Pairs':pairs}
+  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Of": ownerOf,"MVPs": mvps, 'Ducks': ducks, 'Pairs': pairs}
   battxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
-  c.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
-  c.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-  bowlStatsDict={"Innings":bowl_innings,"wickets":wkts,"Balls Bowled":balls_bowled,"Runs Conceded":conceded,"3fers":threefers,"5fers":fivefers,"Hat-tricks":hattricks,"Bowling Avg":bowl_avg,"Bowling SR":bowl_sr,"Economy":bowl_econ,"Best Bowling":best_bowling,"Matches":matches,"Matches Won":won,"Matches Lost":lost,"Matches Drawn":drawn,"Matches Tied":tied}
+  container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  bowlStatsDict={"Innings": bowl_innings,"wickets": wkts,"Balls Bowled": balls_bowled,"Runs Conceded": conceded,"3fers": threefers,"5fers": fivefers,"Hat-tricks": hattricks,"Bowling Avg": bowl_avg,"Bowling SR": bowl_sr,"Economy": bowl_econ,"Best Bowling": best_bowling, "Matches": matches,"Matches Won": won, "Matches Lost": lost, "Matches Drawn": drawn, "Matches Tied": tied}
   bowltxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
-  c.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
-  c.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  container.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   keys=sorted(set(bat_pct)|set(bowl_pct))
   b="\n".join(f"{str(k).ljust(7)}{str(bat_pct.get(k,'')).ljust(7)}{bowl_pct.get(k,'')}" for k in keys)
-  c.add_item(ui.TextDisplay(f"**Num%:**\n```py\n{'Num'.ljust(7)}{'Bat%'.ljust(7)}Bowl%\n{b}\n```"))
-  c.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-  c.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {ftxt}"),accessory=FiltersBtn(author.id)))
-  c.add_item(ui.TextDisplay(f"-# For more enhanced view and stats visit [website](https://ashesdb.vercel.app/player/{target.id})"))
-  v.add_item(c)
-  return v
-
+  container.add_item(ui.TextDisplay(f"**Num%:**\n```py\n{'Num'.ljust(7)}{'Bat%'.ljust(7)}Bowl%\n{b}\n```"))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  container.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {footer_txt}"),accessory=FiltersBtn(author.id)))
+  container.add_item(ui.TextDisplay(f"-# For more enhanced view and stats visit [website](https://ashesdb.vercel.app/player/{target.id})"))
+  view.add_item(container)
+  return view
 class PlayersSwapSelection(ui.Select):
   def __init__(self, players):
     options = [

@@ -106,15 +106,17 @@ class Ashes(commands.Bot):
     self.staticData = json.load(open('staticData.json', 'r'))
     self.Gifs = self.staticData['Gifs']
     self.bannedUsers = {int(k): v for k, v in self.staticData['BannedUsers'].items()}
-  async def banCheck(self, ctx):
+  async def globalCheck(self, ctx):
     if ctx.author and ctx.author.id in self.bannedUsers:
       reason= self.bannedUsers[ctx.author.id]
       raise commands.CheckFailure(f"You're banned from this bot. Reason: {reason}")
+    if ctx.args and any(isinstance(a, discord.User) and a.bot for a in ctx.args):
+      raise commands.CheckFailure(f"Bot can't be passed as an argument.")
     else: return True
   async def setup_hook(self):
     self.loadStaticData()
     self.add_check(self.checkIfAllowedCategory)
-    self.add_check(self.banCheck)
+    self.add_check(self.globalCheck)
     self.db = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'ashes.db'))
     self.settingsdb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'settings.db'))
     self.currencydb = await aiosqlite.connect(os.path.join(os.getcwd(), 'databases', 'currency.db'))

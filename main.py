@@ -62,6 +62,10 @@ class Ashes(commands.Bot):
     timeout = aiohttp.ClientTimeout(total=10)
     async with aiohttp.ClientSession(timeout=timeout) as session:
       await session.post("http://de3.bot-hosting.net:20593/ashes",json=data )
+  async def updateTOPGG(self):
+    headers = {"Authorization": f"Bearer {os.getenv('TOPGGAPIToken')}","Content-Type": "application/json"}
+    async with aiohttp.ClientSession() as session:
+      async with session.patch("https://top.gg/api/v1/projects/@me/metrics", headers= headers, json={"server_count": len(self.guilds), "shard_count": 1})
   async def postKhawiData(self, data):
     if self._debounceKhawiTask:
       self._debounceKhawiTask.cancel()
@@ -77,12 +81,15 @@ class Ashes(commands.Bot):
       self.games[channel.id].forceYeet = True
       self.games.pop(channel.id)
   async def on_guild_remove(self, guild):
+    await self.updateTOPGG()
     games = [g for g in self.games.copy().values() if g.ctx.guild.id == guild.id]
     if games:
       for g in games:
         await g.saveData()
         g.forceYeet = True
         self.games.pop(g.ctx.channel.id)
+  async def on_guild_join(self, guild):
+    await self.updateTOPGG()
   async def on_member_remove(self, member):
     guild = member.guild
     for game in self.games.copy().values():
@@ -316,6 +323,7 @@ class Ashes(commands.Bot):
   async def on_ready(self):
     self.gamesDeletionCheck.start()
     self.votesReminders.start()
+  
 bot = Ashes()
   
 @bot.command(aliases = ['close'])

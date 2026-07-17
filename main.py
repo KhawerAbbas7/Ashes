@@ -5,6 +5,7 @@ from discord import ui
 import aiosqlite
 from cogs.views import *
 import psutil
+from cachetools import LRUCache
 from psutil import cpu_percent
 from io import BytesIO
 load_dotenv()
@@ -28,7 +29,7 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
-    self.statsCache = {}
+    self.statsCache = LRUCache(maxsize=1000)
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
@@ -202,7 +203,7 @@ class Ashes(commands.Bot):
       self.statsCache[key] = r 
       return r
   async def execute(self, query, params=()):
-    statsCache = {}
+    self.statsCache.clear()
     await self.db.execute(query, params)
     await self.db.commit()
   async def cfetchrow(self, query, params=()):

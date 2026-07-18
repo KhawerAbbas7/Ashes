@@ -46,7 +46,7 @@ class RankingCog(commands.Cog):
           if (time.time()- lastClaimAt) <= 24* 60 * 60:
             streakRetained = True
           streak = streak[0] +1 if streak and streakRetained else 1
-        effective_streak = min(60, streak)
+        effective_streak = min(24, streak)
         reward = 2000 + (effective_streak - 1) * 1000
         claimTime = int(time.time())
         expires = claimTime+ 43200 

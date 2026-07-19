@@ -85,6 +85,24 @@ class Statistics(commands.Cog, name= "Statistics"):
       table.add_row([f"{i}. {batter}", runs,balls])
     v = LBview(ctx, table)
     v.m =await ctx.send(view=v)
+  @commands.command(aliases= ['clb'], description= 'View the leading performer across different categories.')
+  @commands.max_concurrency(1, per=BucketType.user, wait=False)
+  async def currencyleaderboard(self, ctx):
+    table = PrettyTable(padding_width=5)
+    table.field_names = ["Player", "Coins"]
+    table.align = "l"
+    table.border=False
+    table.header=True
+    table.hrules=0
+    table.vrules=0
+    table.left_padding_width=0
+    rows=await ctx.bot.cfetchall("SELECT userId, coins FROM users ORDER BY coins DESC LIMIT 10", ())
+    for i,r in enumerate(rows,1):
+      userId, coins = r
+      user = ctx.bot.get_user(userId ) or userId 
+      table.add_row([f"{i}. {user}",coins])
+    v = CurrencyLBview(ctx, table)
+    v.m =await ctx.send(view=v)
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def hallofshame(self, ctx):

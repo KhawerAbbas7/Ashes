@@ -828,6 +828,105 @@ class LBSelection(ui.Select):
       self.view.stop()
       v = LBview(self.view.ctx, table, v)
       v.m = await self.view.m.edit(view=v)
+class CurrencyLBSelection(ui.Select):
+  def __init__(self, v):
+    currentlySelected = v.statType
+    options = [
+      "Most Coins", "Current Daily Streak", "Current Voting Streak", "Current Weekly Streak", "Current Monthly Streak"
+      ]
+    options = [discord.SelectOption(label= b, value = b) for b in options]
+    super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
+  async def callback(self, interaction: discord.Interaction):
+    if self.view.ctx.author.id != interaction.user.id: return
+    await interaction.response.defer()
+    bot = interaction.client
+    v = self.values[0]
+    if v == 'Most Coins':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Coins"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.cfetchall("SELECT userId, coins FROM users ORDER BY coins DESC LIMIT 10", ())
+      for i,r in enumerate(rows,1):
+        userId, coins = r
+        user = bot.get_user(userId ) or userId 
+        table.add_row([f"{i}. {user}", coins])
+      self.view.stop()
+      v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Current Daily Streak':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Streak"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('daily',))
+      for i,r in enumerate(rows,1):
+        userId, coins = r
+        user = bot.get_user(userId ) or userId 
+        table.add_row([f"{i}. {user}", coins])
+      self.view.stop()
+      v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Current Voting Streak':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Streak"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('vote',))
+      for i,r in enumerate(rows,1):
+        userId, coins = r
+        user = bot.get_user(userId ) or userId 
+        table.add_row([f"{i}. {user}", coins])
+      self.view.stop()
+      v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Current Weekly Streak':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Streak"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('weekly',))
+      for i,r in enumerate(rows,1):
+        userId, coins = r
+        user = bot.get_user(userId ) or userId 
+        table.add_row([f"{i}. {user}", coins])
+      self.view.stop()
+      v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Current Monthly Streak':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Streak"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('monthly',))
+      for i,r in enumerate(rows,1):
+        userId, coins = r
+        user = bot.get_user(userId ) or userId 
+        table.add_row([f"{i}. {user}", coins])
+      self.view.stop()
+      v = LBview(self.view.ctx, table)
+      v.m = await self.view.m.edit(view=v)
+    
 class Selection(ui.Select):
   def __init__(self, userId, options, maxselect, placeholder: str= 'Select'):
     self.userId = userId 
@@ -1114,6 +1213,29 @@ class ShamefulLBview(ui.LayoutView):
     container.add_item(ui.TextDisplay(f"### {title}"))
     container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
     actionRow = ui.ActionRow().add_item(ShamefulLBSelection(self))
+    if footer:
+      container.add_item(ui.TextDisplay(f"-# {footer}"))
+    #for b in buttons: actionRow.add_item(b)
+    container.add_item(actionRow)
+    self.add_item(container)
+  async def on_timeout(self):
+    for child in self.walk_children():
+      if hasattr(child, "disabled"):
+        child.disabled = True
+    #await self.ctx.message.edit(content=None, view=self.view)
+  async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
+class CurrencyLBview(ui.LayoutView):
+  def __init__(self,ctx,table, title: str= "Most Coins", footer: str = None) -> None:
+    super().__init__(timeout= 40)
+    self.bot = bot = ctx.bot
+    self.ctx = ctx = ctx
+    self.m = None
+    self.guild = guild = ctx.guild
+    self.statType = title
+    container = ui.Container(accent_color = discord.Colour.from_str("#0ebce7"))
+    container.add_item(ui.TextDisplay(f"### {title}\n"))
+    container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
+    actionRow = ui.ActionRow().add_item(CurrencyLBSelection(self))
     if footer:
       container.add_item(ui.TextDisplay(f"-# {footer}"))
     #for b in buttons: actionRow.add_item(b)

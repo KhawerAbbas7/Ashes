@@ -856,7 +856,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = LBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table)
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Daily Streak':
       table = PrettyTable(padding_width=5)
@@ -873,7 +873,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = LBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table)
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Voting Streak':
       table = PrettyTable(padding_width=5)
@@ -890,7 +890,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = LBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table)
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Weekly Streak':
       table = PrettyTable(padding_width=5)
@@ -907,7 +907,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = LBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table)
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Monthly Streak':
       table = PrettyTable(padding_width=5)
@@ -924,7 +924,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = LBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table)
       v.m = await self.view.m.edit(view=v)
     
 class Selection(ui.Select):

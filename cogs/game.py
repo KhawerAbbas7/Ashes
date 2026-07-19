@@ -1130,7 +1130,7 @@ class Game():
           if achievement != "hattrick":
             container.add_item(discord.ui.MediaGallery(discord.MediaGalleryItem(random.choice(self.ctx.bot.Gifs['Bowling']) if self.getGif(self.currentInning.currentBowlers[0].id, achievement) is None else self.getGif(self.currentInning.currentBowlers[0].id, achievement), spoiler = False)))
         else:
-          await self.ctx.send(content= custom[0])
+          await self.ctx.send(content= custom[0], allowed_mentions = discord.AllowedMentions.none())
       c.add_item(container)
       await self.ctx.send(file= i, view= c)
   async def getInputs(self):
@@ -1587,19 +1587,19 @@ class Game():
         if striker_p.runs < 30 and striker_p.runs + bat >= 30:
           custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '30'", (striker.id,))
           if custom and custom[0]: 
-            await self.ctx.send(custom[0])
+            await self.ctx.send(custom[0],allowed_mentions = discord.AllowedMentions.none())
           else:
             await self.ctx.send(f"**It is a 30** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '30') is None else self.getGif(striker.id, '30')})")
         elif striker_p.runs < 50 and striker_p.runs + bat >= 50:
           custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '50'", (striker.id,))
           if custom and custom[0]: 
-            await self.ctx.send(custom[0])
+            await self.ctx.send(custom[0], allowed_mentions = discord.AllowedMentions.none())
           else:
             await self.ctx.send(f"**It is a 50** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '50') is None else self.getGif(striker.id, '50')})")
         elif striker_p.runs < 100 and striker_p.runs + bat >= 100:
           custom = await self.ctx.bot.cfetchrow("SELECT itemValue FROM inventory WHERE userId = ? AND item = '100'", (striker.id,))
           if custom and custom[0]: 
-            await self.ctx.send(custom[0])
+            await self.ctx.send(custom[0], allowed_mentions = discord.AllowedMentions.none())
           else:
             await self.ctx.send(f"**It is a HUNDRED** for [{striker.name}]({random.choice(self.ctx.bot.Gifs['Batting']) if self.getGif(striker.id, '100') is None else self.getGif(striker.id, '100')})")
         striker_p.runs+=bat

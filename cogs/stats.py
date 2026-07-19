@@ -100,7 +100,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     for i,r in enumerate(rows,1):
       userId, coins = r
       user = ctx.bot.get_user(userId ) or userId 
-      table.add_row([f"{i}. {user}",coins])
+      table.add_row([f"{i}. {user}",f"{coins:,}"])
     v = CurrencyLBview(ctx, table)
     v.m =await ctx.send(view=v)
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')

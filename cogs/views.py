@@ -854,9 +854,9 @@ class CurrencyLBSelection(ui.Select):
       for i,r in enumerate(rows,1):
         userId, coins = r
         user = bot.get_user(userId ) or userId 
-        table.add_row([f"{i}. {user}", coins])
+        table.add_row([f"{i}. {user}", f"{coins:,}"])
       self.view.stop()
-      v = CurrencyLBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table,title= self.values[0])
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Daily Streak':
       table = PrettyTable(padding_width=5)
@@ -873,7 +873,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = CurrencyLBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table,title= self.values[0])
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Voting Streak':
       table = PrettyTable(padding_width=5)
@@ -890,7 +890,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = CurrencyLBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table,title= self.values[0])
       v.m = await self.view.m.edit(view=v)
     elif v == 'Current Weekly Streak':
       table = PrettyTable(padding_width=5)
@@ -908,7 +908,7 @@ class CurrencyLBSelection(ui.Select):
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
       v = CurrencyLBview(self.view.ctx, table)
-      v.m = await self.view.m.edit(view=v)
+      v.m = await self.view.m.edit(view=v,title= self.values[0])
     elif v == 'Current Monthly Streak':
       table = PrettyTable(padding_width=5)
       table.field_names = ["Player", "Streak"]
@@ -924,7 +924,7 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = CurrencyLBview(self.view.ctx, table)
+      v = CurrencyLBview(self.view.ctx, table, title= self.values[0])
       v.m = await self.view.m.edit(view=v)
     
 class Selection(ui.Select):

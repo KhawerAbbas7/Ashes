@@ -103,6 +103,7 @@ class Team():
     self.viceCaptain = None 
     self.players = []
     self.subbedOffIds = []
+    self.subLogs = {}
     self.subbedInIds = []
     self.color = "#14f67c" if id == 1 else "#05a9e6"
   def checkForCaptain(self):
@@ -370,6 +371,7 @@ class Game():
     else:
       inn.bowlers[playerObject] = BowlingInning(playerObject)
     team.subbedOffIds.append(userPlaying.id)
+    team.subLogs[userPlaying.name] = userImpact.name
     if userPlaying.id == self.hostId:
       self.hostId = team.captain.id
     team.subbedInIds.append(userImpact.id)
@@ -742,11 +744,15 @@ class Game():
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
         teamaP += f"**`{i}. {p.name} {'(C)' if p.id == self.teama.captain.id else ''} {'(VC)' if self.teama.viceCaptain and p.id == self.teama.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}`**{sc}"
+      if self.teama.subLogs:
+        teamaP += f"\n**Subbed Off:** {', '.join(f'{k} for {v}' for k,v in self.teama.subLogs.items())}"
       for i,p in enumerate(self.teamb.players,len(self.teama.players)+1):
         s =self.giveDescription(p.id, True, True)
         if s != "":sc = f"\n`{s}`\n"
         else: sc = "\n"
         teambP += f"**`{i}. {p.name} {'(C)' if p.id == self.teamb.captain.id else ''} {'(VC)' if self.teamb.viceCaptain and p.id == self.teamb.viceCaptain.id else ''} {'(H)' if p.id == self.hostId else ''} {'(R)' if p.id in self.repIds else ''}`**{sc}"
+      if self.teamb.subLogs:
+        teambP += f"\n**Subbed Off:** {', '.join(f'{k} for {v}' for k,v in self.teamb.subLogs.items())}"
       t = {}
       for i in self.innings:
         s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"

@@ -288,7 +288,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
-    if user.id not in [p.id for p in g.players]:return await ctx.send(embed= Embed(title='Not In Game.', description=f'{user} is not playing in this server.', color=Color.from_str('#b30707')))
+    if user.id not in ({p.id for p in g.players} | set(g.teama.subbedOffIds) | set(g.teamb.subbedOffIds)):return await ctx.send(embed= Embed(title='Not In Game.', description=f'{user} is not playing in this server.', color=Color.from_str('#b30707')))
     elif not g.started:
       return await ctx.send(embed= Embed(title='Waiting for Game to Start', description='Game is yet to begin.', color=Color.from_str('#b30707')))
     bat=[]
@@ -315,6 +315,9 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
     text = f"### {user}'s Score\n"
+    if user.id in set(g.teama.subbedOffIds) | set(g.teamb.subbedOffIds):
+      totalSubLogs = g.teama.subLogs | g.teamb.subLogs
+      text += f"-# Subbed Off for {totalSubLogs.get(user.name, 'Unknown')}"
     if bat:text += f"**Batting:** {bat}\n"
     if bowl:text += f"**Bowling:** {bowl}"
     container.add_item(ui.TextDisplay(text))

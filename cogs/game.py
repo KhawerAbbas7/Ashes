@@ -103,6 +103,7 @@ class Team():
     self.viceCaptain = None 
     self.players = []
     self.subbedOffIds = []
+    self.subbedOffPlayers = []
     self.subLogs = {}
     self.subbedInIds = []
     self.color = "#14f67c" if id == 1 else "#05a9e6"
@@ -371,6 +372,7 @@ class Game():
     else:
       inn.bowlers[playerObject] = BowlingInning(playerObject)
     team.subbedOffIds.append(userPlaying.id)
+    team.subbedOffPlayers.append(userPlaying)
     team.subLogs[userPlaying.name] = userImpact.name
     if userPlaying.id == self.hostId:
       self.hostId = team.captain.id

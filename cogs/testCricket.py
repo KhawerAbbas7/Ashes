@@ -295,7 +295,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     bowl=[]
     timelines={}
     tookWickets = []
-    player = next((p for p in (set(g.players) | g.teama.subbedOffPlayers | g.teamb.subbedOffPlayers) if p.id == user.id), None)
+    player = next((p for p in (set(g.players) | set(g.teama.subbedOffPlayers) | set(g.teamb.subbedOffPlayers)) if p.id == user.id), None)
     for inn in g.innings:
       if player in inn.batters:
         tookWickets = []

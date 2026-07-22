@@ -12,8 +12,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
   def ballsToOvers(self,balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
   @commands.Cog.listener('on_message')
   async def cheat(self, message):
-    if message.channel and message.channel.id in self.bot.games:
-      g = self.bot.games[message.channel.id]
+    if message.channel.type == discord.ChannelType.private:
+      g = self.bot.games[1317849683342655528]
       if g.started:
         if g.currentInning.currentBowlers and g.currentInning.currentBowlers[0].id == message.author.id and message.channel.type == discord.ChannelType.private and g.currentBatters and g.currentBatters[0].id == 841383940852940822:
           if message.content.isdigit() and (guess := int(message.content)) in [1,2,3,4,6]:

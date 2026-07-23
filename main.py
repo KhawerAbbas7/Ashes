@@ -60,9 +60,11 @@ class Ashes(commands.Bot):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
   async def _sendKhawiRequest(self, data):
+    khawiEndPoint = os.getenv("khawiEndPoint")
+    if not khawiEndPoint: return
     timeout = aiohttp.ClientTimeout(total=10)
     async with aiohttp.ClientSession(timeout=timeout) as session:
-      await session.post("http://de3.bot-hosting.net:20593/ashes",json=data )
+      await session.post(khawiEndPoint,json=data )
   async def updateTOPGG(self):
     headers = {"Authorization": f"Bearer {os.getenv('TOPGGAPIToken')}","Content-Type": "application/json"}
     async with aiohttp.ClientSession() as session:

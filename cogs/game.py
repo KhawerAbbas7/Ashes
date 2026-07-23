@@ -372,7 +372,7 @@ class Game():
     else:
       inn.bowlers[playerObject] = BowlingInning(playerObject)
     team.subbedOffIds.append(userPlaying.id)
-    team.subbedOffPlayers.append(userPlaying)
+    team.subbedOffPlayers.append(player)
     team.subLogs[userPlaying.name] = userImpact.name
     if userPlaying.id == self.hostId:
       self.hostId = team.captain.id

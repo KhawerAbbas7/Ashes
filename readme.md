@@ -1,6 +1,6 @@
 # Ashes Discord Bot
 
-""Website" (https://img.shields.io/badge/Website-Live-blue)" (https://ashesdb.vercel.app)
+[![Website](https://img.shields.io/badge/Website-Live-blue)](https://ashesdb.vercel.app)
 
 This project is source-available to encourage collaboration, transparency, and fairness.
 

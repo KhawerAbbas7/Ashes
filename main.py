@@ -25,7 +25,7 @@ async def get_pre(bot, message):
     return commands.when_mentioned_or(*prefix_return)(bot, message)
 class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
-    super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None, owner_ids= {1127649150079606865, 759713678013890560})
+    super().__init__(intents=intents, command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True,help_command=None, owner_ids= {759713678013890560})
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
@@ -112,7 +112,8 @@ class Ashes(commands.Bot):
   async def globalCheck(self, ctx):
     if ctx.author and ctx.author.id in self.bannedUsers:
       reason= self.bannedUsers[ctx.author.id]
-      raise commands.CheckFailure(f"You're banned from this bot. Reason: {reason}")
+      await ctx.send(f"You're banned from this bot. Reason: {reason}")
+      return False
     else: return True
   async def setup_hook(self):
     self.loadStaticData()
@@ -322,7 +323,7 @@ class Ashes(commands.Bot):
       return await ctx.send('This command is only runnable by the owner.')
     elif isinstance(error, commands.MaxConcurrencyReached):
       return await ctx.send('Please wait for previous request to end.')
-    elif isinstance(error, (commands.CheckFailure, commands.BadArgument)):
+    elif isinstance(error, (commands.BadArgument)):
       return await ctx.send(str(error))
   async def on_ready(self):
     self.gamesDeletionCheck.start()

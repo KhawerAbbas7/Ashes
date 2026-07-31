@@ -313,11 +313,15 @@ class Ashes(commands.Bot):
   async def on_command_error(self, ctx, error):
     if isinstance(error,commands.CommandNotFound): pass
     elif isinstance(error, commands.MissingRequiredArgument):
-      commandName = ctx.clean_prefix + ctx.command.qualified_name + " " + ctx.command.signature
-      param = error.param.name
-      startingIndex = commandName.find(param)
-      endingIndex = startingIndex + len(param)
-      errorMsg = f"```py\n{commandName}\n{' '* startingIndex}{'^'* len(param)}\n```\n**{param}** is the required argument that is missing."
+      params = list(ctx.command.clean_params.values())
+      index = params.index(error.param)
+      offset = len(ctx.clean_prefix) + len(ctx.command.qualified_name) + 1
+      startingIndex = offset
+      for p in params[:index]:
+        startingIndex += len(str(p)) + 1
+      startingIndex += str(error.param).find(error.param.name)
+      commandName = f"{ctx.clean_prefix}{ctx.command.qualified_name} {ctx.command.signature}"
+      errorMsg = f"```py\n{commandName}\n{' ' * startingIndex}{'^' * len(error.param.name)}\n```\n**{error.param.name}** is the required argument that is missing."
       await ctx.reply(errorMsg)
     elif isinstance(error, commands.NotOwner):
       return await ctx.send('This command is only runnable by the owner.')

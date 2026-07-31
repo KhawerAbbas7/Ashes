@@ -321,7 +321,7 @@ class Ashes(commands.Bot):
         startingIndex += len(str(p)) + 1
       startingIndex += str(error.param).find(error.param.name)
       commandName = f"{ctx.clean_prefix}{ctx.command.qualified_name} {ctx.command.signature}"
-      errorMsg = f"```py\n{commandName}\n{' ' * startingIndex}{'^' * len(error.param.name)}\n```\n**{error.param.name}** is the required argument that is missing."
+      errorMsg = f"```py\n{commandName}\n{' ' * startingIndex} {'^' * len(error.param.name)}\n```\n**{error.param.name}** is the required argument that is missing."
       await ctx.reply(errorMsg)
     elif isinstance(error, commands.NotOwner):
       return await ctx.send('This command is only runnable by the owner.')

@@ -132,14 +132,14 @@ class Currency(commands.Cog, name= "Currency"):
   async def claim(self, ctx):
     if not ctx.guild or ctx.guild.id != 1459434908932902914:
       return await ctx.send(embed= Embed(title='Command can\'t be run', description=f'This command can only be run in [Official Server]({ctx.bot.supportServerLink}).', color=Colour.from_str('#b30707')))
-    pkt = timezone(timedelta(hours=5))
-    now = datetime.now(pkt)
-    today_start = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()) 
-    q = "SELECT EXISTS(SELECT 1 FROM deliveries WHERE (batterId = ? OR bowlerId = ?) AND timestamp >= ?)"
-    row = await ctx.bot.fetchrow(q, (ctx.author.id, ctx.author.id, today_start))
-    c = row[0] if row else False
-    if not c:
-      return await ctx.send(embed= Embed(title='Command can\'t be run', description=f'To be able to run this command you have to play at least one game today (Starting the day from 12 AM PKT).', color=Colour.from_str('#b30707')))
+    #pkt = timezone(timedelta(hours=5))
+    #now = datetime.now(pkt)
+    #today_start = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp()) 
+    #q = "SELECT EXISTS(SELECT 1 FROM deliveries WHERE (batterId = ? OR bowlerId = ?) AND timestamp >= ?)"
+    #row = await ctx.bot.fetchrow(q, (ctx.author.id, ctx.author.id, today_start))
+    #c = row[0] if row else False
+    #if not c:
+      #return await ctx.send(embed= Embed(title='Command can\'t be run', description=f'To be able to run this command you have to play at least one game today (Starting the day from 12 AM PKT).', color=Colour.from_str('#b30707')))
     cooldown = await ctx.bot.cfetchrow("SELECT expiresAt,lastClaimAt FROM cooldowns WHERE userId = ? AND command = ?", (ctx.author.id, 'claim'))
     streak = 1
     if cooldown and cooldown[0] >= time.time():

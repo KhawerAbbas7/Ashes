@@ -22,6 +22,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     if v == "No Games":
       return await ctx.send(f"{target} is yet to play any Ashes game.")
     await ctx.send(view= v)
+    await v.wait()
   @commands.command(aliases= ['vs'], description= 'View statistics for any individual versus another.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def matchup(self, ctx, player1: NonBotUser, player2: NonBotUser = None):
@@ -85,6 +86,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       table.add_row([f"{i}. {batter}", runs,balls])
     v = LBview(ctx, table)
     v.m =await ctx.send(view=v)
+    await v.wait()
   @commands.command(aliases= ['clb'], description= 'View the leading performer across different categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def currencyleaderboard(self, ctx):
@@ -103,6 +105,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       table.add_row([f"{i}. {user}",f"{coins:,}"])
     v = CurrencyLBview(ctx, table)
     v.m =await ctx.send(view=v)
+    await v.wait()
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def hallofshame(self, ctx):
@@ -121,6 +124,7 @@ class Statistics(commands.Cog, name= "Statistics"):
       table.add_row([f"{i}. {batter}", afks])
     v = ShamefulLBview(ctx, table, "Most AFKs")
     v.m =await ctx.send(view=v)
+    await v.wait()
   @commands.command(aliases= ['Badges'], description= 'View the achievements/Badges.')
   async def achievements(self, ctx, target: NonBotUser = None):
     if not target: target = ctx.author

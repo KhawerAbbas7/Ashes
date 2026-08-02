@@ -1,4 +1,4 @@
-import discord, math
+import discord, math, time
 from discord import ui
 from prettytable import PrettyTable
 from datetime import datetime, timezone, timedelta
@@ -867,7 +867,7 @@ class CurrencyLBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('daily',))
+      rows = await bot.cfetchall("SELECT s.userId, s.streak FROM streaks s INNER JOIN cooldowns c ON s.userId = c.userId AND s.command = c.command WHERE s.command = ? AND (? - c.lastClaimAt) <= 48 * 60 * 60 ORDER BY s.streak DESC LIMIT 10",('daily', int(time.time())))
       for i,r in enumerate(rows,1):
         userId, coins = r
         user = bot.get_user(userId ) or userId 
@@ -884,7 +884,7 @@ class CurrencyLBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('vote',))
+      rows = await bot.cfetchall("SELECT s.userId, s.streak FROM streaks s INNER JOIN cooldowns c ON s.userId = c.userId AND s.command = c.command WHERE s.command = ? AND (? - c.lastClaimAt) <= 24 * 60 * 60 ORDER BY s.streak DESC LIMIT 10",('vote', int(time.time())))
       for i,r in enumerate(rows,1):
         userId, coins = r
         user = bot.get_user(userId ) or userId 
@@ -901,7 +901,7 @@ class CurrencyLBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('weekly',))
+      rows = await bot.cfetchall("SELECT s.userId, s.streak FROM streaks s INNER JOIN cooldowns c ON s.userId = c.userId AND s.command = c.command WHERE s.command = ? AND (? - c.lastClaimAt) <= 336 * 60 * 60 ORDER BY s.streak DESC LIMIT 10",('weekly', int(time.time())))
       for i,r in enumerate(rows,1):
         userId, coins = r
         user = bot.get_user(userId ) or userId 
@@ -918,7 +918,7 @@ class CurrencyLBSelection(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.cfetchall("SELECT userId, streak FROM streaks WHERE command = ? ORDER BY streak DESC LIMIT 10", ('monthly',))
+      rows = await bot.cfetchall("SELECT s.userId, s.streak FROM streaks s INNER JOIN cooldowns c ON s.userId = c.userId AND s.command = c.command WHERE s.command = ? AND (? - c.lastClaimAt) <= 1440 * 60 * 60 ORDER BY s.streak DESC LIMIT 10",('monthly', int(time.time())))
       for i,r in enumerate(rows,1):
         userId, coins = r
         user = bot.get_user(userId ) or userId 

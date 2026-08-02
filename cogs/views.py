@@ -907,8 +907,8 @@ class CurrencyLBSelection(ui.Select):
         user = bot.get_user(userId ) or userId 
         table.add_row([f"{i}. {user}", coins])
       self.view.stop()
-      v = CurrencyLBview(self.view.ctx, table)
-      v.m = await self.view.m.edit(view=v,title= self.values[0])
+      v = CurrencyLBview(self.view.ctx, table, title= self.values[0])
+      v.m = await self.view.m.edit(view=v)
     elif v == 'Current Monthly Streak':
       table = PrettyTable(padding_width=5)
       table.field_names = ["Player", "Streak"]

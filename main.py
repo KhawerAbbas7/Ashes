@@ -4,6 +4,7 @@ from dotenv import load_dotenv
 from discord import ui
 import aiosqlite
 from cogs.views import *
+from itertools import cycle
 import psutil
 from cachetools import LRUCache
 from psutil import cpu_percent
@@ -29,11 +30,13 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
+    self.Botstatuses = cycle(["Watching {usersLen} users play with me", "Flirting with {user}", "Omg i feel like Bonnie Blue being in {serversLen} servers"])
     self.statsCache = LRUCache(maxsize=1000)
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
     self.bannedUsers = {}
+    self.lastUser = "Khawi"
     self.Gifs = {}
     self.messageCooldownMap = {}
     self._debounceKhawiTask = None
@@ -59,6 +62,9 @@ class Ashes(commands.Bot):
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
+    status = next(self.Botstatuses)
+    activity = discord.CustomActivity(name=status.format(usersLen= len(self.users), user= self.lastUser, serversLen= len(self.guilds)), emoji= None)
+    await self.change_presence(activity= activity)
   async def _sendKhawiRequest(self, data):
     khawiEndPoint = os.getenv("khawiEndPoint")
     if not khawiEndPoint: return
@@ -114,7 +120,9 @@ class Ashes(commands.Bot):
       reason= self.bannedUsers[ctx.author.id]
       await ctx.send(f"You're banned from this bot. Reason: {reason}")
       return False
-    else: return True
+    else:
+      self.lastUser = ctx.author.name
+      return True
   async def setup_hook(self):
     self.loadStaticData()
     self.add_check(self.checkIfAllowedCategory)

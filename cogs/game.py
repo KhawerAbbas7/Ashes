@@ -1209,8 +1209,6 @@ class Game():
         bowler_p.AFKs += 1; striker_p.AFKs += 1
         await self.ctx.send(embed= Embed(title="**AFK**", description=f"Both the bowler and batter were afk, replaying the ball. Bowler AFKs: {bowler_p.AFKs}/3\nBatter AFKs: {striker_p.AFKs}/6", color=Color.from_str('#b30707')))
         await asyncio.sleep(0.3)
-        await striker.send(f"You didn't respond in time. Replaying the ball.\n{'' if striker_p.AFKs not in [3,6] else 'You are retiring out!'}")
-        await asyncio.sleep(0.3)
         if bowler_p.AFKs == 3:
           await bowler.send(f"You didn't respond in time. Replaying the ball.\nYou are retiring from the crease\n-# We know your girlfriend deserves more attention than a fucking discord bot!'")
           bowler_p.AFKs = 0
@@ -1218,8 +1216,9 @@ class Game():
           await self.selectBowler()
           bowlerExtraTXT = ""
         else:
-          bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
+          bowlerExtraTXT = f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {bowler_p.AFKs}`\n"
         if striker_p.AFKs == 3:
+          await striker.send(f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {striker_p.AFKs}`\n-# You are retiring from the crease but you can bat again.")
           if not(isRep):
             self.ballsData.append((
             ballId,
@@ -1248,6 +1247,7 @@ class Game():
           if inn.currentBatters[0].id != striker.id:
             batterExtraTXT = ""
         elif striker_p.AFKs == 6:
+          await striker.send(f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {striker_p.AFKs}`\n-# Umpire says he can't keep this up anymore, enough is enough he has declared you out.")
           batterExtraTXT = ""
           striker_p.dismissedBy = "AFK"
           striker_p.dismissed = True
@@ -1285,7 +1285,7 @@ class Game():
             await self.selectNextBatter()
           elif not inn.currentBatters:return 'Inning Over'
         else:
-          batterExtraTXT = "You were AFK, try this again."
+          batterExtraTXT = f"You were AFK, AFK number: {striker_p.AFKs}.\n-# Just incase u didn't know, u will get first warning at 3 AFKs, and will be declared out at 6."
           if not(isRep):
             self.ballsData.append((
             ballId,
@@ -1400,8 +1400,8 @@ class Game():
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
-          batterExtraTXT = "You were AFK, try this again."
-        bowlerExtraTXT = "Batter didn't respond in time. Replaying the ball."
+          batterExtraTXT = f"You were AFK, try this again.\n`Your AFKs: {striker_p.AFKs}`"
+        bowlerExtraTXT = f"Batter didn't respond in time. Replaying the ball.\n`Their AFKs: {striker_p.AFKs}`"
         continue
       elif bat_ok and not bowl_ok:
         for t in pending: t.cancel()
@@ -1433,10 +1433,12 @@ class Game():
           inn.nextBowlerId = None
           await self.selectBowler()
           bowlerExtraTXT = ""
+          batterExtraTXT = "Bowler didn't respond in time. Bowler was changed!!"
         else:
-          bowlerExtraTXT = "You didn't respond in time. Replaying the ball."
+          bowlerExtraTXT = f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {bowler_p.AFKs}`"
+          batterExtraTXT = f"Bowler didn't respond in time. `Their AFKs: {bowler_p.AFKs}"
         await asyncio.sleep(0.3)
-        batterExtraTXT = "Bowler didn't respond in time. Replaying the ball"
+        
         continue
       bat=int(bat_task.result().content)
       bowl=int(bowl_task.result().content)

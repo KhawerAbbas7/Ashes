@@ -317,7 +317,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     text = f"### {user}'s Score\n"
     if user.id in set(g.teama.subbedOffIds) | set(g.teamb.subbedOffIds):
       totalSubLogs = g.teama.subLogs | g.teamb.subLogs
-      text += f"-# Subbed Off for {totalSubLogs.get(user.name, 'Unknown')}"
+      text += f"-# Subbed Off for {totalSubLogs.get(user.name, 'Unknown')}\n"
     if bat:text += f"**Batting:** {bat}\n"
     if bowl:text += f"**Bowling:** {bowl}"
     container.add_item(ui.TextDisplay(text))

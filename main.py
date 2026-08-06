@@ -376,7 +376,15 @@ async def help(ctx):
   await ctx.send(view= v)
 @bot.command(description= "Change the way you can call bot in your guild.", extras={'usableBy': 'Anyone with manage_messages permission.'})
 @commands.has_permissions(manage_messages=True)
-async def prefix(ctx, newPrefix: str):
+async def prefix(ctx, newPrefix: str = None):
+  if not newPrefix: 
+    if not ctx.guild:
+      return await ctx.send("You can call me without any prefixes here.")
+    else:
+      prefixes= await ctx.bot.command_prefix(ctx.bot,ctx.message)
+      prefixes = [prefix for prefix in prefixes if "@" not in prefix] # filter the mention prefix.
+      prefix_str = "\n".join(f"- `{p}`" for p in prefixes)
+      return await ctx.send(f"You can either mention me or use the following prefixes to call me in the server:\n{prefix_str}")
   if len(newPrefix) > 3: return await ctx.send("The length of prefix must not exceed 3 characters.")
   await bot.settingsdb.execute("INSERT INTO settings (guildId,prefix) VALUES (?,?) ON CONFLICT(guildId) DO UPDATE SET prefix=excluded.prefix", (ctx.guild.id, newPrefix))
   await bot.settingsdb.commit()

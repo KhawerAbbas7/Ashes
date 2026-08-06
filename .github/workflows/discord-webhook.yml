@@ -1,7 +1,5 @@
 name: Discord Commit Notifier
-
 on: [push]
-
 jobs:
   notify:
     runs-on: ubuntu-latest
@@ -12,43 +10,42 @@ jobs:
         run: |
           TITLE=$(printf '%s' "$COMMIT_MESSAGE" | head -n1)
           BODY=$(printf '%s' "$COMMIT_MESSAGE" | tail -n +2 | sed '/^$/d')
-
           jq -n \
-            --arg title "$TITLE" \
-            --arg body "$BODY" \
-            --arg actor "${{ github.actor }}" \
-            --arg repo "${{ github.repository }}" \
-            --arg sha "${{ github.sha }}" \
-            --arg ref "${{ github.ref_name }}" \
-            '{
-              "embeds": [{
-                "title": $title,
-                "url": "https://github.com/\($repo)/commit/\($sha)",
-                "color": 7506394,
-                "author": {
-                  "name": $actor,
-                  "icon_url": "https://github.com/\($actor).png"
+          --arg title "$TITLE" \
+          --arg body "$BODY" \
+          --arg actor "${{ github.actor }}" \
+          --arg repo "${{ github.repository }}" \
+          --arg sha "${{ github.sha }}" \
+          --arg ref "${{ github.ref_name }}" \
+          '{
+            "embeds": [{
+              "title": $title,
+              "url": "https://github.com/\($repo)/commit/\($sha)",
+              "color": 7506394,
+              "author": {
+                "name": $actor,
+                "icon_url": "https://github.com/\($actor).png"
+              },
+              "description": (if $body == "" then "No description." else $body end),
+              "fields": [
+                {
+                  "name": "Repository",
+                  "value": $repo,
+                  "inline": true
                 },
-                "description": (if $body == "" then "No description." else $body end),
-                "fields": [
-                  {
-                    "name": "Repository",
-                    "value": $repo,
-                    "inline": true
-                  },
-                  {
-                    "name": "Branch",
-                    "value": ("`" + $ref + "`"),
-                    "inline": true
-                  },
-                  {
-                    "name": "SHA",
-                    "value": "[`" + $sha + "`](https://github.com/\($repo)/commit/\($sha))",
-                    "inline": false
-                  }
-                ]
-              }]
-            }' | curl -s \
-              -H "Content-Type: application/json" \
-              -d @- \
-              "$DISCORD_WEBHOOK"
+                {
+                  "name": "Branch",
+                  "value": ("`" + $ref + "`"),
+                  "inline": true
+                },
+                {
+                  "name": "SHA",
+                  "value": "[`" + $sha + "`](https://github.com/\($repo)/commit/\($sha))",
+                  "inline": false
+                }
+              ]
+            }]
+          }' | curl -s \
+          -H "Content-Type: application/json" \
+          -d @- \
+          "$DISCORD_WEBHOOK"

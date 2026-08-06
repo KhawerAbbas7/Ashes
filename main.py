@@ -120,6 +120,9 @@ class Ashes(commands.Bot):
       reason= self.bannedUsers[ctx.author.id]
       await ctx.send(f"You're banned from this bot. Reason: {reason}")
       return False
+    if not ctx.guild and ctx.command.name in ["create", "claim"]:
+      await ctx.send("Cannot run this command in dm.")
+      return False
     else:
       self.lastUser = ctx.author.name
       return True

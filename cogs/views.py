@@ -124,10 +124,10 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     if n in bat_pct: bat_pct[n]=round((c/balls_faced)*100,2) if balls_faced else 0
   fifties=sum(1 for _,_,r,_ in bat_innings_rows if 50<=r<100)
   hundreds=sum(1 for _,_,r,_ in bat_innings_rows if r>=100)
-  best_field={}
-  for inningId,batterId,r in topscore_rows:
-    if r>best_field.get(inningId,(None,-1))[1]: best_field[inningId]=(batterId,r)
-  top_scores=sum(1 for batterId,_ in best_field.values() if batterId==uid)
+  inning_max={}
+  for inningId,_,r in topscore_rows:
+    if r>inning_max.get(inningId,-1): inning_max[inningId]=r
+  top_scores=sum(1 for inningId,batterId,r in topscore_rows if batterId==uid and r==inning_max[inningId])
   team_pr=sum(pr for _,pr,_ in team_pct_rows);team_tr=sum(tr for _,_,tr in team_pct_rows)
   team_pct=round(team_pr*100.0/team_tr,2) if team_tr else 0
   won,lost,drawn,tied=results_row

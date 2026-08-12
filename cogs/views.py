@@ -1,4 +1,4 @@
-import discord, math, time, asyncio
+import discord, math, time, asyncio, statistics
 from discord import ui
 from prettytable import PrettyTable
 from datetime import datetime, timezone, timedelta
@@ -124,6 +124,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     if n in bat_pct: bat_pct[n]=round((c/balls_faced)*100,2) if balls_faced else 0
   fifties=sum(1 for _,_,r,_,_ in bat_innings_rows if 50<=r<100)
   hundreds=sum(1 for _,_,r,_,_ in bat_innings_rows if r>=100)
+  median_runs=round(statistics.median(r for _,_,r,_,_ in bat_innings_rows),2) if bat_innings_rows else 0
   inning_max={}
   for inningId,_,r in topscore_rows:
     if r>inning_max.get(inningId,-1): inning_max[inningId]=r
@@ -146,6 +147,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     best_bowling_match="—"
   threefers=sum(1 for _,w,_,_ in bowl_innings_rows if 3<=w<5)
   fivefers=sum(1 for _,w,_,_ in bowl_innings_rows if w>=5)
+  median_wkts=round(statistics.median(w for _,w,_,_ in bowl_innings_rows),2) if bowl_innings_rows else 0
   bowl_pct={n:0 for n in (0,1,2,3,4,6)}
   for n,c in bowl_nums_rows:
     if n in bowl_pct: bowl_pct[n]=round((c/balls_bowled)*100,2) if balls_bowled else 0
@@ -164,11 +166,11 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   if uid in bot.staticData['Tournaments']['1459434908932902914']['WTC SEASON 1']['Winning Players']:
     container.add_item(ui.TextDisplay(f"**WTC SEASON 1 WINNER 🏆**" if uid != 1021706711003832352 else "**WTC SEASON 1 WINNER 🏆** as Captain 🥶"))
-  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Of": ownerOf,"MVPs": mvps, 'Ducks': ducks, 'Pairs': pairs}
+  battingStatsDict={"Innings":innings,"Runs":total_runs,"Balls Played":balls_faced,"Batting Avg": bat_avg,"Median Runs": median_runs,"Strike Rate":bat_sr,"Not Outs": innings - wickets,"Body Count": unique_partners,"Team Runs %": f"{team_pct}","50s": fifties,"100s": hundreds,"Top Scored": top_scores,"BBI": best_batting,"Best Partner": f"{bot.get_user(best_partner[0])} ({best_partner[1]} Runs)","Bunny Of": bunny, "Owner Of": ownerOf,"MVPs": mvps, 'Ducks': ducks, 'Pairs': pairs}
   battxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in battingStatsDict.items())
   container.add_item(ui.TextDisplay("### Batting Stats\n"+battxt))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-  bowlStatsDict={"Innings": bowl_innings,"wickets": wkts,"Balls Bowled": balls_bowled,"Runs Conceded": conceded,"3fers": threefers,"5fers": fivefers,"Hat-tricks": hattricks,"Bowling Avg": bowl_avg,"Bowling SR": bowl_sr,"Economy": bowl_econ,"Best Bowling Inn": best_bowling,"Best Bowling Match": best_bowling_match, "WoW Moments": wow_moments,"Matches": matches,"Matches Won": won, "Matches Lost": lost, "Matches Drawn": drawn, "Matches Tied": tied}
+  bowlStatsDict={"Innings": bowl_innings,"wickets": wkts,"Median Wickets": median_wkts,"Balls Bowled": balls_bowled,"Runs Conceded": conceded,"3fers": threefers,"5fers": fivefers,"Hat-tricks": hattricks,"Bowling Avg": bowl_avg,"Bowling SR": bowl_sr,"Economy": bowl_econ,"Best Bowling Inn": best_bowling,"Best Bowling Match": best_bowling_match, "WoW Moments": wow_moments,"Matches": matches,"Matches Won": won, "Matches Lost": lost, "Matches Drawn": drawn, "Matches Tied": tied}
   bowltxt="\n".join(f"**`{k.ljust(22)}{v}`**" for k,v in bowlStatsDict.items())
   container.add_item(ui.TextDisplay(f"### Bowling Stats\n{bowltxt}"))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))

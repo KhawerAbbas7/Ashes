@@ -62,7 +62,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   q_og="SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?"
   q_matches="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(*),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?"+(" AND "+filter_sql_bat if filter_sql_bat else "")
   q_mvps="SELECT COUNT(*) FROM matches WHERE mvpId=? AND matchId IN (SELECT matchId FROM deliveries WHERE "+bat_where+")"
-  q_bat_innings="SELECT matchId,inningId,SUM(runs),MAX(isWicket) FROM deliveries WHERE "+bat_where+" GROUP BY matchId,inningId"
+  q_bat_innings="SELECT matchId,inningId,SUM(runs),MAX(isWicket),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY matchId,inningId"
   q_bowlers_faced="SELECT bowlerId,SUM(isWicket),SUM(runs),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY bowlerId"
   q_partners="SELECT CASE WHEN batterId=? THEN nonStrikerId ELSE batterId END partnerId,SUM(runs) FROM deliveries WHERE (batterId=? OR nonStrikerId=?) AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND batterId IS NOT NULL AND nonStrikerId IS NOT NULL"+(" AND "+filter_sql_bat if filter_sql_bat else "")+" GROUP BY partnerId"
   q_bat_nums="SELECT batterNum,COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY batterNum"
@@ -101,13 +101,13 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   matches,innings,total_runs,balls_faced,wickets=matches_row
   mvps=mvps_row[0]
   if bat_innings_rows:
-    best=max(bat_innings_rows,key=lambda r:(r[2],-r[3]))
-    best_batting=f"{best[2]}({best[3]}){'*' if best[3]==0 else ''}"
+    best=max(bat_innings_rows,key=lambda r:(r[2],-r[4]))
+    best_batting=f"{best[2]}({best[4]}){'*' if best[3]==0 else ''}"
   else:
     best_batting="—"
   ducks=sum(1 for r in bat_innings_rows if r[2]==0 and r[3])
   pairs_by_match={}
-  for m,_,r,w in bat_innings_rows:
+  for m,_,r,w,_ in bat_innings_rows:
     if r==0 and w: pairs_by_match[m]=pairs_by_match.get(m,0)+1
   pairs=sum(1 for c in pairs_by_match.values() if c>=2)
   if bowlers_faced_rows:
@@ -122,8 +122,8 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bat_pct={n:0 for n in (0,1,2,3,4,6)}
   for n,c in bat_nums_rows:
     if n in bat_pct: bat_pct[n]=round((c/balls_faced)*100,2) if balls_faced else 0
-  fifties=sum(1 for _,_,r,_ in bat_innings_rows if 50<=r<100)
-  hundreds=sum(1 for _,_,r,_ in bat_innings_rows if r>=100)
+  fifties=sum(1 for _,_,r,_,_ in bat_innings_rows if 50<=r<100)
+  hundreds=sum(1 for _,_,r,_,_ in bat_innings_rows if r>=100)
   inning_max={}
   for inningId,_,r in topscore_rows:
     if r>inning_max.get(inningId,-1): inning_max[inningId]=r

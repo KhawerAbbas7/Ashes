@@ -49,3 +49,5 @@ CREATE TABLE IF NOT EXISTS deliveries(
 );
 CREATE INDEX IF NOT EXISTS idx_del_bat ON deliveries(batterId); CREATE INDEX IF NOT EXISTS idx_del_bwl ON deliveries(bowlerId); CREATE INDEX IF NOT EXISTS idx_del_mat ON deliveries(matchId); CREATE INDEX IF NOT EXISTS idx_del_inn ON deliveries(inningId);
 CREATE INDEX IF NOT EXISTS idx_del_timestamp ON deliveries(timestamp); CREATE INDEX IF NOT EXISTS idx_del_matchup ON deliveries(batterId, bowlerId); CREATE INDEX IF NOT EXISTS idx_innings_match ON innings(matchId); CREATE INDEX IF NOT EXISTS idx_matches_mvp ON matches(mvpId);
+CREATE INDEX IF NOT EXISTS idx_del_bat_played ON deliveries(batterId, timestamp) WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_del_bwl_played ON deliveries(bowlerId, timestamp) WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL;

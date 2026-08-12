@@ -1,4 +1,4 @@
-import discord, math, time
+import discord, math, time, asyncio
 from discord import ui
 from prettytable import PrettyTable
 from datetime import datetime, timezone, timedelta

@@ -294,12 +294,14 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
     bat=[]
     bowl=[]
     timelines={}
+    mvpPoints = 0
     tookWickets = []
     player = next((p for p in (set(g.players) | set(g.teama.subbedOffPlayers) | set(g.teamb.subbedOffPlayers)) if p.id == user.id), None)
     for inn in g.innings:
       if player in inn.batters:
         tookWickets = []
         i=inn.batters[player]
+        mvpPoints += i.runs
         score = f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}"
         timelines[f"Batting Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": [], 'score': score}
         if i.balls>0 or i.dismissed: 
@@ -308,6 +310,8 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if player in inn.bowlers:
         i=inn.bowlers[player]
         tookWickets = i.wicketsDigits
+        mvpPoints += i.wickets * 12
+        mvpPoints -= i.runsConceded * 0.01
         if i.balls>0:
           timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})"}
           bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
@@ -331,6 +335,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
           #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
           w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])
           container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
+    container.add_item(ui.TextDisplay(f"MVP Points: {round(mvpPoints, 2)} ({round(mvpPoints * 1.2, 2)} if won)"))
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases= ['pl'], description= 'View the roster for each team.')

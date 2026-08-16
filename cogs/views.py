@@ -1029,34 +1029,49 @@ class ShowScoreButton(ui.Button):
       user = inn.currentBowlers[self.BowlerIndex]
     bat=[]
     bowl=[]
-    timeline=[]
+    timelines={}
+    mvpPoints = 0
     tookWickets = []
-    player = next(p for p in g.players if p.id == user.id)
+    player = next((p for p in (set(g.players) | set(g.teama.subbedOffPlayers) | set(g.teamb.subbedOffPlayers)) if p.id == user.id), None)
     for inn in g.innings:
       if player in inn.batters:
         tookWickets = []
         i=inn.batters[player]
-        timeline = i.timeline
-        if i.balls>0: bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
+        mvpPoints += i.runs
+        score = f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}"
+        timelines[f"Batting Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": [], 'score': score}
+        if i.balls>0 or i.dismissed: 
+          score = f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}"
+          bat.append(f"{i.runs}({i.balls}){'*' if not i.dismissed else ''}")
       if player in inn.bowlers:
         i=inn.bowlers[player]
         tookWickets = i.wicketsDigits
-        timeline = i.timeline
-        if i.balls>0: bowl.append(f"{i.runsConceded}/{i.wickets} ({ballsToOvers(i.balls)})")
+        mvpPoints += i.wickets * 12
+        mvpPoints -= i.runsConceded * 0.01
+        if i.balls>0:
+          timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})"}
+          bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 
     text = f"### {user}'s Score\n"
+    if user.id in set(g.teama.subbedOffIds) | set(g.teamb.subbedOffIds):
+      totalSubLogs = g.teama.subLogs | g.teamb.subLogs
+      text += f"-# Subbed Off for {totalSubLogs.get(user.name, 'Unknown')}\n"
     if bat:text += f"**Batting:** {bat}\n"
     if bowl:text += f"**Bowling:** {bowl}"
     container.add_item(ui.TextDisplay(text))
-    if timeline:
-      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-      container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timeline])))
-    if tookWickets:
-      container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-      w = " • ".join([f'**{t}**' for t in tookWickets])
-      container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
+    if timelines:
+      for timeline in timelines:
+        container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+        container.add_item(ui.TextDisplay(f"**{timeline}**\n{timelines[timeline]['score']}"))
+        if timelines[timeline]['timeline']:
+          container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timelines[timeline]['timeline']])))
+        if timelines[timeline]['tookWickets']:
+          #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+          w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])
+          container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
+    container.add_item(ui.TextDisplay(f"MVP Points: {round(mvpPoints, 2)} ({round(mvpPoints * 1.2, 2)} if won)"))
     view.add_item(container)
     await interaction.response.send_message(view=view, ephemeral = True)
 class HelpButton(ui.Button):

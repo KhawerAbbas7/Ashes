@@ -7,7 +7,7 @@ import hashlib, os, time
 from discord import Embed, Colour
 from discord import ui 
 from discord.ext import commands, tasks
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta,timezone
 class RankingCog(commands.Cog):
   def __init__(self, bot: commands.Bot):
     self.bot = bot
@@ -332,10 +332,11 @@ class RankingCog(commands.Cog):
   def get_cors_headers(self):
     return {'Access-Control-Allow-Origin': '*','Access-Control-Allow-Methods': 'GET, OPTIONS','Access-Control-Allow-Headers': 'Content-Type'}
   def get_cutoff_end(self):
-    now = datetime.utcnow() + timedelta(hours=5)
+    pkt = timezone(timedelta(hours=5))
+    now = datetime.now(pkt)
     days_since_wed = (now.weekday() - 2) % 7
     cutoff_end = (now - timedelta(days=days_since_wed)).replace(hour=0, minute=0, second=0, microsecond=0)
-    cutoff_end_utc = cutoff_end -timedelta(hours=5)
+    cutoff_end_utc = cutoff_end.astimezone(timezone.utc)
     return int(cutoff_end.timestamp()), int(cutoff_end_utc.timestamp())
   async def health_check(self, request):
     return web.json_response({"status": "online"}, headers=self.get_cors_headers())

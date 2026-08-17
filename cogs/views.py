@@ -900,7 +900,7 @@ class LBSelection2(ui.Select):
       self.view.stop()
       v = LBview(self.view.ctx, table, v)
       v.m = await self.view.m.edit(view=v)
-    elif v == 'Best Win %'':
+    elif v == 'Best Win %':
       table = PrettyTable(padding_width=5)
       table.field_names = ["Player", "Win %"]
       table.align = "l"

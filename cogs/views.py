@@ -804,7 +804,7 @@ class LBSelection2(ui.Select):
       "Best Bowling Match",
       "Longest Scoring Streak",
       "Most Matches Won",
-      "Best Win %'",
+      "Best Win %",
       ]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
@@ -1372,5 +1372,5 @@ class LBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    #await self.ctx.message.edit(content=None, view=self.view)
+    await self.m.edit(content=None, view=self.view)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id

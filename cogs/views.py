@@ -1362,11 +1362,11 @@ class LBview(ui.LayoutView):
     container = ui.Container(accent_color = discord.Colour.from_str("#0ebce7"))
     container.add_item(ui.TextDisplay(f"### {title}\n-# For better view visit our [website](https://ashesdb.vercel.app/leaderboard)"))
     container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
-    actionRow = ui.ActionRow().add_item(LBSelection1(self)).add_item(LBSelection2(self))
     if footer:
       container.add_item(ui.TextDisplay(f"-# {footer}"))
     #for b in buttons: actionRow.add_item(b)
-    container.add_item(actionRow)
+    container.add_item(ui.ActionRow().add_item(LBSelection1(self)))
+    container.add_item(ui.ActionRow().add_item(LBSelection2(self)))
     self.add_item(container)
   async def on_timeout(self):
     for child in self.walk_children():

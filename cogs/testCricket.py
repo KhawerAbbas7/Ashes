@@ -172,7 +172,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
     g.T10 = True if not g.T10 else False
-    await ctx.send("Changed the format to T10" if not g.T10 else "Changed the format to T20")
+    await ctx.send("Changed the format to T10" if g.T10 else "Changed the format to Test")
   @commands.command(aliases= ['delete'], description= 'Delete a game, cannot be used if gane has started.',extras={'usableBy': 'Host only.'})
   async def yeet(self, ctx):
     if ctx.channel.id not in self.bot.games:

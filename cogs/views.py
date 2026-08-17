@@ -368,7 +368,7 @@ class ShamefulLBSelection(ui.Select):
       self.view.stop()
       v = ShamefulLBview(self.view.ctx, table, self.values[0], 'All times are in Pakistan Standard Time')
       v.m = await self.view.m.edit(view=v)
-class LBSelection(ui.Select):
+class LBSelection1(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
     options = [
@@ -793,6 +793,127 @@ class LBSelection(ui.Select):
         matchId, teamAName, teamBName, runs= r
         batter = f"{teamAName} VS {teamBName}"
         table.add_row([f"{i}. {batter}",runs])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+class LBSelection2(ui.Select):
+  def __init__(self, v):
+    currentlySelected = v.statType
+    options = [
+      "Most WoW Moments",
+      "Best Bowling Match",
+      "Longest Scoring Streak",
+      "Most Matches Won",
+      "Best Win %'",
+      ]
+    options = [discord.SelectOption(label= b, value = b) for b in options]
+    super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
+  async def callback(self, interaction: discord.Interaction):
+    if self.view.ctx.author.id != interaction.user.id: return
+    await interaction.response.defer()
+    bot = interaction.client
+    v = self.values[0]
+    if v == 'Most WoW Moments':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "WoW Moments"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId,COUNT(*) AS wows FROM (SELECT bowlerId,CASE WHEN isWicket=1 AND LEAD(runs,1) OVER(PARTITION BY bowlerId,inningId ORDER BY timestamp)=0 AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId,inningId ORDER BY timestamp)=0 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId,inningId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_wow FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL) t WHERE is_wow=1 GROUP BY bowlerId ORDER BY wows DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v, "WoW Moment is a moment where you take a wicket, subsequent ball is dot, and next ball again is wicket.")
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Best Bowling Match':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Bowler", "Match"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId,w,r,b FROM (SELECT bowlerId,SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId,matchId ORDER BY w DESC,r ASC,b ASC LIMIT 10)", ())
+      for i,r in enumerate(rows,1):
+        playerId, w, r, b = r
+        player = bot.get_user(playerId ) or playerId 
+        score = f"{w}/{r} ({ballsToOvers(b)})"
+        table.add_row([f"{i}. {player}",score])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Best Batting Match':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Batters", "Match"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT batterId,r,b,notout FROM (SELECT batterId,SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY batterId,matchId ORDER BY r DESC,b ASC LIMIT 10)", ())
+      for i,r in enumerate(rows,1):
+        playerId, r, b, n = r
+        player = bot.get_user(playerId ) or playerId 
+        score = f"{r} ({b}){'*' if n == 1 else ''}"
+        table.add_row([f"{i}. {player}",score])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Longest Scoring Streak':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Batters", "Streak"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT batterId,MAX(streak) FROM (SELECT batterId,COUNT(*) streak FROM (SELECT batterId,inningId,ROW_NUMBER() OVER(PARTITION BY batterId ORDER BY ts) - ROW_NUMBER() OVER(PARTITION BY batterId,scored ORDER BY ts) grp,scored FROM (SELECT batterId,inningId,MIN(timestamp) ts,CASE WHEN NOT (SUM(runs)=0 AND MAX(isWicket)=1) THEN 1 ELSE 0 END scored FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY batterId,inningId)) WHERE scored=1 GROUP BY batterId,grp) GROUP BY batterId ORDER BY MAX(streak) DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}",x])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v, "Streak of runs scoring innings w/o getting ducks")
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most Matches Won':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Match Won"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT playerId,COUNT(*) wins FROM (SELECT d.batterId playerId,d.matchId,MAX(CASE WHEN d.batterId IS NOT NULL THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterId IS NOT NULL GROUP BY d.batterId,d.matchId UNION SELECT d.bowlerId playerId,d.matchId,MAX(i.bowlingTeam) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.bowlerId IS NOT NULL GROUP BY d.bowlerId,d.matchId) t JOIN matches m ON t.matchId=m.matchId WHERE m.winner=t.team GROUP BY playerId ORDER BY wins DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}",x])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v)
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Best Win %'':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Win %"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT playerId,ROUND(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END)*100.0/COUNT(*),2) pct FROM (SELECT d.batterId playerId,d.matchId,MAX(CASE WHEN d.batterId IS NOT NULL THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterId IS NOT NULL GROUP BY d.batterId,d.matchId UNION SELECT d.bowlerId playerId,d.matchId,MAX(i.bowlingTeam) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.bowlerId IS NOT NULL GROUP BY d.bowlerId,d.matchId) t JOIN matches m ON t.matchId=m.matchId GROUP BY playerId HAVING COUNT(*)>=10 ORDER BY pct DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}",f"{x}%"])
       self.view.stop()
       v = LBview(self.view.ctx, table, v)
       v.m = await self.view.m.edit(view=v)
@@ -1241,7 +1362,7 @@ class LBview(ui.LayoutView):
     container = ui.Container(accent_color = discord.Colour.from_str("#0ebce7"))
     container.add_item(ui.TextDisplay(f"### {title}\n-# For better view visit our [website](https://ashesdb.vercel.app/leaderboard)"))
     container.add_item(ui.TextDisplay(f"**`{table.get_string().splitlines()[0]}`**\n```py\n{'\n'.join(table.get_string().splitlines()[1:])}\n```"))
-    actionRow = ui.ActionRow().add_item(LBSelection(self))
+    actionRow = ui.ActionRow().add_item(LBSelection1(self)).add_item(LBSelection2(self))
     if footer:
       container.add_item(ui.TextDisplay(f"-# {footer}"))
     #for b in buttons: actionRow.add_item(b)

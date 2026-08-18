@@ -335,7 +335,7 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
           #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
           w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])
           container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
-    container.add_item(ui.TextDisplay(f"MVP Points: {round(mvpPoints, 2)} ({round(mvpPoints * 1.2, 2)} if won)"))
+    container.add_item(ui.TextDisplay(f"MVP Points: {round(mvpPoints, 2)} ({round(mvpPoints * 1.2, 2) if mvpPoints > 0 else 0.00} if won)"))
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases= ['pl'], description= 'View the roster for each team.')

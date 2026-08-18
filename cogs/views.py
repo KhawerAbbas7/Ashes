@@ -1223,7 +1223,7 @@ class ShowScoreButton(ui.Button):
         mvpPoints -= i.runsConceded * 0.01
         if i.balls>0:
           timelines[f"Bowling Inn#{inn.inningNo}"] = { "timeline":i.timeline, "tookWickets": tookWickets, "score": f"{i.runsConceded}/{i.wickets} ({ballsToOvers(i.balls)})"}
-          bowl.append(f"{i.runsConceded}/{i.wickets} ({self.ballsToOvers(i.balls)})")
+          bowl.append(f"{i.runsConceded}/{i.wickets} ({ballsToOvers(i.balls)})")
     bat, bowl = " & ".join(bat), " & ".join(bowl)
     view = ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color = discord.Colour.from_str("#0a7a9b")) 

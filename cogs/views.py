@@ -218,7 +218,7 @@ class OversSelection(ui.Select):
 class ShamefulLBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
-    options = ["Most AFKs", "Most Ducks","Most Pairs", "Most Runs Conceded In An Inning", "Most Runs Conceded In An Over","Out On Same Number", "Most Wickets Taken Off A Single Batter", "Most Consecutive Innings Without Scoring 10"]
+    options = ["Most AFKs", "Most Ducks","Most Pairs", "Most Runs Conceded In An Inning", "Most Runs Conceded In An Over","Out On Same Number", "Most Wickets Taken Off A Single Batter", "Most Consecutive Innings Without Scoring 10", "Nervous 40s"]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
   async def callback(self, interaction: discord.Interaction):
@@ -367,6 +367,23 @@ class ShamefulLBSelection(ui.Select):
         table.add_row([f"{i}. {player}", x,st, en])
       self.view.stop()
       v = ShamefulLBview(self.view.ctx, table, self.values[0], 'All times are in Pakistan Standard Time')
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Nervous 40s':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "Nervous 40s"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT batterId, COUNT(*) AS nervousDismissals FROM (SELECT batterId, inningId, SUM(runs) AS totalRuns, MAX(isWicket) AS out FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY batterId, inningId HAVING out = 1 AND totalRuns BETWEEN 40 AND 49) t GROUP BY batterId ORDER BY nervousDismissals DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table, self.values[0])
       v.m = await self.view.m.edit(view=v)
 class LBSelection1(ui.Select):
   def __init__(self, v):
@@ -805,6 +822,7 @@ class LBSelection2(ui.Select):
       "Longest Scoring Streak",
       "Most Matches Won",
       "Best Win %",
+      "Best Dot Balls %",
       ]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
@@ -916,6 +934,23 @@ class LBSelection2(ui.Select):
         table.add_row([f"{i}. {player}",f"{x}%"])
       self.view.stop()
       v = LBview(self.view.ctx, table, v, "MIN: 10 GAMES")
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Best Dot Balls %':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Bowler", "Dot %"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT bowlerId, COUNT(*) AS totalBalls, SUM(CASE WHEN runs = 0 THEN 1 ELSE 0 END) AS dots, ROUND((SUM(CASE WHEN runs = 0 THEN 1 ELSE 0 END)*100.0/COUNT(*)), 2) AS dotPct FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId HAVING totalBalls >= 60 ORDER BY dotPct DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, _, _, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}",f"{x}%"])
+      self.view.stop()
+      v = LBview(self.view.ctx, table, v, "MIN: 60 BALLS")
       v.m = await self.view.m.edit(view=v)
 class CurrencyLBSelection(ui.Select):
   def __init__(self, v):

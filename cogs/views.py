@@ -1325,7 +1325,7 @@ class ShamefulLBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    if self.m
+    if self.m:
       await self.m.edit(content=None, view=self)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class CurrencyLBview(ui.LayoutView):
@@ -1349,7 +1349,7 @@ class CurrencyLBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    if self.m
+    if self.m:
       await self.m.edit(content=None, view=self)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class LBview(ui.LayoutView):

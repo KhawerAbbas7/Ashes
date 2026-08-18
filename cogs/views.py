@@ -218,7 +218,7 @@ class OversSelection(ui.Select):
 class ShamefulLBSelection(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
-    options = ["Most AFKs", "Most Ducks","Most Pairs", "Most Runs Conceded In An Inning", "Most Runs Conceded In An Over","Out On Same Number", "Most Wickets Taken Off A Single Batter", "Most Consecutive Innings Without Scoring 10", "Nervous 40s"]
+    options = ["Most AFKs", "Most AFK Outs","Most Ducks","Most Pairs", "Most Runs Conceded In An Inning", "Most Runs Conceded In An Over","Out On Same Number", "Most Wickets Taken Off A Single Batter", "Most Consecutive Innings Without Scoring 10", "Nervous 40s"]
     options = [discord.SelectOption(label= b, value = b) for b in options]
     super().__init__(placeholder= "Select Category", min_values=1, max_values=1, options=options)
   async def callback(self, interaction: discord.Interaction):
@@ -236,6 +236,23 @@ class ShamefulLBSelection(ui.Select):
       table.vrules=0
       table.left_padding_width=0
       rows=await bot.fetchall("SELECT playerId, SUM(batter_afk+bowler_afk) AS total_afks FROM (SELECT batterId AS playerId, CASE WHEN batterNum IS NULL THEN 1 ELSE 0 END AS batter_afk, 0 AS bowler_afk FROM deliveries WHERE batterId IS NOT NULL UNION ALL SELECT bowlerId AS playerId, 0 AS batter_afk, CASE WHEN bowlerNum IS NULL THEN 1 ELSE 0 END AS bowler_afk FROM deliveries WHERE bowlerId IS NOT NULL) t GROUP BY playerId ORDER BY total_afks DESC LIMIT 10;", ())
+      for i,r in enumerate(rows,1):
+        playerId, x = r
+        player = bot.get_user(playerId ) or playerId 
+        table.add_row([f"{i}. {player}", x])
+      self.view.stop()
+      v = ShamefulLBview(self.view.ctx, table,self.values[0])
+      v.m = await self.view.m.edit(view=v)
+    elif v == 'Most AFK Outs':
+      table = PrettyTable(padding_width=5)
+      table.field_names = ["Player", "AFK OUTs"]
+      table.align = "l"
+      table.border=False
+      table.header=True
+      table.hrules=0
+      table.vrules=0
+      table.left_padding_width=0
+      rows=await bot.fetchall("SELECT batterId, SUM(CASE WHEN batterNum IS NULL AND isWicket= 1 THEN 1 ELSE 0 END) afk_outs FROM deliveries GROUP BY batterId ORDER BY afk_outs DESC LIMIT 10;", ())
       for i,r in enumerate(rows,1):
         playerId, x = r
         player = bot.get_user(playerId ) or playerId 

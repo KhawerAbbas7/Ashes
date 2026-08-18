@@ -875,7 +875,7 @@ class LBSelection2(ui.Select):
       table.hrules=0
       table.vrules=0
       table.left_padding_width=0
-      rows=await bot.fetchall("SELECT batterId,MAX(streak) FROM (SELECT batterId,COUNT(*) streak FROM (SELECT batterId,inningId,ROW_NUMBER() OVER(PARTITION BY batterId ORDER BY ts) - ROW_NUMBER() OVER(PARTITION BY batterId,scored ORDER BY ts) grp,scored FROM (SELECT batterId,inningId,MIN(timestamp) ts,CASE WHEN NOT (SUM(runs)=0 AND MAX(isWicket)=1) THEN 1 ELSE 0 END scored FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY batterId,inningId)) WHERE scored=1 GROUP BY batterId,grp) GROUP BY batterId ORDER BY MAX(streak) DESC LIMIT 10;", ())
+      rows=await bot.fetchall("SELECT batterId,MAX(streak) FROM (SELECT batterId,COUNT(*) streak FROM (SELECT batterId,inningId,ROW_NUMBER() OVER(PARTITION BY batterId ORDER BY ts) - ROW_NUMBER() OVER(PARTITION BY batterId,scored ORDER BY ts) grp,scored FROM (SELECT batterId,inningId,MIN(timestamp) ts,CASE WHEN NOT SUM(runs)=0 THEN 1 ELSE 0 END scored FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY batterId,inningId)) WHERE scored=1 GROUP BY batterId,grp) GROUP BY batterId ORDER BY MAX(streak) DESC LIMIT 10;", ())
       for i,r in enumerate(rows,1):
         playerId, x = r
         player = bot.get_user(playerId ) or playerId 
@@ -915,7 +915,7 @@ class LBSelection2(ui.Select):
         player = bot.get_user(playerId ) or playerId 
         table.add_row([f"{i}. {player}",f"{x}%"])
       self.view.stop()
-      v = LBview(self.view.ctx, table, v)
+      v = LBview(self.view.ctx, table, v, "MIN: 10 GAMES")
       v.m = await self.view.m.edit(view=v)
 class CurrencyLBSelection(ui.Select):
   def __init__(self, v):

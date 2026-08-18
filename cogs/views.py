@@ -1189,7 +1189,6 @@ class ShowScoreButton(ui.Button):
         if timelines[timeline]['timeline']:
           container.add_item(ui.TextDisplay(" • ".join([f'**{t}**' for t in timelines[timeline]['timeline']])))
         if timelines[timeline]['tookWickets']:
-          #container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
           w = " • ".join([f'**{t}**' for t in timelines[timeline]['tookWickets']])
           container.add_item(ui.TextDisplay(f"Wickets on: {w}"))
     container.add_item(ui.TextDisplay(f"MVP Points: {round(mvpPoints, 2)} ({round(mvpPoints * 1.2, 2) if mvpPoints > 0 else 0.00} if won)"))
@@ -1326,7 +1325,8 @@ class ShamefulLBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    #await self.ctx.message.edit(content=None, view=self.view)
+    if self.m
+      await self.m.edit(content=None, view=self)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class CurrencyLBview(ui.LayoutView):
   def __init__(self,ctx,table, title: str= "Most Coins", footer: str = None) -> None:
@@ -1349,7 +1349,8 @@ class CurrencyLBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    #await self.ctx.message.edit(content=None, view=self.view)
+    if self.m
+      await self.m.edit(content=None, view=self)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id
 class LBview(ui.LayoutView):
   def __init__(self,ctx,table, title: str= "Most Runs", footer: str = None) -> None:
@@ -1372,5 +1373,6 @@ class LBview(ui.LayoutView):
     for child in self.walk_children():
       if hasattr(child, "disabled"):
         child.disabled = True
-    await self.m.edit(content=None, view=self.view)
+    if self.m:
+      await self.m.edit(content=None, view=self)
   async def interaction_check(self, interaction: discord.Interaction) -> bool:return self.ctx.author.id == interaction.user.id

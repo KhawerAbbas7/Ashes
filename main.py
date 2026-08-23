@@ -1,11 +1,9 @@
-import discord, os, json, time, sys, aiohttp, asyncio
+import discord, os, json, time, sys, aiohttp, asyncio, random, aiosqlite, psutil
 from discord.ext import commands, tasks
 from dotenv import load_dotenv
 from discord import ui
-import aiosqlite
 from cogs.views import *
 from itertools import cycle
-import psutil
 from cachetools import LRUCache
 from psutil import cpu_percent
 from io import BytesIO
@@ -30,7 +28,7 @@ class Ashes(commands.Bot):
     self.supportServerLink = "https://discord.gg/uxchR7sKd2"
     self.creationBlocked= False
     self.games = {}
-    self.Botstatuses = cycle(["Watching {usersLen} users play with me", "Flirting with {user}", "Omg i feel like Bonnie Blue being in {serversLen} servers"])
+    self.Botstatuses = cycle(["Watching {usersLen} users.", "Playing with {user}", "I am in {serversLen} servers.", "Watching {gamesLen} games.", "Enjoying my stay in {randomServerName}", "not.urlight is THE legend. No debate.", "I miss you Zuhairrrrrr😔😔"])
     self.statsCache = LRUCache(maxsize=1000)
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
@@ -63,7 +61,7 @@ class Ashes(commands.Bot):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
     status = next(self.Botstatuses)
-    activity = discord.CustomActivity(name=status.format(usersLen= len(self.users), user= self.lastUser, serversLen= len(self.guilds)), emoji= None)
+    activity = discord.CustomActivity(name=status.format(usersLen= len(self.users), user= self.lastUser, serversLen= len(self.guilds), gamesLen= len(self.games), randomServerName=random.choice(self.guilds).name), emoji= None)
     await self.change_presence(activity= activity)
   async def _sendKhawiRequest(self, data):
     khawiEndPoint = os.getenv("khawiEndPoint")

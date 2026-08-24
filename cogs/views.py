@@ -60,8 +60,8 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bat_params=[uid]+filter_params_bat
   bow_params=[uid]+filter_params_bow
   q_og="SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?"
-  q_matches="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(*),COALESCE(SUM(isWicket),0) FROM deliveries WHERE "+bat_where
-
+  q_matches="SELECT COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(*),COALESCE(SUM(isWicket),0) FROM deliveries WHERE "+bat_where
+  q_total_matches="SELECT COUNT(DISTINCT matchId) FROM (SELECT matchId FROM deliveries WHERE batterId=?"+(" AND "+filter_sql_bat if filter_sql_bat else "")+" UNION SELECT matchId FROM deliveries WHERE bowlerId=?"+(" AND "+filter_sql_bow if filter_sql_bow else "")+")"
   q_mvps="SELECT COUNT(*) FROM matches WHERE mvpId=? AND matchId IN (SELECT matchId FROM deliveries WHERE "+bat_where+")"
   q_bat_innings="SELECT matchId,inningId,SUM(runs),MAX(isWicket),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY matchId,inningId"
   q_bowlers_faced="SELECT bowlerId,SUM(isWicket),SUM(runs),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY bowlerId"
@@ -77,10 +77,11 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   q_results="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?)"+(" AND "+filter_sql_d_bat if filter_sql_d_bat else "")+" GROUP BY d.matchId) t ON m.matchId=t.matchId"
   q_topscore_field="SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(" AND "+filter_sql_bat if filter_sql_bat else "")+" GROUP BY inningId,batterId"
   (
-    og_row,matches_row,mvps_row,bat_innings_rows,bowlers_faced_rows,partner_rows,bat_nums_rows,
+    total_matches_row,og_row,matches_row,mvps_row,bat_innings_rows,bowlers_faced_rows,partner_rows,bat_nums_rows,
     bowl_stats_row,bowl_innings_rows,bowl_matches_rows,wow_row,hattrick_row,bowl_nums_rows,
     team_pct_rows,results_row,topscore_rows
   )=await asyncio.gather(
+    bot.fetchrow(q_total_matches, tuple([uid]+filter_params_bat+[uid]+filter_params_bow)),
     bot.fetchrow(q_og,(uid,uid,1768935600)),
     bot.fetchrow(q_matches,tuple(bat_params)),
     bot.fetchrow(q_mvps,tuple([uid]+bat_params)),
@@ -99,7 +100,8 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     bot.fetchall(q_topscore_field,tuple(filter_params_bat)),
   )
   og=og_row[0]!=0
-  matches,innings,total_runs,balls_faced,wickets=matches_row
+  innings,total_runs,balls_faced,wickets=matches_row
+  matches = total_matches_row[0]
   mvps=mvps_row[0]
   if bat_innings_rows:
     best=max(bat_innings_rows,key=lambda r:(r[2],-r[4]))

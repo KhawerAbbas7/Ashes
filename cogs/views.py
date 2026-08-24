@@ -60,7 +60,8 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bat_params=[uid]+filter_params_bat
   bow_params=[uid]+filter_params_bow
   q_og="SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND timestamp<=?"
-  q_matches="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(*),COALESCE(SUM(isWicket),0) FROM deliveries d WHERE batterId=?"+(" AND "+filter_sql_bat if filter_sql_bat else "")
+  q_matches="SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(*),COALESCE(SUM(isWicket),0) FROM deliveries WHERE "+bat_where
+
   q_mvps="SELECT COUNT(*) FROM matches WHERE mvpId=? AND matchId IN (SELECT matchId FROM deliveries WHERE "+bat_where+")"
   q_bat_innings="SELECT matchId,inningId,SUM(runs),MAX(isWicket),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY matchId,inningId"
   q_bowlers_faced="SELECT bowlerId,SUM(isWicket),SUM(runs),COUNT(*) FROM deliveries WHERE "+bat_where+" GROUP BY bowlerId"

@@ -46,11 +46,11 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   if lastNBatInnings==0 and lastNBowlInnings==0 and lastNInnings>0:
     lastNBatInnings=lastNBowlInnings=lastNInnings
   if isinstance(ctx, discord.ext.commands.Context):
-    bot = ctx.bot
-    author = ctx.author
+    bot=ctx.bot
+    author=ctx.author
   else:
-    bot = ctx.client
-    author = ctx.user
+    bot=ctx.client
+    author=ctx.user
   row=await bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?",(uid,uid))
   ogEmoji="<:OG:1463581581984792669>"
   if not row or row[0]==0: return "No Games"
@@ -81,7 +81,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     team_pct_rows,results_row,topscore_rows
   )=await asyncio.gather(
     bot.fetchrow(q_og,(uid,uid,1768935600)),
-    bot.fetchrow(q_matches,(uid,)),
+    bot.fetchrow(q_matches,tuple(bat_params)),
     bot.fetchrow(q_mvps,tuple([uid]+bat_params)),
     bot.fetchall(q_bat_innings,tuple(bat_params)),
     bot.fetchall(q_bowlers_faced,tuple(bat_params)),
@@ -182,6 +182,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   container.add_item(ui.TextDisplay(f"-# For more enhanced view and stats visit [website](https://ashesdb.vercel.app/player/{target.id})"))
   view.add_item(container)
   return view
+
 
 class PlayersSwapSelection(ui.Select):
   def __init__(self, players):

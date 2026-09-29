@@ -63,26 +63,11 @@ class Ashes(commands.Bot):
     status = next(self.Botstatuses)
     activity = discord.CustomActivity(name=status.format(usersLen= len(self.users), user= self.lastUser, serversLen= len(self.guilds), gamesLen= len(self.games), randomServerName=random.choice(self.guilds).name), emoji= None)
     await self.change_presence(activity= activity)
-  async def _sendKhawiRequest(self, data):
-    khawiEndPoint = os.getenv("khawiEndPoint")
-    if not khawiEndPoint: return
-    timeout = aiohttp.ClientTimeout(total=10)
-    async with aiohttp.ClientSession(timeout=timeout) as session:
-      await session.post(khawiEndPoint,json=data )
   async def updateTOPGG(self):
     headers = {"Authorization": f"Bearer {os.getenv('TOPGGAPIToken')}","Content-Type": "application/json"}
     async with aiohttp.ClientSession() as session:
       async with session.patch("https://top.gg/api/v1/projects/@me/metrics", headers= headers, json={"server_count": len(self.guilds), "shard_count": 1}):
         pass
-  async def postKhawiData(self, data):
-    if self._debounceKhawiTask:
-      self._debounceKhawiTask.cancel()
-    self._debounceKhawiTask = asyncio.create_task(self._debouncedKhawi(data))
-  async def _debouncedKhawi(self, data):
-    try:
-      await asyncio.sleep(5)
-      await self._sendKhawiRequest(data)
-    except Exception as e: print(e)
   async def on_guild_channel_delete(self, channel):
     if channel.id in [g.ctx.channel.id for g in self.games.copy().values()]:
       await self.games[channel.id].saveData()

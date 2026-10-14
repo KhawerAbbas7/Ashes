@@ -15,11 +15,31 @@ class RankingCog(commands.Cog):
     self.runner = None
   async def cog_load(self):
     app = web.Application()
-    app.add_routes([web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),web.post('/dbl', self.dbl)])
+    app.add_routes([web.get('/staff', self.get_staff),web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),web.post('/dbl', self.dbl)])
     self.runner = web.AppRunner(app)
     await self.runner.setup()
     self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
     await self.site.start()
+  async def get_staff(self, request):
+    try:
+      official_guild = self.bot.get_guild(1459434908932902914)
+      mods = []
+      if official_guild:
+        mod_role = official_guild.get_role(1462101976983535721)
+        if mod_role:
+          for m in mod_role.members:
+            if not m.bot:
+              mods.append({
+                "id": str(m.id),
+                "name": m.name,
+                "displayName": m.display_name,
+                "avatar": str(m.display_avatar.url) if m.display_avatar else f"https://api.dicebear.com/7.x/avataaars/svg?seed={m.id}",
+                "role": "Official Moderator"
+              })
+      return web.json_response({"moderators": mods}, headers=self.get_cors_headers())
+    except Exception as e:
+      return web.json_response({"moderators": [], "error": str(e)}, headers=self.get_cors_headers())
+    
   async def dbl(self, request):
     signature = request.headers.get('x-topgg-signature')
     if not signature: return web.json_response({"status": "unauthorized"}, status=401)

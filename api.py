@@ -145,57 +145,153 @@ class RankingCog(commands.Cog):
   async def get_match(self, request):
     try:
       match_id = request.match_info['matchId']
-      match_row = await self.bot.fetchrow("SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId FROM matches WHERE matchId=?", [match_id])
+      match_row = await self.bot.fetchrow(
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?",
+        [match_id]
+      )
       if not match_row:
         return web.json_response({"error": "Match not found"}, status=404, headers=self.get_cors_headers())
-      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId = match_row
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement = match_row
       channel = self.bot.get_channel(channelId)
       guild = self.bot.get_guild(guildId)
-      innings_rows = await self.bot.fetchall("SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isDeclared,isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo", [match_id])
+      innings_rows = await self.bot.fetchall(
+        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isDeclared,isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo",
+        [match_id]
+      )
       innings = []
+      total_balls = 0
       for row in innings_rows:
         inningId, inningNo, battingTeam, bowlingTeam, runs, wickets, balls, isDeclared, isFollowOn = row
+        total_balls += (balls or 0)
         overs = f"{balls // 6}.{balls % 6}"
-        innings.append({"inningId": inningId, "inningNo": inningNo, "battingTeam": battingTeam, "bowlingTeam": bowlingTeam, "runs": runs, "wickets": wickets, "balls": balls, "overs": overs, "isDeclared": bool(isDeclared), "isFollowOn": bool(isFollowOn)})
+        innings.append({
+          "inningId": inningId,
+          "inningNo": inningNo,
+          "battingTeam": battingTeam,
+          "bowlingTeam": bowlingTeam,
+          "runs": runs,
+          "wickets": wickets,
+          "balls": balls,
+          "overs": overs,
+          "isDeclared": bool(isDeclared),
+          "isFollowOn": bool(isFollowOn)
+        })
       mvp = None
       if mvpId:
         mvp = await self.fetch_user_data(mvpId)
         mvp["id"] = str(mvpId)
       ts = await self.bot.fetchrow("SELECT MAX(timestamp) FROM deliveries WHERE matchId = ?", (matchId,))
-      return web.json_response({"matchId": matchId, "channelName": channel.name if channel else str(channelId), "guildName": guild.name if guild else str(guildId), "teamAName": teamAName, "teamBName": teamBName, "winner": winner, "mvp": mvp, "innings": innings, "timestamp": ts[0] if ts else 00000000}, headers=self.get_cors_headers())
+      return web.json_response({
+        "matchId": matchId,
+        "channelName": channel.name if channel else str(channelId),
+        "guildName": guild.name if guild else str(guildId),
+        "teamAName": teamAName,
+        "teamBName": teamBName,
+        "winner": winner,
+        "mvp": mvp,
+        "innings": innings,
+        "matchMaximumBalls": matchMaximumBalls or 180,
+        "maxBalls": matchMaximumBalls or 180,
+        "matchTotalBalls": total_balls,
+        "drawByAgreement": bool(drawByAgreement),
+        "timestamp": ts[0] if ts and ts[0] else 0
+      }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
+
   async def get_scorecard(self, request):
     try:
       match_id = request.match_info['matchId']
-      match_row = await self.bot.fetchrow("SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?", [match_id])
-      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId,matchMaximumBalls,drawByAgreement = match_row
-      if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
-      innings_rows = await self.bot.fetchall("SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn,isDeclared FROM innings WHERE matchId=? ORDER BY inningNo", [match_id])
-      if not match_row:return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
+      match_row = await self.bot.fetchrow(
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?",
+        [match_id]
+      )
+      if not match_row:
+        return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement = match_row
+      innings_rows = await self.bot.fetchall(
+        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn,isDeclared FROM innings WHERE matchId=? ORDER BY inningNo",
+        [match_id]
+      )
       result = []
+      match_total_balls = 0
       for inning in innings_rows:
-        inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls, isFollowOn,isDeclared = inning
-        bat_rows = await self.bot.fetchall("SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls, SUM(CASE WHEN runs=4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN runs=6 THEN 1 ELSE 0 END) AS sixes, MAX(timestamp) AS batting_order, MAX(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) AS dismissed, MAX(CASE WHEN isWicket=1 THEN bowlerId ELSE NULL END) AS dismissedBy FROM deliveries WHERE inningId=? AND batterId IS NOT NULL GROUP BY batterId ORDER BY batting_order", [inningId])
+        inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls, isFollowOn, isDeclared = inning
+        match_total_balls += (totalBalls or 0)
+        bat_rows = await self.bot.fetchall(
+          "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls, SUM(CASE WHEN runs=4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN runs=6 THEN 1 ELSE 0 END) AS sixes, MIN(timestamp) AS batting_order, MAX(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) AS dismissed, MAX(CASE WHEN isWicket=1 THEN bowlerId ELSE NULL END) AS dismissedBy FROM deliveries WHERE inningId=? AND batterId IS NOT NULL GROUP BY batterId ORDER BY batting_order",
+          [inningId]
+        )
         batters = []
         for row in bat_rows:
           batterId, runs, balls, fours, sixes, batting_order, dismissed, dismissedBy = row
           sr = round((runs / balls) * 100, 2) if balls else 0
           u = await self.fetch_user_data(batterId)
-          dismissedByU = await self.fetch_user_data(dismissedBy) if bool(dismissed) else "NOT OUT" 
-          batters.append({"playerId": str(batterId), "playerName": u["name"], "avatar": u["avatar"], "runs": runs or 0, "balls": balls or 0, "fours": fours or 0, "sixes": sixes or 0, "strikeRate": sr, "dismissed": bool(dismissed), "dismissedBy": f"b. {dismissedByU['name']}" if 'name' in dismissedByU else dismissedByU})
-        bowl_rows = await self.bot.fetchall("SELECT bowlerId, COUNT(*) AS balls, SUM(runs) AS runs, SUM(isWicket) AS wickets, MAX(timestamp) AS bowling_order FROM deliveries WHERE inningId=? AND bowlerId IS NOT NULL AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY bowling_order", [inningId])
+          if bool(dismissed):
+            if dismissedBy:
+              dismissedByU = await self.fetch_user_data(dismissedBy)
+              dismissed_str = f"b. {dismissedByU['name']}"
+            else:
+              dismissed_str = "AFK / Out"
+          else:
+            dismissed_str = "not out"
+          batters.append({
+            "playerId": str(batterId),
+            "playerName": u["name"],
+            "avatar": u["avatar"],
+            "runs": runs or 0,
+            "balls": balls or 0,
+            "fours": fours or 0,
+            "sixes": sixes or 0,
+            "strikeRate": sr,
+            "dismissed": bool(dismissed),
+            "dismissedBy": dismissed_str
+          })
+        bowl_rows = await self.bot.fetchall(
+          "SELECT bowlerId, COUNT(*) AS balls, SUM(runs) AS runs, SUM(isWicket) AS wickets, MIN(timestamp) AS bowling_order FROM deliveries WHERE inningId=? AND bowlerId IS NOT NULL AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY bowling_order",
+          [inningId]
+        )
         bowlers = []
         for row in bowl_rows:
           bowlerId, balls, runs, wickets, bowling_order = row
-          overs_num = balls // 6
-          overs_rem = balls % 6
-          overs_str = f"{overs_num}.{overs_rem}"
+          overs_str = f"{balls // 6}.{balls % 6}"
           economy = round((runs / balls) * 6, 2) if balls else 0
           u = await self.fetch_user_data(bowlerId)
-          bowlers.append({"playerId": str(bowlerId), "playerName": u["name"], "avatar": u["avatar"], "overs": overs_str, "balls": balls or 0, "runs": runs or 0, "wickets": wickets or 0, "economy": economy})
-        result.append({"inningNo": inningNo, "battingTeam": battingTeam, "bowlingTeam": bowlingTeam, "total": totalRuns, "wickets": totalWickets, "balls": totalBalls, "overs": f"{totalBalls // 6}.{totalBalls % 6}", "batters": batters, "bowlers": bowlers, "winner": winner, 'isFollowOn': bool(isFollowOn), 'isDeclared': bool(isDeclared)})
-      return web.json_response({"matchId": match_id, "innings": result, "winner": winner,'drawByAgreement': bool(drawByAgreement), 'matchMaximumBalls': matchMaximumBalls}, headers=self.get_cors_headers())
+          bowlers.append({
+            "playerId": str(bowlerId),
+            "playerName": u["name"],
+            "avatar": u["avatar"],
+            "overs": overs_str,
+            "balls": balls or 0,
+            "runs": runs or 0,
+            "wickets": wickets or 0,
+            "economy": economy
+          })
+        result.append({
+          "inningNo": inningNo,
+          "battingTeam": battingTeam,
+          "bowlingTeam": bowlingTeam,
+          "total": totalRuns,
+          "wickets": totalWickets,
+          "balls": totalBalls,
+          "overs": f"{totalBalls // 6}.{totalBalls % 6}",
+          "batters": batters,
+          "bowlers": bowlers,
+          "winner": winner,
+          "isFollowOn": bool(isFollowOn),
+          "isDeclared": bool(isDeclared)
+        })
+      return web.json_response({
+        "matchId": match_id,
+        "teamAName": teamAName,
+        "teamBName": teamBName,
+        "innings": result,
+        "winner": winner,
+        "drawByAgreement": bool(drawByAgreement),
+        "matchMaximumBalls": matchMaximumBalls or 180,
+        "maxBalls": matchMaximumBalls or 180,
+        "matchTotalBalls": match_total_balls
+      }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_live_matches(self, request):
@@ -207,10 +303,37 @@ class RankingCog(commands.Cog):
         state = "live" if game.started else "lobby"
         innings_summary = []
         for inn in game.innings:
-          innings_summary.append({"battingTeam": inn.battingTeam.name if inn.battingTeam else None, "bowlingTeam": inn.bowlingTeam.name if inn.bowlingTeam else None, "runs": inn.runs, "wickets": inn.wickets, "overs": f"{inn.balls // 6}.{inn.balls % 6}", "isDeclared": inn.declared})
-        team_a_players = [{"id": p.id, "name": p.name} for p in game.teama.players]
-        team_b_players = [{"id": p.id, "name": p.name} for p in game.teamb.players]
-        matches.append({"id": game.gameId, "state": state, "channelId": str(channel_id), "channelName": channel.name if channel else str(channel_id), "guildName": guild.name if guild else str(game.ctx.guild.id), "teamAName": game.teama.name, "teamBName": game.teamb.name, "teamAPlayers": team_a_players, "teamBPlayers": team_b_players, "innings": innings_summary})
+          innings_summary.append({
+            "battingTeam": inn.battingTeam.name if inn.battingTeam else None,
+            "bowlingTeam": inn.bowlingTeam.name if inn.bowlingTeam else None,
+            "runs": inn.runs,
+            "wickets": inn.wickets,
+            "balls": inn.balls,
+            "overs": f"{inn.balls // 6}.{inn.balls % 6}",
+            "isDeclared": inn.declared,
+            "isFollowOn": inn.followOn
+          })
+        team_a_players = [{"id": str(p.id), "name": p.name} for p in game.teama.players]
+        team_b_players = [{"id": str(p.id), "name": p.name} for p in game.teamb.players]
+        day, session = game.getDaysAndSessions() if game.started and not game.T10 else (1, 1)
+        matches.append({
+          "id": game.gameId,
+          "state": state,
+          "format": "T10" if game.T10 else "Test",
+          "channelId": str(channel_id),
+          "channelName": channel.name if channel else str(channel_id),
+          "guildName": guild.name if guild else str(game.ctx.guild.id),
+          "teamAName": game.teama.name,
+          "teamBName": game.teamb.name,
+          "teamAPlayers": team_a_players,
+          "teamBPlayers": team_b_players,
+          "innings": innings_summary,
+          "maxBalls": 60 if game.T10 else game.maxBalls,
+          "matchTotalBalls": game.matchTotalBalls,
+          "day": day,
+          "session": session,
+          "statusText": game.matchStatus() if game.started and game.innings else "Waiting in Lobby"
+        })
       return web.json_response({"matches": matches}, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
@@ -236,23 +359,120 @@ class RankingCog(commands.Cog):
               return len(inn.cantBat) + len(inn.battingTeam.players)
         ordered_batters = sorted(inn.batters.items(), key=lambda x: get_order(x[0]))
         for player, b in ordered_batters:
-          batters_out.append({"playerId": str(player.id), "playerName": player.name, "runs": b.runs, "balls": b.balls, "fours": b.fours, "sixes": b.sixes, "strikeRate": b.sr, "dismissed": b.dismissed, "dismissedBy": b.dismissedBy if b.dismissed else "not out"})
+          can_do_0 = b.consecutiveDots != 3
+          can_do_boundary = not b.cantDoBoundaryThisOver
+          batters_out.append({
+            "playerId": str(player.id),
+            "playerName": player.name,
+            "runs": b.runs,
+            "balls": b.balls,
+            "fours": b.fours,
+            "sixes": b.sixes,
+            "strikeRate": b.sr,
+            "dismissed": b.dismissed,
+            "dismissedBy": b.dismissedBy if b.dismissed else "not out",
+            "consecutiveDots": b.consecutiveDots,
+            "boundaryThisOver": b.BoundaryThisOver,
+            "canDo0": can_do_0,
+            "canDoBoundary": can_do_boundary,
+            "timeline": list(b.timeline)
+          })
         bowlers_out = []
         for player, b in inn.bowlers.items():
           economy = round((b.runsConceded / b.balls) * 6, 2) if b.balls else 0.0
-          bowlers_out.append({"playerId": str(player.id), "playerName": player.name, "overs": f"{b.balls // 6}.{b.balls % 6}", "runs": b.runsConceded, "wickets": b.wickets, "economy": economy})
-        innings_out.append({"battingTeam": inn.battingTeam.name if inn.battingTeam else None, "bowlingTeam": inn.bowlingTeam.name if inn.bowlingTeam else None, "runs": inn.runs, "wickets": inn.wickets, "overs": f"{inn.balls // 6}.{inn.balls % 6}", "isDeclared": inn.declared, "batters": batters_out, "bowlers": bowlers_out})
+          bowlers_out.append({
+            "playerId": str(player.id),
+            "playerName": player.name,
+            "overs": f"{b.balls // 6}.{b.balls % 6}",
+            "balls": b.balls,
+            "maidens": b.maidens,
+            "runs": b.runsConceded,
+            "wickets": b.wickets,
+            "economy": economy,
+            "timeline": list(b.timeline)
+          })
+        innings_out.append({
+          "inningNo": inn.inningNo,
+          "battingTeam": inn.battingTeam.name if inn.battingTeam else None,
+          "bowlingTeam": inn.bowlingTeam.name if inn.bowlingTeam else None,
+          "runs": inn.runs,
+          "wickets": inn.wickets,
+          "balls": inn.balls,
+          "overs": f"{inn.balls // 6}.{inn.balls % 6}",
+          "isDeclared": inn.declared,
+          "isFollowOn": inn.followOn,
+          "fallOfWickets": inn.fallOfWickets,
+          "timeline": list(inn.timeline),
+          "batters": batters_out,
+          "bowlers": bowlers_out
+        })
       current_batters = []
       current_bowlers = []
+      partnership = None
+      timeline = []
       if game.started and game.innings:
         ci = game.currentInning
+        timeline = list(ci.timeline)
+        partnership = ci.currentPartnership
         for i, p in enumerate(ci.currentBatters):
           b = ci.batters.get(p)
-          current_batters.append({"playerId": str(p.id), "playerName": p.name, "runs": b.runs if b else 0, "balls": b.balls if b else 0, "strikeRate": b.sr if b else 0.0, "onStrike": i == 0})
-        for p in ci.currentBowlers:
+          can_do_0 = (b.consecutiveDots != 3) if b else True
+          can_do_boundary = (not b.cantDoBoundaryThisOver) if b else True
+          current_batters.append({
+            "playerId": str(p.id),
+            "playerName": p.name,
+            "runs": b.runs if b else 0,
+            "balls": b.balls if b else 0,
+            "fours": b.fours if b else 0,
+            "sixes": b.sixes if b else 0,
+            "strikeRate": b.sr if b else 0.0,
+            "onStrike": i == 0,
+            "consecutiveDots": b.consecutiveDots if b else 0,
+            "boundaryThisOver": b.BoundaryThisOver if b else 0,
+            "canDo0": can_do_0,
+            "canDoBoundary": can_do_boundary
+          })
+        for i, p in enumerate(ci.currentBowlers):
           b = ci.bowlers.get(p)
-          current_bowlers.append({"playerId": str(p.id), "playerName": p.name, "overs": f"{b.balls // 6}.{b.balls % 6}" if b else "0.0", "runs": b.runsConceded if b else 0, "wickets": b.wickets if b else 0, "isBowling": True})
-      return web.json_response({"id": game.gameId, "state": state, "channelName": channel.name if channel else str(game.ctx.channel.id), "guildName": guild.name if guild else str(game.ctx.guild.id), "teamAName": game.teama.name, "teamBName": game.teamb.name, "innings": innings_out, "currentBatters": current_batters, "currentBowlers": current_bowlers, "commentary": list(game.currentInning.commentary) if game.currentInning.commentary else None}, headers=self.get_cors_headers())
+          bowler_can_do_0 = bool(
+            b and (b.isOnHattrick or (ci.balls >= 6 and b.lastOverMaiden and not ci.zeroByBowler))
+          )
+          current_bowlers.append({
+            "playerId": str(p.id),
+            "playerName": p.name,
+            "overs": f"{b.balls // 6}.{b.balls % 6}" if b else "0.0",
+            "maidens": b.maidens if b else 0,
+            "runs": b.runsConceded if b else 0,
+            "wickets": b.wickets if b else 0,
+            "economy": round((b.runsConceded / b.balls) * 6, 2) if (b and b.balls) else 0.0,
+            "isBowling": i == 0,
+            "isOnHattrick": b.isOnHattrick if b else False,
+            "canDo0": bowler_can_do_0
+          })
+      day, session = game.getDaysAndSessions() if game.started and not game.T10 else (1, 1)
+      return web.json_response({
+        "id": game.gameId,
+        "state": state,
+        "format": "T10" if game.T10 else "Test",
+        "channelName": channel.name if channel else str(game.ctx.channel.id),
+        "guildName": guild.name if guild else str(game.ctx.guild.id),
+        "teamAName": game.teama.name,
+        "teamBName": game.teamb.name,
+        "maxBalls": 60 if game.T10 else game.maxBalls,
+        "matchTotalBalls": game.matchTotalBalls,
+        "followOnLimit": game.followOnLimit,
+        "repLimit": game.repLimit,
+        "day": day,
+        "session": session,
+        "tossStatus": game.tossStatus,
+        "statusText": game.matchStatus() if game.started and game.innings else "Waiting in Lobby",
+        "innings": innings_out,
+        "currentBatters": current_batters,
+        "currentBowlers": current_bowlers,
+        "partnership": partnership,
+        "timeline": timeline,
+        "commentary": list(game.currentInning.commentary) if (game.innings and game.currentInning.commentary) else []
+      }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_leaderboard(self, request):
@@ -394,7 +614,7 @@ class RankingCog(commands.Cog):
     channel_id = request.query.get('channelId')
     guild_id = request.query.get('guildId')
     player_id = request.query.get('playerId')
-    sql = "SELECT m.matchId, m.channelId, m.guildId, m.teamAName, m.teamBName, m.winner, MAX(d.timestamp) AS lastTimestamp FROM matches m JOIN deliveries d ON d.matchId = m.matchId"
+    sql = "SELECT m.matchId, m.channelId, m.guildId, m.teamAName, m.teamBName, m.winner, m.matchMaximumBalls, m.drawByAgreement, MAX(d.timestamp) AS lastTimestamp FROM matches m JOIN deliveries d ON d.matchId = m.matchId"
     conditions = []
     params = []
     if query:
@@ -418,12 +638,40 @@ class RankingCog(commands.Cog):
     rows = await self.bot.fetchall(sql, params)
     data = {'Matches': []}
     for row in rows:
-      matchId, channelId, guildId, teamAName, teamBName, winner, timestamp = row
+      matchId, channelId, guildId, teamAName, teamBName, winner, matchMaximumBalls, drawByAgreement, timestamp = row
       channel = self.bot.get_channel(channelId)
       channelName = channel.name if channel else str(channelId)
       guild = self.bot.get_guild(guildId)
       guildName = guild.name if guild else str(guildId)
-      data['Matches'].append({'id': matchId, 'channelName': channelName, 'guildName': guildName, 'teamAName': teamAName, 'teamBName': teamBName, 'winner': winner, 'timestamp': timestamp})
+      inn_rows = await self.bot.fetchall(
+        "SELECT inningNo, battingTeam, runs, wickets, balls, isDeclared, isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo",
+        [matchId]
+      )
+      innings_summary = [
+        {
+          "inningNo": r[0],
+          "battingTeam": r[1],
+          "runs": r[2],
+          "wickets": r[3],
+          "balls": r[4],
+          "overs": f"{(r[4] or 0)//6}.{(r[4] or 0)%6}",
+          "isDeclared": bool(r[5]),
+          "isFollowOn": bool(r[6])
+        }
+        for r in inn_rows
+      ]
+      data['Matches'].append({
+        'id': matchId,
+        'channelName': channelName,
+        'guildName': guildName,
+        'teamAName': teamAName,
+        'teamBName': teamBName,
+        'winner': winner,
+        'maxBalls': matchMaximumBalls or 180,
+        'drawByAgreement': bool(drawByAgreement),
+        'innings': innings_summary,
+        'timestamp': timestamp
+      })
     return web.json_response(data, headers=self.get_cors_headers())
 async def setup(bot):
   await bot.add_cog(RankingCog(bot))

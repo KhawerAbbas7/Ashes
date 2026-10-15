@@ -159,16 +159,20 @@ class TestCricket(commands.Cog, name= "Test Cricket"):
       if p:g.teamb.players.pop(g.teamb.players.index(p))
     g.mitigatePlayers()
     await ctx.send(f'{ctx.author} has left the game.')
-  @commands.command(aliases= ['T10'], description= 'Change the format to T10.',extras={'usableBy': 'Host only.'})
-  async def t10on(self, ctx):
+  @commands.command(aliases= ['format','fmt'], description= 'Change the match format.', extras={'usableBy': 'Host only.'})
+  async def gameformat(self, ctx, fmt: str = None):
     if ctx.channel.id not in self.bot.games:
       return await ctx.send(embed= Embed(title='No Game', description='Looks like this channel is not hosting a game at the moment, be a man and host one yourself.', color=Color.from_str('#b30707')))
     g = self.bot.games[ctx.channel.id]
     if g.hostId != ctx.author.id:
       return await ctx.send(embed= Embed(title='Host Only', description='This command is only intended to be run by host.', color=Color.from_str('#b30707')))
     elif g.started:return await ctx.send(embed= Embed(title='Can\'t be used after start.', description='This command can\'t be used after the commencement of the game.', color=Color.from_str('#b30707')))
-    g.T10 = True if not g.T10 else False
-    await ctx.send("Changed the format to T10" if g.T10 else "Changed the format to Test")
+    fmt = (fmt or ('t15' if g.format == 'test' else 'test')).lower()
+    if fmt not in ('test', 't15'):
+      return await ctx.send("Available formats: test, t15.")
+    g.format = fmt
+    g.maxBalls = 90 if fmt == 't15' else 180
+    await ctx.send(f"Changed the format to {fmt.upper() if fmt != 'test' else 'Test'}")
   @commands.command(aliases= ['delete'], description= 'Delete a game, cannot be used if gane has started.',extras={'usableBy': 'Host only.'})
   async def yeet(self, ctx):
     if ctx.channel.id not in self.bot.games:

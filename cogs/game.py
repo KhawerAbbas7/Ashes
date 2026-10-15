@@ -130,7 +130,13 @@ class Player():
 class Game():
   def __init__(self, ctx):
     self.T10 = False
+    self.format = "test"
     self.resumed = False
+    self.PHASES = {
+      1: {"name": "Powerplay", "boundaries": 2},
+      2: {"name": "Middle", "boundaries": 1},
+      3: {"name": "Death", "boundaries": 2}
+    }
     self.matchTotalPredictions = {}
     self.thisBallPredictions = {}
     self.lobbyCreatedAt = time.time()
@@ -159,6 +165,10 @@ class Game():
     self.DEBUG = False
     self.updateMsg = None
     self.forceYeet = False
+  def phase(self, balls): return min(3, balls // 30 + 1)
+  def cantBoundary(self, p, inn):
+    if self.format == 'test': return p.cantDoBoundaryThisOver
+    return p.BoundaryThisOver >= self.PHASES[self.phase(inn.balls)]["boundaries"]
   async def checkIfDeletable(self):
     if self.started or len(self.players) >= 6: return 
     if (time.time() - self.lobbyCreatedAt) >= 1800:
@@ -187,7 +197,7 @@ class Game():
       await self.editGracefully(self.updateMsg, view = self.score())
   async def saveData(self):
     if self.matchTotalBalls == 0: return
-    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id if self.mvp else None,self.maxBalls, 1 if self.drawnByAgreement else 0,))
+    await self.ctx.bot.execute("INSERT INTO matches VALUES (?,?,?,?,?,?,?,?, ?, ?)", (self.gameId, self.ctx.channel.id, self.ctx.guild.id, self.teama.name, self.teamb.name, self.winner, self.mvp.id if self.mvp else None,self.maxBalls, 1 if self.drawnByAgreement else 0,self.format,))
     data = [(i.inningId, self.gameId, i.runs, i.balls, i.wickets, i.battingTeam.name, i.bowlingTeam.name, 1 if i.declared else 0, 1 if i.followOn else 0,i.inningNo,) for i in self.innings]
     placeholders = ",".join(["?"] * len(data[0]))
     await self.ctx.bot.db.executemany(f"INSERT INTO innings VALUES ({placeholders})", data)
@@ -207,6 +217,7 @@ class Game():
   @property 
   def players(self): return self.teama.players + self.teamb.players
   def getDaysAndSessions(self):
+    if self.format != 'test': return 1, (self.phase(self.currentInning.balls) if self.innings else 1)
     ball = self.matchTotalBalls 
     if ball == 0: return 1,1
     balls_per_day = self.maxBalls/5
@@ -226,7 +237,7 @@ class Game():
     self.teama.checkForCaptain();self.teamb.checkForCaptain()
     return True
   async def checkFollowOn(self):
-    if self.T10: return
+    if self.format != 'test': return
     if len(self.innings)==2:
       first=self.innings[0].battingTeam
       second=self.innings[1].battingTeam
@@ -254,7 +265,7 @@ class Game():
   def matchStatus(self):
     w = self.checkForWinner()
     if w: return w
-    if not self.T10:
+    if self.format == 'test':
       inn=self.currentInning
       bat=inn.battingTeam
       bowl=inn.bowlingTeam
@@ -293,7 +304,7 @@ class Game():
       if need>0:return f"{bat.name} need {need} runs to win"
       return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
-    if not self.T10:
+    if self.format=='test':
       if self.forfeitedById:
         self.winner = self.teama.name if self.forfeitedById == 2 else self.teamb.name 
         return f"{self.winner} won by forfiet"
@@ -334,22 +345,20 @@ class Game():
         return "Match Drawn" if not self.drawnByAgreement else  "Match Drawn By Agreement"
       return None
     else:
-      if len(self.innings)<2: return 
-      else:
-        last=self.currentInning
-        bat=last.battingTeam
-        bowl=last.bowlingTeam
-        batTotal=self.teamTotal(bat)
-        bowlTotal=self.teamTotal(bowl)
-        if bowlTotal > batTotal and not last.currentBatters and len(last.cantBat)==len(bat.players):
-          self.winner = bowl.name
-          return f"{bowl.name} have won by {bowlTotal-batTotal} runs"
-        elif bowlTotal == batTotal and not last.currentBatters and len(last.cantBat)==len(bat.players):
-          self.winner = 'Tied'
-          return f"Match Tied"
-        elif batTotal > bowlTotal:
-          self.winner = bat.name
-          return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
+      if len(self.innings)<2: return
+      last=self.currentInning
+      bat=last.battingTeam
+      batTotal=self.teamTotal(bat)
+      bowlTotal=self.teamTotal(last.bowlingTeam)
+      if batTotal > bowlTotal:
+        self.winner = bat.name
+        return f"{bat.name} have won by {len(bat.players)-last.wickets} wickets"
+      if last.balls >= self.maxBalls or (not last.currentBatters and len(last.cantBat)==len(bat.players)):
+        if bowlTotal > batTotal:
+          self.winner = last.bowlingTeam.name
+          return f"{self.winner} have won by {bowlTotal-batTotal} runs"
+        self.winner = 'Tied'
+        return "Match Tied"
   def mitigatePlayers(self):
     combined= self.players
     total = len(combined)
@@ -645,7 +654,9 @@ class Game():
       image_binary.seek(0)
       return discord.File(fp=image_binary, filename='bowlingSC.png')
   def matchSummaryCard(self):
-    img = Image.open(os.path.join(BASE_DIR, "templates", "matchSummary.png")).convert("RGBA")
+    is_t15 = self.format != "test"
+    template_name = "t15matchSummary.png" if is_t15 else "matchSummary.png"
+    img = Image.open(os.path.join(BASE_DIR, "templates", template_name)).convert("RGBA")
     draw = ImageDraw.Draw(img)
     S = 1.3325714286
     font = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(40*S))
@@ -653,15 +664,13 @@ class Game():
     font3 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(23*S))
     font4 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansRegular.woff2"), int(28*S))
     font5 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansBold.woff2"), int(28*S))
-    fonts=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/archivo.woff2"),28*1.3325714286)
-    fontb=ImageFont.truetype(os.path.join(os.getcwd(), "fonts/canvaSansBold.woff2"),24*1.3325714286)
-    font6 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(24*S))
+    fonts = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(28*S))
+    fontb = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "canvaSansBold.woff2"), int(24*S))
     font7 = ImageFont.truetype(os.path.join(BASE_DIR, "fonts", "archivo.woff2"), int(31*S))
-    vividGreen = "#14f67c"
-    vividAzure = "#05a9e6"
-    draw.text((203.3, 139.4), f"{self.teama.name.upper()} VS {self.teamb.name.upper()}", font=font2, fill='White')
+    draw.text((203.3, 139.4), f"{self.teama.name.upper()} VS {self.teamb.name.upper()}", font=font2, fill="White")
     y = 260
-    offset = 215.7
+    offset = 470 if is_t15 else 215.7
+    limit = 4 if is_t15 else 2
     for i, inn in enumerate(self.innings):
       battingTeam = f"{inn.battingTeam.name.upper()} {inn.runs}/{inn.wickets}{'d' if inn.declared else ''}"
       if inn.inningNo == 3 and self.followOnTeam: battingTeam += " (f/o)"
@@ -669,37 +678,39 @@ class Game():
       draw.text((100, y), battingTeam, font=font, fill=color)
       ord_s = "th" if 10 <= inn.inningNo % 100 <= 20 else {1: "st", 2: "nd", 3: "rd"}.get(inn.inningNo % 10, "th")
       innLabel = f"{inn.inningNo}{ord_s} Inning".upper()
-      draw.text((1200 - font3.getlength(innLabel), y + 10), innLabel, font=font3, fill='White')
-      topBat = sorted(inn.batters.items(), key=lambda x: x[1].runs, reverse=True)[:2]
-      topBowl = sorted(inn.bowlers.items(), key=lambda x: x[1].wickets, reverse=True)[:2]
+      draw.text((1200 - font3.getlength(innLabel), y + 10), innLabel, font=font3, fill="White")
+      topBat = sorted(inn.batters.items(), key=lambda x: (x[1].runs, -x[1].balls), reverse=True)[:limit]
+      topBowl = sorted(inn.bowlers.items(), key=lambda x: (x[1].wickets, -x[1].runsConceded), reverse=True)[:limit]
       y2 = y
       offset2 = 50
-      for k in range(2):
+      for k in range(limit):
         if k < len(topBat):
           p, b = topBat[k]
           name = p.name.upper()[:15]
           runs = str(b.runs)
           balls = f"{b.balls}"
-          draw.text((100, y2 + 60), name, font=font4, fill='White')
-          draw.text((475.8, y2 + 60), runs, font=fonts, fill='White')
+          draw.text((100, y2 + 60), name, font=font4, fill="White")
+          draw.text((475.8, y2 + 60), runs, font=fonts, fill="White")
           l = fonts.getlength(runs) + 5
-          draw.text(((475.8 + l), y2 + 60), balls, font=fontb, fill='White')
+          draw.text(((475.8 + l), y2 + 60), balls, font=fontb, fill="White")
         if k < len(topBowl):
           p, b = topBowl[k]
           name = p.name.upper()[:15]
           fig = f"{b.wickets}-{b.runsConceded}"
-          draw.text((750, y2 + 60), name, font=font4, fill='White')
-          draw.text((1190 - font5.getlength(fig), y2 + 60), fig, font=font5, fill='White')
+          draw.text((750, y2 + 60), name, font=font4, fill="White")
+          draw.text((1190 - font5.getlength(fig), y2 + 60), fig, font=font5, fill="White")
         y2 += offset2
-      if i > 0: offset = 230
-      if i == 2: offset = 240
+      if not is_t15:
+        if i > 0: offset = 230
+        if i == 2: offset = 240
       y += offset
     footer = self.matchStatus().upper()
     draw.text(((1280 - font7.getlength(footer)) / 2, 1190), footer, font=font7, fill="black")
     with BytesIO() as image_binary:
-      img.save(image_binary, 'PNG')
+      img.save(image_binary, "PNG")
       image_binary.seek(0)
-      return discord.File(fp=image_binary, filename='matchSummary.png')
+      return discord.File(fp=image_binary, filename="matchSummary.png")
+
   def showPlayers(self):
     if not self.started:
       teamaP = ""
@@ -720,14 +731,14 @@ class Game():
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       tossStatus = f"**Toss:** ❌" if not self.tossStatus else f"-# {self.tossStatus}"
-      if not self.T10:
+      if self.format == 'test':
         container.add_item(ui.TextDisplay(f"{tossStatus}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
         actionRow = ui.ActionRow()
         actionRow.add_item(OversSelection())
         container.add_item(actionRow)
         container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       else:
-        container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**T10:** ✅\n**Rep Limit:** {self.repLimit}"))
+        container.add_item(ui.TextDisplay(f"**Toss:** {'✅' if self.batFirstTeam else '❌'}\n**T15** ✅\n**Rep Limit:** {self.repLimit}"))
         
       container.add_item(ui.TextDisplay(f"### {self.teama.name}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
@@ -759,10 +770,10 @@ class Game():
       for i in self.innings:
         s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
         if i.inningNo == self.currentInning.inningNo:
-          if not self.T10:
+          if self.format == 'test':
             s += f" ({self.ballsToOvers(i.balls)})"
           else:
-            s += f" ({self.ballsToOvers(i.balls)}/10)"
+            s += f" ({self.ballsToOvers(i.balls)}/15)"
         if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
         else: t[i.battingTeam.name] = s
       view = ui.LayoutView(timeout= None)
@@ -823,7 +834,7 @@ class Game():
     for i in self.innings:
       s = f"{i.runs}/{i.wickets}{'(f/o)' if i.inningNo == 3 and self.followOnTeam else ''}{'(D)' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
-        s += f" ({self.ballsToOvers(i.balls)}{'/10' if self.T10 else ''})"
+        s += f" ({self.ballsToOvers(i.balls)}{'/15' if self.format != 'test' else ''})"
       if i.battingTeam.name in t:
         t[i.battingTeam.name] += f" & {s}"
       else:
@@ -843,22 +854,25 @@ class Game():
     view = ui.LayoutView(timeout=30)
     container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
     DaysAndSessions = self.getDaysAndSessions()
-    if not self.T10:
+    if self.format == 'test':
       container.add_item(ui.TextDisplay(f"**Day {DaysAndSessions[0]} | Session {DaysAndSessions[1]}**"))
     else: 
-      container.add_item(ui.TextDisplay(f"**T10**"))
+      inn = self.currentInning
+      ph = self.phase(inn.balls)
+      left = self.ballsToOvers(ph * 30 - inn.balls)
+      container.add_item(ui.TextDisplay(f"**T15 | {self.PHASES[ph]['name']}** ({ph}/3) • {self.PHASES[ph]['boundaries']} boundaries/over • {left} ov left"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
       if i.inningNo == self.currentInning.inningNo:
-        if not self.T10:
+        if self.format == 'test':
           s += f" ({self.ballsToOvers(i.balls)})"
         else:
-          s += f" ({self.ballsToOvers(i.balls)}/10)"
+          s += f" ({self.ballsToOvers(i.balls)}/15)"
       if i.battingTeam.name in t: t[i.battingTeam.name] += f"& {s}"
       else: t[i.battingTeam.name] = s
     Score = "\n".join(f"**`{k.ljust(18)}{v}`**" for k,v in t.items())
-    if not self.T10:
+    if self.format == 'test':
       Score += f"\nMatch Total Overs: ({self.ballsToOvers(self.matchTotalBalls)}/{self.ballsToOvers(self.maxBalls)})"
     showDeclareBtn = True
     if self.currentInning.inningNo >= 2:
@@ -868,15 +882,15 @@ class Game():
       batTotal=self.teamTotal(bat)
       bowlTotal=self.teamTotal(bowl)
       showDeclareBtn = batTotal > bowlTotal
-    if returnContainer is False and showDeclareBtn and self.currentInning.inningNo != 4:
+    if self.format == 'test' and returnContainer is False and showDeclareBtn and self.currentInning.inningNo != 4:
       container.add_item(ui.Section(ui.TextDisplay(Score), accessory=DeclareBTN()))
     else: container.add_item(ui.TextDisplay(Score))
     header = f"**` {'Batters'.ljust(16)}{'R'.rjust(4)}{'B'.rjust(4)}{'SR'.rjust(9)}`**"
-    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'✅' if self.currentInning.batters[b].cantDoBoundaryThisOver is not True else '❌'}" for b in self.currentInning.currentBatters]
+    rows=["```py\n"]+[f"{b.name.ljust(16)}{str(self.currentInning.batters[b].runs).rjust(4)}{str(self.currentInning.batters[b].balls).rjust(4)}{str(self.currentInning.batters[b].sr).rjust(9)}\nCan Do 0: {'✅' if self.currentInning.batters[b].consecutiveDots!=3 else '❌'}  Can Do 4,6: {'❌' if self.cantBoundary(self.currentInning.batters[b], self.currentInning) else '✅'}" for b in self.currentInning.currentBatters]
     runRate = round((self.currentInning.runs/self.currentInning.balls)*6,2) if self.currentInning.balls else 0.00 
     extraInfo = f"RR: {runRate}"
     actionRow = ui.ActionRow()
-    if not self.T10:
+    if self.format == 'test':
       if self.currentInning.inningNo == 4:
         runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
         ballsRem = self.maxBalls - self.matchTotalBalls
@@ -1158,11 +1172,11 @@ class Game():
       bowlerAllowed = ['1','2','3','4','6']
       if bowler_p.isOnHattrick or (inn.balls >= 6 and bowler_p.lastOverMaiden and not inn.zeroByBowler):
         bowlerAllowed.append('0')
-      if cando0 and not striker_p.cantDoBoundaryThisOver:
+      if cando0 and not self.cantBoundary(striker_p, inn):
         allowed={'0','1','2','3','4','6'}
-      elif cando0 and striker_p.cantDoBoundaryThisOver:
+      elif cando0 and self.cantBoundary(striker_p, inn):
         allowed={'0','1','2','3'}
-      elif not cando0 and striker_p.cantDoBoundaryThisOver:
+      elif not cando0 and self.cantBoundary(striker_p, inn):
         allowed={'1','2','3'}
       else:
         allowed={'1','2','3','4','6'}
@@ -1229,7 +1243,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             0,
             0,
             inn.runs,
@@ -1265,7 +1279,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             1,
             0,
             inn.runs,
@@ -1296,7 +1310,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             0,
             0,
             inn.runs,
@@ -1324,7 +1338,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             0,
             0,
             inn.runs,
@@ -1360,7 +1374,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             1,
             0,
             inn.runs,
@@ -1389,7 +1403,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             0,
             0,
             inn.runs,
@@ -1417,7 +1431,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             0,
             0,
             inn.runs,
@@ -1475,7 +1489,7 @@ class Game():
             None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
             bowler.id,
             1 if cando0 else 0,
-            0 if striker_p.cantDoBoundaryThisOver else 1, 
+            0 if self.cantBoundary(striker_p, inn) else 1, 
             1,
             0,
             inn.runs,
@@ -1515,7 +1529,7 @@ class Game():
         await self.selectNextBatter()
       elif not inn.currentBatters:
         return 'Inning Over'
-      if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
+      if self.format == 't15' and self.currentInning.balls == 90: return 'Inning Over'
     else:
       inn.commentary.appendleft({"ball": self.ballsToOvers(inn.balls), "text": f"{bowler.name} ({bowl}) to {striker.name} ({bat}), and it's {bat} runs"})
       if isRep and (striker_p.runs + bat) >= self.repLimit:
@@ -1563,7 +1577,7 @@ class Game():
           await self.selectNextBatter()
         elif not inn.currentBatters:
           return 'Inning Over'
-        if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
+        if self.format == 't15' and self.currentInning.balls == 90: return 'Inning Over'
       else:
         bowler_p.currentOverRuns += bat
         inn.currentOverRuns += bat
@@ -1579,7 +1593,7 @@ class Game():
               None if len(inn.currentBatters) == 1 else inn.currentBatters[1].id,
               bowler.id,
               1 if cando0 else 0,
-              0 if striker_p.cantDoBoundaryThisOver else 1, 
+              0 if self.cantBoundary(striker_p, inn) else 1, 
               0,
               bat,
               inn.runs,
@@ -1641,7 +1655,7 @@ class Game():
         inn.timeline.append(f"{bat}")
         if bat%2==1 and len(inn.currentBatters) > 1:
           inn.currentBatters[0],inn.currentBatters[1]=inn.currentBatters[1],inn.currentBatters[0]
-    if self.T10 and self.currentInning.balls == 60: return 'Inning Over'
+    if self.format == 't15' and self.currentInning.balls == 90: return 'Inning Over'
     if inn.balls%6==0:
       inn.timeline.append("|")
       inn.lastOverRuns = inn.currentOverRuns
@@ -1666,7 +1680,7 @@ class Game():
         "host": self.hostId,
         "startTime": self.startedAt,
         "endTime": time.time(),
-        "settings": {"maxBalls": self.maxBalls},
+        "settings": {"maxBalls": self.maxBalls, "format": self.format},
         "guild": self.ctx.guild.id,
         "channel": self.ctx.channel.id,
         "repLimit": self.repLimit,
@@ -1723,7 +1737,7 @@ class Game():
     self.startedAt=data["meta"]["startTime"]
     self.maxBalls=data["meta"]["settings"]["maxBalls"]
     self.matchTotalPredictions=data["meta"]["matchTotalPredictions"]
-    self.T10=data["meta"]["settings"].get("T10",False)
+    self.format=data["meta"]["settings"].get("format",'test')
     self.repLimit=data["meta"]["repLimit"]
     self.repIds=data["meta"]["repIds"]
     self.tossStatus=data["meta"].get("tossStatus")
@@ -1823,7 +1837,7 @@ class Game():
       self.started=True 
       if self.resumed: await self.updateMessage(True)
       if not self.startedAt:self.startedAt=time.time()
-      for i in range(4 if not self.T10 else 2):
+      for i in range(4 if not self.format == 't15' else 2):
         if self.forceYeet:return
         w=self.checkForWinner()
         if w:break
@@ -1895,7 +1909,7 @@ class Game():
         for k, v in sorted_predictions:
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(v*100)))
         formatted=f"MVP: **{mvp.name}**(+{amount} {self.ctx.bot.AshesCoin})\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
-        if not self.DEBUG and not self.T10:await self.saveData()
+        if not self.DEBUG:await self.saveData()
         await self.ctx.send(f"{formatted}")
         
       elif self.drawnByAgreement:
@@ -1907,7 +1921,7 @@ class Game():
           await self.ctx.bot.cexecute("INSERT INTO users (userId, coins) VALUES (?,?) ON CONFLICT(userId) DO UPDATE SET coins =excluded.coins + coins", (k, int(v*100)))
         hours=int(duration//3600);minutes=int((duration%3600)//60);seconds=int(duration%60)
         formatted=f"**Match Drawn By Agreement**\nThis game took {hours} hours {minutes} minutes {seconds} seconds\n[Full Scorecard](https://ashesdb.vercel.app/match/{self.gameId})\n{predictionsStr}"
-        if not self.DEBUG and not self.T10:await self.saveData()
+        if not self.DEBUG:await self.saveData()
         await self.ctx.send(f"{formatted}")
       for p in self.players:
         if p.id in self.ctx.bot.messageCooldownMap:

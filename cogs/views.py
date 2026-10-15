@@ -5,24 +5,26 @@ from datetime import datetime, timezone, timedelta
 def ballsToOvers(balls: int) -> float: return float(f"{balls//6}.{balls % 6}")
 def timestampToPKT(ts):
   return (datetime.fromtimestamp(ts,timezone(timedelta(hours=5))).strftime('%-H:%M %d-%b-%y'))
-async def build_filters(uid,lastNMatches=0,lastNBatInnings=0,lastNBowlInnings=0,fromTs=0,toTs=0):
-  where_bat_main=[];params_bat_main=[];where_bow_main=[];params_bow_main=[]
-  where_bat_d=[];params_bat_d=[];where_bow_d=[];params_bow_d=[]
+async def build_filters(uid,lastNMatches=0,lastNBatInnings=0,lastNBowlInnings=0,fromTs=0,toTs=0,fmt='test'):
+  where_bat_main=["matchId IN (SELECT matchId FROM matches WHERE format=?)"];params_bat_main=[fmt]
+  where_bow_main=["matchId IN (SELECT matchId FROM matches WHERE format=?)"];params_bow_main=[fmt]
+  where_bat_d=["d.matchId IN (SELECT matchId FROM matches WHERE format=?)"];params_bat_d=[fmt]
+  where_bow_d=["d.matchId IN (SELECT matchId FROM matches WHERE format=?)"];params_bow_d=[fmt]
   footer=[]
   if lastNBatInnings>0:
-    where_bat_main.append("inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE batterId=? GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
-    where_bat_d.append("d.inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE batterId=? GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
-    params_bat_main+=[uid,lastNBatInnings];params_bat_d+=[uid,lastNBatInnings];footer.append(f"Last {lastNBatInnings} batting innings")
+    where_bat_main.append("inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE batterId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    where_bat_d.append("d.inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE batterId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    params_bat_main+=[uid,fmt,lastNBatInnings];params_bat_d+=[uid,fmt,lastNBatInnings];footer.append(f"Last {lastNBatInnings} batting innings")
   if lastNBowlInnings>0:
-    where_bow_main.append("inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE bowlerId=? GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
-    where_bow_d.append("d.inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE bowlerId=? GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
-    params_bow_main+=[uid,lastNBowlInnings];params_bow_d+=[uid,lastNBowlInnings];footer.append(f"Last {lastNBowlInnings} bowling innings")
+    where_bow_main.append("inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE bowlerId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    where_bow_d.append("d.inningId IN (SELECT inningId FROM (SELECT inningId,MAX(timestamp) ts FROM deliveries WHERE bowlerId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY ts DESC LIMIT ?))")
+    params_bow_main+=[uid,fmt,lastNBowlInnings];params_bow_d+=[uid,fmt,lastNBowlInnings];footer.append(f"Last {lastNBowlInnings} bowling innings")
   if lastNMatches>0:
-    where_bat_main.append("matchId IN (SELECT matchId FROM deliveries WHERE batterId=? GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
-    where_bow_main.append("matchId IN (SELECT matchId FROM deliveries WHERE bowlerId=? GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
-    where_bat_d.append("d.matchId IN (SELECT matchId FROM deliveries WHERE batterId=? GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
-    where_bow_d.append("d.matchId IN (SELECT matchId FROM deliveries WHERE bowlerId=? GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
-    params_bat_main+=[uid,lastNMatches];params_bow_main+=[uid,lastNMatches];params_bat_d+=[uid,lastNMatches];params_bow_d+=[uid,lastNMatches];footer.append(f"Last {lastNMatches} matches")
+    where_bat_main.append("matchId IN (SELECT matchId FROM deliveries WHERE batterId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    where_bow_main.append("matchId IN (SELECT matchId FROM deliveries WHERE bowlerId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    where_bat_d.append("d.matchId IN (SELECT matchId FROM deliveries WHERE batterId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    where_bow_d.append("d.matchId IN (SELECT matchId FROM deliveries WHERE bowlerId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY matchId ORDER BY MAX(timestamp) DESC LIMIT ?)")
+    params_bat_main+=[uid,fmt,lastNMatches];params_bow_main+=[uid,fmt,lastNMatches];params_bat_d+=[uid,fmt,lastNMatches];params_bow_d+=[uid,fmt,lastNMatches];footer.append(f"Last {lastNMatches} matches")
   if fromTs and toTs:
     where_bat_main.append("timestamp BETWEEN ? AND ?");where_bow_main.append("timestamp BETWEEN ? AND ?")
     where_bat_d.append("d.timestamp BETWEEN ? AND ?");where_bow_d.append("d.timestamp BETWEEN ? AND ?")
@@ -41,7 +43,8 @@ async def build_filters(uid,lastNMatches=0,lastNBatInnings=0,lastNBowlInnings=0,
   filter_sql_d_bow=" AND ".join(where_bow_d) if where_bow_d else ""
   footer_txt=" | ".join(footer) if footer else "All-time"
   return filter_sql_bat,params_bat_main,filter_sql_bow,params_bow_main,filter_sql_d_bat,params_bat_d,filter_sql_d_bow,params_bow_d,footer_txt
-async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnings=0,lastNBowlInnings=0,fromTs=0,toTs=0):
+
+async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnings=0,lastNBowlInnings=0,fromTs=0,toTs=0,fmt='test'):
   uid=target.id
   if lastNBatInnings==0 and lastNBowlInnings==0 and lastNInnings>0:
     lastNBatInnings=lastNBowlInnings=lastNInnings
@@ -54,7 +57,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   row=await bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId) FROM deliveries WHERE batterId=? OR bowlerId=?",(uid,uid))
   ogEmoji="<:OG:1463581581984792669>"
   if not row or row[0]==0: return "No Games"
-  filter_sql_bat,filter_params_bat,filter_sql_bow,filter_params_bow,filter_sql_d_bat,filter_params_d_bat,filter_sql_d_bow,filter_params_d_bow,footer_txt=await build_filters(uid,lastNMatches,lastNBatInnings,lastNBowlInnings,fromTs,toTs)
+  filter_sql_bat,filter_params_bat,filter_sql_bow,filter_params_bow,filter_sql_d_bat,filter_params_d_bat,filter_sql_d_bow,filter_params_d_bow,footer_txt=await build_filters(uid,lastNMatches,lastNBatInnings,lastNBowlInnings,fromTs,toTs,fmt)
   bat_where="batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(" AND "+filter_sql_bat if filter_sql_bat else "")
   bow_where="bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(" AND "+filter_sql_bow if filter_sql_bow else "")
   bat_params=[uid]+filter_params_bat
@@ -101,7 +104,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   )
   og=og_row[0]!=0
   innings,total_runs,balls_faced,wickets=matches_row
-  matches = total_matches_row[0]
+  matches=total_matches_row[0]
   mvps=mvps_row[0]
   if bat_innings_rows:
     best=max(bat_innings_rows,key=lambda r:(r[2],-r[4]))
@@ -161,8 +164,11 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bowl_avg=round((conceded/wkts),2) if wkts else 0.00
   bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
   view=ui.LayoutView(timeout=30);view.target=target;view.ctx=ctx
+  view.fmt=fmt;view.lastNMatches=lastNMatches;view.lastNInnings=lastNInnings
+  view.lastNBatInnings=lastNBatInnings;view.lastNBowlInnings=lastNBowlInnings
+  view.fromTs=fromTs;view.toTs=toTs
   container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
-  container.add_item(ui.Section(f"### {target}'s Stats", accessory= discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
+  container.add_item(ui.Section(f"### {target}'s {fmt.upper() if fmt=='t15' else 'Test'} Stats", accessory=discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   if og or uid in [882988325810614353]:
     container.add_item(ui.TextDisplay(f"{ogEmoji}\n-# I have played a key role in the development and success of this bot."))
@@ -181,11 +187,14 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   b="\n".join(f"{str(k).ljust(7)}{str(bat_pct.get(k,'')).ljust(7)}{bowl_pct.get(k,'')}" for k in keys)
   container.add_item(ui.TextDisplay(f"**Num%:**\n```py\n{'Num'.ljust(7)}{'Bat%'.ljust(7)}Bowl%\n{b}\n```"))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
-  container.add_item(ui.Section(ui.TextDisplay(f"-# Filters: {footer_txt}"),accessory=FiltersBtn(author.id)))
+  container.add_item(ui.TextDisplay(f"-# Filters: {footer_txt}"))
+  actionRow=ui.ActionRow()
+  actionRow.add_item(FiltersBtn(author.id))
+  actionRow.add_item(FormatSwitchBtn(author.id,fmt))
+  container.add_item(actionRow)
   container.add_item(ui.TextDisplay(f"-# For more enhanced view and stats visit [website](https://ashesdb.vercel.app/player/{target.id})"))
   view.add_item(container)
   return view
-
 
 class PlayersSwapSelection(ui.Select):
   def __init__(self, players):
@@ -1108,9 +1117,10 @@ class ProfileFilters(ui.Modal, title="Profile Filters"):
   lastNInnings = ui.Label(text= "Insert the number of last N innings to filter ",description= "0 = All Time, Must not be used with Last N matches", component= ui.TextInput(placeholder="0", required= False, default = 0,style=discord.TextStyle.short,max_length=2),)
   fromTime = ui.Label(text= "Insert the from time to filter ",description= "Must be strictly as placeholder suggests", component= ui.TextInput(placeholder="i.e DD/MM/YYYY", required= False, default = 0,style=discord.TextStyle.short,max_length=10),)
   toTime = ui.Label(text= "Insert the to time to filter ",description= "Must be strictly as placeholder suggests", component= ui.TextInput(placeholder="i.e DD/MM/YYYY", required= False, default = 0,style=discord.TextStyle.short,max_length=10),)
-  def __init__(self, target, ctx):
+  def __init__(self, target, ctx, fmt='test'):
     self.target = target
     self.ctx = ctx
+    self.fmt = fmt
     super().__init__()
   async def on_submit(self, interaction: discord.Interaction):
     lastNMatches = int(self.lastNMatches.component.value) if self.lastNMatches.component.value else 0
@@ -1128,19 +1138,33 @@ class ProfileFilters(ui.Modal, title="Profile Filters"):
       except: fromTime = 0
     if str(toTime) != "0":
       try:
-        dt=datetime.strptime(fromTime,"%d/%m/%Y").replace(tzinfo=timezone.utc)
+        dt=datetime.strptime(toTime,"%d/%m/%Y").replace(tzinfo=timezone.utc)
         toTime=int(dt.timestamp())
       except: toTime = 0
-    v = await makeProfileView(self.target, self.ctx,lastNMatches, lastNInnings, lastBatNInnings, lastBowlNInnings,fromTime, toTime)
+    v = await makeProfileView(self.target, self.ctx, lastNMatches, lastNInnings, lastBatNInnings, lastBowlNInnings, fromTime, toTime, self.fmt)
     await interaction.response.edit_message(view=v)
   async def on_error(self, interaction, error):await interaction.response.send_message(f'Oops! Something went wrong, {error}.', ephemeral=True)
+
 class FiltersBtn(ui.Button):
   def __init__(self, userId):
     self.userId = userId
     super().__init__(label='Apply Filters', style=discord.ButtonStyle.green)
   async def callback(self, i):
     if i.user.id != self.userId: return
-    await i.response.send_modal(ProfileFilters(self.view.target, self.view.ctx))
+    await i.response.send_modal(ProfileFilters(self.view.target, self.view.ctx, getattr(self.view, 'fmt', 'test')))
+
+class FormatSwitchBtn(ui.Button):
+  def __init__(self, userId, currentFmt):
+    self.userId = userId
+    self.nextFmt = 't15' if currentFmt == 'test' else 'test'
+    label = f"Switch to {'T15' if self.nextFmt == 't15' else 'Test'}"
+    super().__init__(label=label, style=discord.ButtonStyle.blurple)
+  async def callback(self, i):
+    if i.user.id != self.userId: return
+    await i.response.defer()
+    v = await makeProfileView(self.view.target, self.view.ctx, self.view.lastNMatches, self.view.lastNInnings, self.view.lastNBatInnings, self.view.lastNBowlInnings, self.view.fromTs, self.view.toTs, self.nextFmt)
+    await i.edit_original_response(view=v)
+
 class setMessageBtn(ui.Button):
   def __init__(self, userId, itemId):
     self.userId = userId

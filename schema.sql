@@ -8,7 +8,8 @@ CREATE TABLE IF NOT EXISTS matches(
   winner TEXT,
   mvpId INTEGER,
   matchMaximumBalls INTEGER,
-  drawByAgreement INTEGER
+  drawByAgreement INTEGER,
+  format TEXT NOT NULL DEFAULT 'test'
 );
 CREATE TABLE IF NOT EXISTS innings(
   inningId TEXT PRIMARY KEY,

@@ -223,12 +223,12 @@ class RankingCog(commands.Cog):
     try:
       match_id = request.match_info['matchId']
       match_row = await self.bot.fetchrow(
-        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?",
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement,format FROM matches WHERE matchId=?",
         [match_id]
       )
       if not match_row:
         return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
-      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement = match_row
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement, matchFormat= match_row
       innings_rows = await self.bot.fetchall(
         "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn,isDeclared FROM innings WHERE matchId=? ORDER BY inningNo",
         [match_id]
@@ -310,7 +310,8 @@ class RankingCog(commands.Cog):
         "drawByAgreement": bool(drawByAgreement),
         "matchMaximumBalls": matchMaximumBalls or 180,
         "maxBalls": matchMaximumBalls or 180,
-        "matchTotalBalls": match_total_balls
+        "matchTotalBalls": match_total_balls,
+        "format": matchFormat
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

@@ -265,6 +265,7 @@ class Game():
   def matchStatus(self):
     w = self.checkForWinner()
     if w: return w
+    if len(self.innings)==1:return self.tossStatus if self.tossStatus and self.tossStatus != 'Underway' else f"{bat.name} are batting"
     if self.format == 'test':
       inn=self.currentInning
       bat=inn.battingTeam
@@ -273,7 +274,6 @@ class Game():
       bowlTotal=self.teamTotal(bowl)
       innsBat=len(self.inningsByTeam(bat))
       innsBowl=len(self.inningsByTeam(bowl))
-      if len(self.innings)==1:return f"{bat.name} are batting"
       if inn.inningNo == 2:
         lead=bowlTotal-batTotal
         if lead>=self.followOnLimit:
@@ -297,11 +297,11 @@ class Game():
       bowlTotal=self.teamTotal(bowl)
       innsBat=len(self.inningsByTeam(bat))
       innsBowl=len(self.inningsByTeam(bowl))
-      if len(self.innings)==1:return f"{bat.name} are batting"
       batPrev=batTotal-inn.runs
       target=(bowlTotal-batPrev)+1
       need=target-inn.runs
-      if need>0:return f"{bat.name} need {need} runs to win"
+      ballsRemaining = self.maxBalls - inn.balls
+      if need>0:return f"{bat.name} need {need} runs from {ballsRemaining} balls to win"
       return f"{bat.name} have won by {len(bat.players)-inn.wickets} wickets"
   def checkForWinner(self):
     if self.format=='test':
@@ -449,11 +449,12 @@ class Game():
       await self.ctx.send(view=c, file=file)
   async def sendNewBatterGraphic(self, *batterPlayers, returnFiles = False):
     files = []
+    fmt = self.format
     for batterPlayer in batterPlayers:
       uid = batterPlayer.id
       bot = self.ctx.bot
-      q1 = "SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COALESCE(SUM(isWicket),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE batterId=?"
-      res1 = await bot.fetchrow(q1, (uid, uid, uid))
+      q1 = "SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND matchId IN (SELECT matchId FROM matches WHERE format=?)),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COALESCE(SUM(isWicket),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE batterId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?)"
+      res1 = await bot.fetchrow(q1, (uid, uid, fmt, uid, fmt))
       matches = str(res1[0] or 0)
       inns = str(res1[1] or 0)
       runs_val = res1[2] or 0
@@ -462,12 +463,12 @@ class Game():
       avg = str(round((runs_val/wickets), 2)) if wickets else str(runs_val)
       sr = str(round((runs_val*100/balls), 2)) if balls else "0.00"
       runs = str(runs_val)
-      q2 = "SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
-      res2 = await bot.fetchrow(q2, (uid,))
+      qq2 = "SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId)"
+      res2 = await bot.fetchrow(q2, (uid, fmt))
       fifties = str(res2[0] or 0)
       hundreds = str(res2[1] or 0)
-      q3 = "SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
-      bb = await bot.fetchrow(q3, (uid,))
+      q3 = "SELECT r,b,notout FROM (SELECT SUM(runs) r,COUNT(*) b,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY r DESC,b ASC LIMIT 1)"
+      bb = await bot.fetchrow(q3, (uid, fmt))
       best = f"{bb[0]}*" if bb and bb[2]==1 else str(bb[0]) if bb else "0"
       img = Image.open(os.path.join(BASE_DIR, "templates", "New batter.png")).convert("RGBA")
       draw = ImageDraw.Draw(img)
@@ -505,8 +506,9 @@ class Game():
   async def sendNewBowlerGraphic(self, bowlerPlayer, returnFile = False):
     uid=bowlerPlayer.id
     bot=self.ctx.bot
-    q1="SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE batterId=? OR bowlerId=?),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=?"
-    res1=await bot.fetchrow(q1,(uid,uid,uid))
+    fmt = self.format
+    q1 = "SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries WHERE (batterId=? OR bowlerId=?) AND matchId IN (SELECT matchId FROM matches WHERE format=?)),COUNT(DISTINCT inningId),COALESCE(SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN isWicket ELSE 0 END),0),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END) FROM deliveries WHERE bowlerId=? AND matchId IN (SELECT matchId FROM matches WHERE format=?)"
+    res1 = await bot.fetchrow(q1, (uid, uid, fmt, uid, fmt))
     matches=str(res1[0] or 0)
     inns=str(res1[1] or 0)
     wkts_val=res1[2] or 0
@@ -515,14 +517,14 @@ class Game():
     wkts=str(wkts_val)
     avg=str(round((runs_val/wkts_val),2)) if wkts_val else "0.00"
     SR=str(round((balls_val/wkts_val),2)) if wkts_val else "0.00"
-    q2="SELECT SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)"
-    res2=await bot.fetchrow(q2,(uid,))
+    q2 = "SELECT SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId)"
+    res2 = await bot.fetchrow(q2, (uid, fmt))
     fifer=str(res2[0] or 0)
-    q3="SELECT SUM(CASE WHEN w>=10 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY matchId)"
-    res3=await bot.fetchrow(q3,(uid,))
+    q3 = "SELECT SUM(CASE WHEN w>=10 THEN 1 ELSE 0 END) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY matchId)"
+    res3 = await bot.fetchrow(q3, (uid, fmt))
     teninamatch=str(res3[0] or 0)
-    q4="SELECT w,r FROM (SELECT SUM(isWicket) w,SUM(runs) r FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC LIMIT 1)"
-    bb=await bot.fetchrow(q4,(uid,))
+    q4 = "SELECT w,r FROM (SELECT SUM(isWicket) w,SUM(runs) r FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId ORDER BY w DESC,r ASC LIMIT 1)"
+    bb = await bot.fetchrow(q4, (uid, fmt))
     best=f"{bb[0]}/{bb[1]}" if bb else "0/0"
     img=Image.open(os.path.join(BASE_DIR,"templates","New bowler.png")).convert("RGBA")
     draw=ImageDraw.Draw(img)
@@ -860,7 +862,7 @@ class Game():
       inn = self.currentInning
       ph = self.phase(inn.balls)
       left = self.ballsToOvers(ph * 30 - inn.balls)
-      container.add_item(ui.TextDisplay(f"**T15 | {self.PHASES[ph]['name']}** ({ph}/3) • {self.PHASES[ph]['boundaries']} boundaries/over • {left} ov left"))
+      container.add_item(ui.TextDisplay(f"**T15 | {self.PHASES[ph]['name']}** ({ph}/3) • {self.PHASES[ph]['boundaries']} boundaries per batter/over • {left} ov left"))
     t = {}
     for i in self.innings:
       s = f"{i.runs}/{i.wickets} {'(f/o) ' if i.inningNo == 3 and self.followOnTeam else ''} {'(D) ' if i.declared else ''}"
@@ -893,15 +895,21 @@ class Game():
     if self.format == 'test':
       if self.currentInning.inningNo == 4:
         runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
+        runsReq += 1
         ballsRem = self.maxBalls - self.matchTotalBalls
+        wicketsRem = len(self.currentInning.battingTeam.players) - self.currentInning.wickets
+        runsPerWicket = round(runsReq/wicketsRem, 2) if wicketsRem > 0 else "-"
         reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
-        extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
+        extraInfo = f"RR: {runRate} R/W: {runsPerWicket} RRR: {reqRunRate}"
     else:
       if self.currentInning.inningNo == 2:
         runsReq = self.teamTotal(self.currentInning.bowlingTeam) - self.teamTotal(self.currentInning.battingTeam) 
-        ballsRem = 60 - self.currentInning.balls
+        runsReq += 1
+        ballsRem = self.maxBalls - self.currentInning.balls
+        wicketsRem = len(self.currentInning.battingTeam.players) - self.currentInning.wickets
+        runsPerWicket = round(runsReq/wicketsRem, 2) if wicketsRem > 0 else "-"
         reqRunRate = round((runsReq/ballsRem)*6,2) if ballsRem else runsReq
-        extraInfo = f"RR: {runRate} RRR: {reqRunRate}"
+        extraInfo = f"RR: {runRate} R/W: {runsPerWicket} RRR: {reqRunRate}"
     for i, b in enumerate(self.currentInning.currentBatters):actionRow.add_item(ShowScoreButton(Game=self,BatterIndex=i))
     if len(self.currentInning.currentBatters) == 2:
       p = self.currentInning.currentPartnership

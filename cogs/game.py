@@ -463,7 +463,7 @@ class Game():
       avg = str(round((runs_val/wickets), 2)) if wickets else str(runs_val)
       sr = str(round((runs_val*100/balls), 2)) if balls else "0.00"
       runs = str(runs_val)
-      qq2 = "SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId)"
+      q2 = "SELECT SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),SUM(CASE WHEN r>=100 THEN 1 ELSE 0 END) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY inningId)"
       res2 = await bot.fetchrow(q2, (uid, fmt))
       fifties = str(res2[0] or 0)
       hundreds = str(res2[1] or 0)

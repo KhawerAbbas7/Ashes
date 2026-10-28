@@ -167,12 +167,12 @@ class RankingCog(commands.Cog):
     try:
       match_id = request.match_info['matchId']
       match_row = await self.bot.fetchrow(
-        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement FROM matches WHERE matchId=?",
+        "SELECT matchId,channelId,guildId,teamAName,teamBName,winner,mvpId,matchMaximumBalls,drawByAgreement,format FROM matches WHERE matchId=?",
         [match_id]
       )
       if not match_row:
         return web.json_response({"error": "Match not found"}, status=404, headers=self.get_cors_headers())
-      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement = match_row
+      matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement, matchFormat = match_row
       channel = self.bot.get_channel(channelId)
       guild = self.bot.get_guild(guildId)
       innings_rows = await self.bot.fetchall(
@@ -215,6 +215,7 @@ class RankingCog(commands.Cog):
         "maxBalls": matchMaximumBalls or 180,
         "matchTotalBalls": total_balls,
         "drawByAgreement": bool(drawByAgreement),
+        "format": matchFormat or "test",
         "timestamp": ts[0] if ts and ts[0] else 0
       }, headers=self.get_cors_headers())
     except Exception as e:
@@ -312,7 +313,7 @@ class RankingCog(commands.Cog):
         "matchMaximumBalls": matchMaximumBalls or 180,
         "maxBalls": matchMaximumBalls or 180,
         "matchTotalBalls": match_total_balls,
-        "format": matchFormat
+        "format": matchFormat or "test"
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
@@ -337,11 +338,11 @@ class RankingCog(commands.Cog):
           })
         team_a_players = [{"id": str(p.id), "name": p.name} for p in game.teama.players]
         team_b_players = [{"id": str(p.id), "name": p.name} for p in game.teamb.players]
-        day, session = game.getDaysAndSessions() if game.started and not game.T10 else (1, 1)
+        day, session = game.getDaysAndSessions() if game.started else (1, 1)
         matches.append({
           "id": game.gameId,
           "state": state,
-          "format": "T10" if game.T10 else "Test",
+          "format": "T15" if game.format == "t15" else "Test",
           "channelId": str(channel_id),
           "channelName": channel.name if channel else str(channel_id),
           "guildName": guild.name if guild else str(game.ctx.guild.id),
@@ -350,7 +351,7 @@ class RankingCog(commands.Cog):
           "teamAPlayers": team_a_players,
           "teamBPlayers": team_b_players,
           "innings": innings_summary,
-          "maxBalls": 60 if game.T10 else game.maxBalls,
+          "maxBalls": game.maxBalls,
           "matchTotalBalls": game.matchTotalBalls,
           "day": day,
           "session": session,
@@ -471,16 +472,16 @@ class RankingCog(commands.Cog):
             "isOnHattrick": b.isOnHattrick if b else False,
             "canDo0": bowler_can_do_0
           })
-      day, session = game.getDaysAndSessions() if game.started and not game.T10 else (1, 1)
+      day, session = game.getDaysAndSessions() if game.started else (1, 1)
       return web.json_response({
         "id": game.gameId,
         "state": state,
-        "format": "T10" if game.T10 else "Test",
+        "format": "T15" if game.format == "t15" else "Test",
         "channelName": channel.name if channel else str(game.ctx.channel.id),
         "guildName": guild.name if guild else str(game.ctx.guild.id),
         "teamAName": game.teama.name,
         "teamBName": game.teamb.name,
-        "maxBalls": 60 if game.T10 else game.maxBalls,
+        "maxBalls": game.maxBalls,
         "matchTotalBalls": game.matchTotalBalls,
         "followOnLimit": game.followOnLimit,
         "repLimit": game.repLimit,
@@ -636,7 +637,7 @@ class RankingCog(commands.Cog):
     channel_id = request.query.get('channelId')
     guild_id = request.query.get('guildId')
     player_id = request.query.get('playerId')
-    sql = "SELECT m.matchId, m.channelId, m.guildId, m.teamAName, m.teamBName, m.winner, m.matchMaximumBalls, m.drawByAgreement, MAX(d.timestamp) AS lastTimestamp FROM matches m JOIN deliveries d ON d.matchId = m.matchId"
+    sql = "SELECT m.matchId, m.channelId, m.guildId, m.teamAName, m.teamBName, m.winner, m.matchMaximumBalls, m.drawByAgreement, m.format, MAX(d.timestamp) AS lastTimestamp FROM matches m JOIN deliveries d ON d.matchId = m.matchId"
     conditions = []
     params = []
     if query:
@@ -660,7 +661,7 @@ class RankingCog(commands.Cog):
     rows = await self.bot.fetchall(sql, params)
     data = {'Matches': []}
     for row in rows:
-      matchId, channelId, guildId, teamAName, teamBName, winner, matchMaximumBalls, drawByAgreement, timestamp = row
+      matchId, channelId, guildId, teamAName, teamBName, winner, matchMaximumBalls, drawByAgreement, matchFormat, timestamp = row
       channel = self.bot.get_channel(channelId)
       channelName = channel.name if channel else str(channelId)
       guild = self.bot.get_guild(guildId)
@@ -691,6 +692,7 @@ class RankingCog(commands.Cog):
         'winner': winner,
         'maxBalls': matchMaximumBalls or 180,
         'drawByAgreement': bool(drawByAgreement),
+        'format': matchFormat or 'test',
         'innings': innings_summary,
         'timestamp': timestamp
       })

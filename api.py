@@ -101,47 +101,68 @@ class RankingCog(commands.Cog):
         if len(matched) >= 20: break
       return web.json_response({"players": matched}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
+  def _format_filter(self, match_format, alias=""):
+    if match_format == "all":
+      return ""
+    column = f"{alias}matchId" if alias else "matchId"
+    return f" AND {column} IN (SELECT matchId FROM matches WHERE format='{match_format}')"
+
+  async def _career_stats(self, pid, match_format="all"):
+    fc = self._format_filter(match_format)
+    fc_alias = self._format_filter(match_format, "d2.")
+    bat_basic = await self.bot.fetchrow(f"SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE (d2.batterId=d.batterId OR d2.bowlerId=d.batterId){fc_alias}),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0),COALESCE(SUM(CASE WHEN runs=4 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=6 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=0 AND isWicket=0 THEN 1 END),0), COALESCE(SUM(CASE WHEN batterNum IS NULL THEN 1 END),0) FROM deliveries d WHERE batterId=?{fc}", [pid])
+    b_match, b_inn, b_runs, b_balls, b_outs, b_fours, b_sixes, b_dots , b_afks = bat_basic if bat_basic else (0,0,0,0,0,0,0,0, 0)
+    b_afkperc = round((b_afks / b_balls) *100, 2) if b_balls else 0.00
+    bat_miles = await self.bot.fetchrow(f"SELECT COALESCE(SUM(CASE WHEN r>=30 AND r<50 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=100 AND r<200 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=200 THEN 1 ELSE 0 END),0) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL{fc} GROUP BY inningId)", [pid])
+    thirties, fifties, hundreds, two_hundreds = bat_miles if bat_miles else (0,0,0,0)
+    bbi_row = await self.bot.fetchrow(f"SELECT r,notout FROM (SELECT SUM(runs) r,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL{fc} GROUP BY inningId ORDER BY r DESC,COUNT(*) ASC LIMIT 1)", [pid])
+    hs = f"{bbi_row[0]}{'*' if bbi_row[1]==1 else ''}" if bbi_row else "0"
+    ducks_row = await self.bot.fetchrow(f"SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=?{fc} GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1", [pid])
+    ducks = ducks_row[0] if ducks_row else 0
+    not_outs = b_inn - b_outs if b_inn > b_outs else 0
+    bat_avg = round(b_runs/b_outs, 2) if b_outs > 0 else b_runs
+    bat_sr = round((b_runs/b_balls)*100, 2) if b_balls > 0 else 0.0
+    bound_pct = round(((b_fours*4 + b_sixes*6) / b_runs) * 100, 2) if b_runs > 0 else 0.0
+    batting = {"matches": b_match or 0, "innings": b_inn or 0, "notOuts": not_outs, "runs": b_runs or 0, "balls": b_balls or 0, "highestScore": hs, "average": bat_avg, "strikeRate": bat_sr, "twoHundreds": two_hundreds, "hundreds": hundreds, "fifties": fifties, "thirties": thirties, "ducks": ducks, "fours": b_fours or 0, "sixes": b_sixes or 0, "dotBalls": b_dots or 0, "boundaryPct": bound_pct, "afkPct": b_afkperc}
+    bowl_basic = await self.bot.fetchrow(f"SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(runs),0),COALESCE(SUM(isWicket),0),COALESCE(SUM(CASE WHEN runs=0 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=4 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=6 THEN 1 END),0), COALESCE(SUM(CASE WHEN bowlerNum IS NULL THEN 1 END),0) FROM deliveries WHERE bowlerId=?{fc}", [pid])
+    bw_match, bw_inn, bw_balls, bw_runs, bw_wkts, bw_dots, bw_fours, bw_sixes, bw_afks = bowl_basic if bowl_basic else (0,0,0,0,0,0,0,0)
+    best_bowl = await self.bot.fetchrow(f"SELECT w,r FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL{fc} GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)", [pid])
+    bbi = f"{best_bowl[0]}/{best_bowl[1]}" if best_bowl else "0/0"
+    bowl_miles = await self.bot.fetchrow(f"SELECT COALESCE(SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END),0) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL{fc} GROUP BY inningId)", [pid])
+    three_w, five_w = bowl_miles if bowl_miles else (0,0)
+    ten_w_row = await self.bot.fetchrow(f"SELECT COUNT(*) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=?{fc} GROUP BY matchId) WHERE w>=10", [pid])
+    ten_w_match = ten_w_row[0] if ten_w_row else 0
+    hattrick_row = await self.bot.fetchrow(f"SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL{fc}) t WHERE is_hattrick=1", [pid])
+    hattricks = hattrick_row[0] if hattrick_row else 0
+    b_avg = round(bw_runs/bw_wkts, 2) if bw_wkts > 0 else 0.0
+    b_eco = round((bw_runs/bw_balls)*6, 2) if bw_balls > 0 else 0.0
+    b_sr = round(bw_balls/bw_wkts, 2) if bw_wkts > 0 else 0.0
+    dot_pct = round((bw_dots/bw_balls) * 100, 2) if bw_balls > 0 else 0.0
+    bw_afkPCT= round((bw_afks / bw_balls) *100, 2) if bw_balls else 0.00
+    bowling = {"matches": b_match or 0, "innings": bw_inn or 0, "balls": bw_balls or 0, "runs": bw_runs or 0, "wickets": bw_wkts or 0, "bbi": bbi, "average": b_avg, "economy": b_eco, "strikeRate": b_sr, "threeWickets": three_w, "fiveWickets": five_w, "tenWickets": ten_w_match, "dotBalls": bw_dots or 0, "dotPct": dot_pct, "foursConceded": bw_fours or 0, "sixesConceded": bw_sixes or 0, "hattricks": hattricks, "afkPct": bw_afkPCT}
+    mvp_filter = "" if match_format == "all" else f" AND format='{match_format}'"
+    mvp_row = await self.bot.fetchrow(f"SELECT COUNT(*) FROM matches WHERE mvpId=?{mvp_filter}", [pid])
+    mvps = mvp_row[0] if mvp_row else 0
+    return {"batting": batting, "bowling": bowling, "general": {"mvps": mvps}}
+
   async def get_player_stats(self, request):
     try:
       pid = int(request.match_info['playerId'])
       recent_limit = min(50, max(1, int(request.query.get('recent', 5))))
+      requested_format = (request.query.get('format') or 'all').lower()
+      match_format = requested_format if requested_format in ('all', 'test', 't15') else 'all'
       u = await self.fetch_user_data(pid)
-      bat_basic = await self.bot.fetchrow("SELECT (SELECT COUNT(DISTINCT matchId) FROM deliveries d2 WHERE d2.batterId=d.batterId OR d2.bowlerId=d.batterId),COUNT(DISTINCT inningId),COALESCE(SUM(runs),0),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(isWicket),0),COALESCE(SUM(CASE WHEN runs=4 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=6 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=0 AND isWicket=0 THEN 1 END),0), COALESCE(SUM(CASE WHEN batterNum IS NULL THEN 1 END),0) FROM deliveries d WHERE batterId=?", [pid])
-      b_match, b_inn, b_runs, b_balls, b_outs, b_fours, b_sixes, b_dots , b_afks = bat_basic if bat_basic else (0,0,0,0,0,0,0,0, 0)
-      b_afkperc = round((b_afks / b_balls) *100, 2) if b_balls else 0.00
-      bat_miles = await self.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN r>=30 AND r<50 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=50 AND r<100 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=100 AND r<200 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN r>=200 THEN 1 ELSE 0 END),0) FROM (SELECT SUM(runs) r FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", [pid])
-      thirties, fifties, hundreds, two_hundreds = bat_miles if bat_miles else (0,0,0,0)
-      bbi_row = await self.bot.fetchrow("SELECT r,notout FROM (SELECT SUM(runs) r,CASE WHEN SUM(isWicket)=0 THEN 1 ELSE 0 END notout FROM deliveries WHERE batterId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY r DESC,COUNT(*) ASC LIMIT 1)", [pid])
-      hs = f"{bbi_row[0]}{'*' if bbi_row[1]==1 else ''}" if bbi_row else "0"
-      ducks_row = await self.bot.fetchrow("SELECT COUNT(*) FROM (SELECT matchId, inningId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId=? GROUP BY matchId, inningId) WHERE total_runs=0 AND got_out=1", [pid])
-      ducks = ducks_row[0] if ducks_row else 0
-      not_outs = b_inn - b_outs if b_inn > b_outs else 0
-      bat_avg = round(b_runs/b_outs, 2) if b_outs > 0 else b_runs
-      bat_sr = round((b_runs/b_balls)*100, 2) if b_balls > 0 else 0.0
-      bound_pct = round(((b_fours*4 + b_sixes*6) / b_runs) * 100, 2) if b_runs > 0 else 0.0
-      batting = {"matches": b_match or 0, "innings": b_inn or 0, "notOuts": not_outs, "runs": b_runs or 0, "balls": b_balls or 0, "highestScore": hs, "average": bat_avg, "strikeRate": bat_sr, "twoHundreds": two_hundreds, "hundreds": hundreds, "fifties": fifties, "thirties": thirties, "ducks": ducks, "fours": b_fours or 0, "sixes": b_sixes or 0, "dotBalls": b_dots or 0, "boundaryPct": bound_pct, "afkPct": b_afkperc}
-      bowl_basic = await self.bot.fetchrow("SELECT COUNT(DISTINCT matchId),COUNT(DISTINCT inningId),COUNT(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 END),COALESCE(SUM(runs),0),COALESCE(SUM(isWicket),0),COALESCE(SUM(CASE WHEN runs=0 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=4 THEN 1 END),0),COALESCE(SUM(CASE WHEN runs=6 THEN 1 END),0), COALESCE(SUM(CASE WHEN bowlerNum IS NULL THEN 1 END),0) FROM deliveries WHERE bowlerId=?", [pid])
-      bw_match, bw_inn, bw_balls, bw_runs, bw_wkts, bw_dots, bw_fours, bw_sixes, bw_afks = bowl_basic if bowl_basic else (0,0,0,0,0,0,0,0)
-      best_bowl = await self.bot.fetchrow("SELECT w,r FROM (SELECT SUM(isWicket) w,SUM(runs) r,COUNT(*) b FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId ORDER BY w DESC,r ASC,b ASC LIMIT 1)", [pid])
-      bbi = f"{best_bowl[0]}/{best_bowl[1]}" if best_bowl else "0/0"
-      bowl_miles = await self.bot.fetchrow("SELECT COALESCE(SUM(CASE WHEN w>=3 AND w<5 THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN w>=5 THEN 1 ELSE 0 END),0) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY inningId)", [pid])
-      three_w, five_w = bowl_miles if bowl_miles else (0,0)
-      ten_w_row = await self.bot.fetchrow("SELECT COUNT(*) FROM (SELECT SUM(isWicket) w FROM deliveries WHERE bowlerId=? GROUP BY matchId) WHERE w>=10", [pid])
-      ten_w_match = ten_w_row[0] if ten_w_row else 0
-      hattrick_row = await self.bot.fetchrow("SELECT COUNT(*) FROM (SELECT CASE WHEN isWicket=1 AND (LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp)=0 OR LAG(isWicket) OVER(PARTITION BY bowlerId ORDER BY timestamp) IS NULL) AND LEAD(isWicket,1) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 AND LEAD(isWicket,2) OVER(PARTITION BY bowlerId ORDER BY timestamp)=1 THEN 1 ELSE 0 END AS is_hattrick FROM deliveries WHERE bowlerId=? AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL) t WHERE is_hattrick=1", [pid])
-      hattricks = hattrick_row[0] if hattrick_row else 0
-      b_avg = round(bw_runs/bw_wkts, 2) if bw_wkts > 0 else 0.0
-      b_eco = round((bw_runs/bw_balls)*6, 2) if bw_balls > 0 else 0.0
-      b_sr = round(bw_balls/bw_wkts, 2) if bw_wkts > 0 else 0.0
-      dot_pct = round((bw_dots/bw_balls) * 100, 2) if bw_balls > 0 else 0.0
-      bw_afkPCT= round((bw_afks / bw_balls) *100, 2) if bw_balls else 0.00
-      bowling = {"matches": b_match or 0, "innings": bw_inn or 0, "balls": bw_balls or 0, "runs": bw_runs or 0, "wickets": bw_wkts or 0, "bbi": bbi, "average": b_avg, "economy": b_eco, "strikeRate": b_sr, "threeWickets": three_w, "fiveWickets": five_w, "tenWickets": ten_w_match, "dotBalls": bw_dots or 0, "dotPct": dot_pct, "foursConceded": bw_fours or 0, "sixesConceded": bw_sixes or 0, "hattricks": hattricks, "afkPct": bw_afkPCT}
-      mvp_row = await self.bot.fetchrow("SELECT COUNT(*) FROM matches WHERE mvpId=?", [pid])
-      mvps = mvp_row[0] if mvp_row else 0
-      recent_match_sql="SELECT m.matchId, MAX(d.timestamp) FROM matches m JOIN deliveries d ON d.matchId=m.matchId WHERE d.batterId=? OR d.bowlerId=? GROUP BY m.matchId ORDER BY MAX(d.timestamp) DESC LIMIT ?"
-      recent_matches=await self.bot.fetchall(recent_match_sql, [pid, pid, recent_limit])
+      stats = await self._career_stats(pid, match_format)
+      recent_match_sql="SELECT m.matchId, MAX(d.timestamp), m.format FROM matches m JOIN deliveries d ON d.matchId=m.matchId WHERE (d.batterId=? OR d.bowlerId=?)"
+      recent_params=[pid, pid]
+      if match_format != "all":
+        recent_match_sql += " AND m.format=?"
+        recent_params.append(match_format)
+      recent_match_sql += " GROUP BY m.matchId ORDER BY MAX(d.timestamp) DESC LIMIT ?"
+      recent_params.append(recent_limit)
+      recent_matches=await self.bot.fetchall(recent_match_sql, recent_params)
       recent=[]
-      for mid, ts in recent_matches:
+      for mid, ts, fmt in recent_matches:
         bat_sql="SELECT SUM(runs),SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END),SUM(isWicket) FROM deliveries WHERE matchId=? AND batterId=? GROUP BY inningId ORDER BY MIN(timestamp) ASC"
         bat_rows=await self.bot.fetchall(bat_sql, [mid, pid])
         bat_strs=[f"{r[0]}({r[1]}){'*' if not r[2] else ''}" for r in bat_rows]
@@ -150,7 +171,7 @@ class RankingCog(commands.Cog):
         bowl_strs=[f"{r[0]}-{r[1]}({r[2]//6}.{r[2]%6})" for r in bowl_rows]
         bat_str="&".join(bat_strs) if bat_strs else "DNB"
         bowl_str="&".join(bowl_strs) if bowl_strs else "DNB"
-        recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts, "matchId": mid})
+        recent.append({"bat": bat_str, "bowl": bowl_str, "timestamp": ts, "matchId": mid, "format": fmt or "test"})
       cutoff_end_ts, _ = self.get_cutoff_end()
       min_ts = cutoff_end_ts - 2419200
       bat_sql = f"WITH r AS (SELECT batterId AS id, SUM((runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END) AS rt FROM deliveries WHERE batterId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} GROUP BY batterId HAVING rt>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
@@ -160,8 +181,7 @@ class RankingCog(commands.Cog):
       ar_sql = f"WITH r AS (SELECT id, SQRT(SUM(bat)*SUM(bowl)) AS rt FROM (SELECT batterId AS id, (runs-CASE WHEN isWicket=1 THEN 5 ELSE 0 END)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bat, 0 AS bowl FROM deliveries WHERE batterId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts} UNION ALL SELECT bowlerId AS id, 0 AS bat, ((CASE WHEN isWicket=1 THEN 25 ELSE 0 END)-runs/5.0)*CASE WHEN timestamp>={cutoff_end_ts-604800} THEN 1 WHEN timestamp>={cutoff_end_ts-1209600} THEN 0.8 WHEN timestamp>={cutoff_end_ts-1814400} THEN 0.6 ELSE 0.4 END AS bowl FROM deliveries WHERE bowlerId IS NOT NULL AND timestamp>={min_ts} AND timestamp<{cutoff_end_ts}) GROUP BY id HAVING SUM(bat)>0 AND SUM(bowl)>0) SELECT rank, rt FROM (SELECT id, rt, ROW_NUMBER() OVER(ORDER BY rt DESC) AS rank FROM r) WHERE id=?"
       ar_rank_row = await self.bot.fetchrow(ar_sql, [pid])
       rankings = {"batting": {"rank": bat_rank_row[0] if bat_rank_row else None, "rating": round(bat_rank_row[1], 2) if bat_rank_row else 0}, "bowling": {"rank": bowl_rank_row[0] if bowl_rank_row else None, "rating": round(bowl_rank_row[1], 2) if bowl_rank_row else 0}, "allrounder": {"rank": ar_rank_row[0] if ar_rank_row else None, "rating": round(ar_rank_row[1], 2) if ar_rank_row else 0}}
-      return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "batting": batting, "bowling": bowling, "general": {"mvps": mvps}, "recentPerformances": recent, "rankings": rankings}, headers=self.get_cors_headers())
-      
+      return web.json_response({"player": {"id": str(pid), "name": u['name'], "avatar": u['avatar']}, "format": match_format, "batting": stats["batting"], "bowling": stats["bowling"], "general": stats["general"], "recentPerformances": recent, "rankings": rankings}, headers=self.get_cors_headers())
     except Exception as e: return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
   async def get_match(self, request):
     try:

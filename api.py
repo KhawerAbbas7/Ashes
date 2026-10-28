@@ -277,7 +277,8 @@ class RankingCog(commands.Cog):
           "inningNo": row[1],
           "battingTeam": row[2],
           "bowlingTeam": row[3],
-          "runs": row[4] or 0
+          "runs": row[4] or 0,
+          "isFollowOn": bool(row[7])
         }
         for row in innings_rows
       ]
@@ -413,8 +414,11 @@ class RankingCog(commands.Cog):
       return ""
     bat = current["battingTeam"]
     bowl = current["bowlingTeam"]
-    bat_prev = sum((i["runs"] or 0) for i in innings if i["battingTeam"] == bat and i["inningNo"] != inning_no)
-    bowl_total = sum((i["runs"] or 0) for i in innings if i["battingTeam"] == bowl)
+    # Only count innings that had already started at this ball. The final
+    # totals of later innings must not leak into an earlier innings' state.
+    so_far = [i for i in innings if (i["inningNo"] or 0) <= inning_no]
+    bat_prev = sum((i["runs"] or 0) for i in so_far if i["battingTeam"] == bat and i["inningNo"] != inning_no)
+    bowl_total = sum((i["runs"] or 0) for i in so_far if i["battingTeam"] == bowl)
     bat_total = bat_prev + runs
     is_chase = (match_format == "t15" and inning_no == 2) or (match_format == "test" and inning_no == 4)
     if is_chase:
@@ -428,12 +432,20 @@ class RankingCog(commands.Cog):
           return "Match tied" if need == 1 else f"{bowl} have won"
         return f"{bat} need {need} runs from {balls_left} balls"
       return f"{bat} need {need} runs to win"
+    if match_format == "test" and inning_no == 2:
+      follow_on_limit = max(10, (max_balls * 5 + 35) // 36)
+      lead = bowl_total - bat_total
+      if lead >= follow_on_limit:
+        avoid = lead - follow_on_limit + 1
+        run_word = "run" if avoid == 1 else "runs"
+        return f"{bat} need {avoid} {run_word} to avoid follow-on."
     if match_format == "test" and inning_no in (2, 3):
       diff = bat_total - bowl_total
       if diff > 0:
         return f"{bat} lead by {diff} runs"
       if diff < 0:
-        return f"{bat} trail by {abs(diff)} runs"
+        follow_on = " (follow-on)" if current.get("isFollowOn") else ""
+        return f"{bat} trail by {abs(diff)} runs{follow_on}"
       return "Scores are level"
     return f"{bat} {runs}/{wickets} ({balls // 6}.{balls % 6})"
 

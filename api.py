@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 from aiohttp import web
+import asyncio
 import json
 import hmac
 import hashlib, os, time
@@ -16,7 +17,7 @@ class RankingCog(commands.Cog):
     self.runner = None
   async def cog_load(self):
     app = web.Application()
-    app.add_routes([web.get('/staff', self.get_staff),web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),web.post('/dbl', self.dbl)])
+    app.add_routes([web.get('/staff', self.get_staff),web.get('/rankings/batting', self.get_batting),web.get('/rankings/bowling', self.get_bowling),web.get('/rankings/allrounder', self.get_allrounder),web.get('/matches/getrecent',self.get_recent_matches),web.get('/matches/live', self.get_live_matches),web.get('/leaderboard', self.get_leaderboard),web.get('/', self.health_check),web.get('/matches/{matchId}/scorecard', self.get_scorecard),web.get('/matches/{matchId}/deliveries', self.get_deliveries),web.get('/matches/{matchId}/live', self.get_live_match),web.get('/matches/{matchId}', self.get_match),web.get('/users', self.get_userApi),web.get('/players/search', self.search_players),web.get('/players/{playerId}/stats', self.get_player_stats),web.post('/dbl', self.dbl)])
     self.runner = web.AppRunner(app)
     await self.runner.setup()
     self.site = web.TCPSite(self.runner, '0.0.0.0', 8000)
@@ -348,6 +349,246 @@ class RankingCog(commands.Cog):
         "maxBalls": matchMaximumBalls or 180,
         "matchTotalBalls": match_total_balls,
         "format": matchFormat or "test"
+      }, headers=self.get_cors_headers())
+    except Exception as e:
+      return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())
+  def _delivery_status(self, innings, match_format, max_balls, inning_no, runs, wickets, balls):
+    current = next((i for i in innings if i["inningNo"] == inning_no), None)
+    if not current:
+      return ""
+    bat = current["battingTeam"]
+    bowl = current["bowlingTeam"]
+    bat_prev = sum((i["runs"] or 0) for i in innings if i["battingTeam"] == bat and i["inningNo"] != inning_no)
+    bowl_total = sum((i["runs"] or 0) for i in innings if i["battingTeam"] == bowl)
+    bat_total = bat_prev + runs
+    is_chase = (match_format == "t15" and inning_no == 2) or (match_format == "test" and inning_no == 4)
+    if is_chase:
+      target = (bowl_total - bat_prev) + 1
+      need = target - runs
+      if need <= 0:
+        return f"{bat} have won"
+      if match_format == "t15":
+        balls_left = max(0, max_balls - balls)
+        if balls_left == 0:
+          return "Match tied" if need == 1 else f"{bowl} have won"
+        return f"{bat} need {need} runs from {balls_left} balls"
+      return f"{bat} need {need} runs to win"
+    if match_format == "test" and inning_no in (2, 3):
+      diff = bat_total - bowl_total
+      if diff > 0:
+        return f"{bat} lead by {diff} runs"
+      if diff < 0:
+        return f"{bat} trail by {abs(diff)} runs"
+      return "Scores are level"
+    return f"{bat} {runs}/{wickets} ({balls // 6}.{balls % 6})"
+
+  async def get_deliveries(self, request):
+    try:
+      match_id = request.match_info['matchId']
+      match_row = await self.bot.fetchrow(
+        "SELECT teamAName,teamBName,winner,matchMaximumBalls,format FROM matches WHERE matchId=?",
+        [match_id]
+      )
+      if not match_row:
+        return web.json_response({"error": "Match not found"}, status=404, headers=self.get_cors_headers())
+      team_a_name, team_b_name, winner, match_max_balls, match_format = match_row
+      match_format = (match_format or "test").lower()
+      max_balls = match_max_balls or (90 if match_format == "t15" else 180)
+      try:
+        inning_no = int(request.query.get('inningNo', 1))
+      except ValueError:
+        inning_no = 1
+      try:
+        page = max(1, int(request.query.get('page', 1)))
+      except ValueError:
+        page = 1
+      try:
+        limit = min(50, max(1, int(request.query.get('limit', 20))))
+      except ValueError:
+        limit = 20
+      delivery_filter = request.query.get('filter', 'all')
+      allowed_filters = {
+        'all', 'batter-can-do-0', 'batter-cant-do-0', 'bowler-can-do-0',
+        'fours', 'sixes', 'wickets', 'afk', 'non-afk'
+      }
+      if delivery_filter not in allowed_filters:
+        delivery_filter = 'all'
+
+      innings_rows = await self.bot.fetchall(
+        "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isDeclared,isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo",
+        [match_id]
+      )
+      innings = []
+      for row in innings_rows:
+        innings.append({
+          "inningId": row[0],
+          "inningNo": row[1],
+          "battingTeam": row[2],
+          "bowlingTeam": row[3],
+          "runs": row[4] or 0,
+          "wickets": row[5] or 0,
+          "balls": row[6] or 0,
+          "isDeclared": bool(row[7]),
+          "isFollowOn": bool(row[8])
+        })
+      current_inning = next((i for i in innings if i["inningNo"] == inning_no), None)
+      if not current_inning:
+        return web.json_response({"error": "Innings not found"}, status=404, headers=self.get_cors_headers())
+
+      rows = await self.bot.fetchall(
+        "SELECT ballId,batterId,nonStrikerId,bowlerId,canDo0,canDoBoundary,isWicket,runs,InningRuns,InningBalls,InningOvers,InningWickets,batterNum,bowlerNum,timestamp,day,session FROM deliveries WHERE inningId=? ORDER BY timestamp, rowid",
+        [current_inning["inningId"]]
+      )
+
+      bowler_over_runs = {}
+      for row in rows:
+        batter_num, bowler_num = row[12], row[13]
+        if batter_num is None or bowler_num is None:
+          continue
+        over_no = (row[9] + 5) // 6
+        key = (row[3], over_no)
+        bowler_over_runs[key] = bowler_over_runs.get(key, 0) + (row[7] or 0)
+      bowler_over_numbers = {}
+      for (bowler_id, over_no) in bowler_over_runs.keys():
+        bowler_over_numbers.setdefault(bowler_id, []).append(over_no)
+      for over_numbers in bowler_over_numbers.values():
+        over_numbers.sort()
+
+      deliveries = []
+      bowler_history = {}
+      zero_in_over = {}
+      for row in rows:
+        (ball_id, batter_id, non_striker_id, bowler_id, can_do_0, can_do_boundary,
+         is_wicket, runs, inning_runs, inning_balls, inning_overs, inning_wickets,
+         batter_num, bowler_num, timestamp, day, session) = row
+        runs = runs or 0
+        inning_runs = inning_runs or 0
+        inning_balls = inning_balls or 0
+        inning_wickets = inning_wickets or 0
+        legal = batter_num is not None and bowler_num is not None
+        if legal:
+          over_no = (inning_balls + 5) // 6
+          pre_balls = max(0, inning_balls - 1)
+        else:
+          over_no = inning_balls // 6 + 1
+          pre_balls = inning_balls
+
+        history = bowler_history.get(bowler_id, [])
+        is_on_hattrick = (
+          len(history) >= 2
+          and history[-1] == 1
+          and history[-2] == 1
+          and (len(history) == 2 or history[-3] != 1)
+        )
+        previous_overs = [o for o in bowler_over_numbers.get(bowler_id, []) if o < over_no]
+        last_over_maiden = bool(previous_overs) and bowler_over_runs.get((bowler_id, previous_overs[-1]), 0) == 0
+        zero_before = zero_in_over.get(over_no, False)
+        bowler_can_do_0 = bool(
+          is_on_hattrick or (pre_balls >= 6 and last_over_maiden and not zero_before)
+        )
+
+        if legal:
+          bowler_history.setdefault(bowler_id, []).append(1 if is_wicket else 0)
+          if bowler_num == 0:
+            zero_in_over[over_no] = True
+
+        if batter_num is None and bowler_num is None:
+          afk_side = "both"
+        elif batter_num is None:
+          afk_side = "batter"
+        elif bowler_num is None:
+          afk_side = "bowler"
+        else:
+          afk_side = None
+
+        deliveries.append({
+          "ballId": ball_id,
+          "ball": f"{inning_balls // 6}.{inning_balls % 6}",
+          "over": over_no,
+          "runs": runs,
+          "isWicket": bool(is_wicket),
+          "isFour": runs == 4,
+          "isSix": runs == 6,
+          "isAfk": not legal,
+          "afkSide": afk_side,
+          "batterId": str(batter_id) if batter_id is not None else None,
+          "bowlerId": str(bowler_id) if bowler_id is not None else None,
+          "batterNum": batter_num,
+          "bowlerNum": bowler_num,
+          "inningRuns": inning_runs,
+          "inningWickets": inning_wickets,
+          "inningBalls": inning_balls,
+          "inningScore": f"{inning_runs}/{inning_wickets}",
+          "inningOvers": f"{inning_balls // 6}.{inning_balls % 6}",
+          "matchStatus": self._delivery_status(
+            innings, match_format, max_balls, inning_no, inning_runs, inning_wickets, inning_balls
+          ),
+          "batterCanDo0": bool(can_do_0),
+          "batterCanDoBoundary": bool(can_do_boundary),
+          "bowlerCanDo0": bowler_can_do_0,
+          "day": day,
+          "session": session,
+          "timestamp": timestamp
+        })
+
+      if delivery_filter == 'batter-can-do-0':
+        filtered = [d for d in deliveries if not d["isAfk"] and d["batterCanDo0"]]
+      elif delivery_filter == 'batter-cant-do-0':
+        filtered = [d for d in deliveries if not d["isAfk"] and not d["batterCanDo0"]]
+      elif delivery_filter == 'bowler-can-do-0':
+        filtered = [d for d in deliveries if not d["isAfk"] and d["bowlerCanDo0"]]
+      elif delivery_filter == 'fours':
+        filtered = [d for d in deliveries if d["isFour"]]
+      elif delivery_filter == 'sixes':
+        filtered = [d for d in deliveries if d["isSix"]]
+      elif delivery_filter == 'wickets':
+        filtered = [d for d in deliveries if d["isWicket"]]
+      elif delivery_filter == 'afk':
+        filtered = [d for d in deliveries if d["isAfk"]]
+      elif delivery_filter == 'non-afk':
+        filtered = [d for d in deliveries if not d["isAfk"]]
+      else:
+        filtered = deliveries
+
+      filtered.reverse()
+      total = len(filtered)
+      start = (page - 1) * limit
+      page_rows = filtered[start:start + limit]
+
+      player_ids = set()
+      for d in page_rows:
+        if d["batterId"]:
+          player_ids.add(int(d["batterId"]))
+        if d["bowlerId"]:
+          player_ids.add(int(d["bowlerId"]))
+      player_map = {}
+      if player_ids:
+        player_id_list = list(player_ids)
+        users = await asyncio.gather(*[self.fetch_user_data(pid) for pid in player_id_list])
+        for pid, user in zip(player_id_list, users):
+          player_map[pid] = user
+
+      for d in page_rows:
+        batter = player_map.get(int(d["batterId"])) if d["batterId"] else None
+        bowler = player_map.get(int(d["bowlerId"])) if d["bowlerId"] else None
+        d["batter"] = {"id": d["batterId"], "name": batter["name"] if batter else "Unknown Player"}
+        d["bowler"] = {"id": d["bowlerId"], "name": bowler["name"] if bowler else "Unknown Player"}
+
+      return web.json_response({
+        "matchId": match_id,
+        "teamAName": team_a_name,
+        "teamBName": team_b_name,
+        "winner": winner,
+        "format": match_format,
+        "maxBalls": max_balls,
+        "inningNo": inning_no,
+        "filter": delivery_filter,
+        "page": page,
+        "limit": limit,
+        "total": total,
+        "hasMore": start + limit < total,
+        "innings": innings,
+        "deliveries": page_rows
       }, headers=self.get_cors_headers())
     except Exception as e:
       return web.json_response({"error": str(e)}, status=500, headers=self.get_cors_headers())

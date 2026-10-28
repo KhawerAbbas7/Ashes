@@ -107,6 +107,20 @@ class RankingCog(commands.Cog):
     column = f"{alias}matchId" if alias else "matchId"
     return f" AND {column} IN (SELECT matchId FROM matches WHERE format='{match_format}')"
 
+  def t15_phase(self, game):
+    if game.format != "t15" or not game.innings:
+      return None
+    phase_no = game.phase(game.currentInning.balls)
+    balls_left = max(0, phase_no * 30 - game.currentInning.balls)
+    return {
+      "number": phase_no,
+      "name": game.PHASES[phase_no]["name"],
+      "boundaries": game.PHASES[phase_no]["boundaries"],
+      "ballsLeft": balls_left,
+      "oversLeft": f"{balls_left // 6}.{balls_left % 6}",
+      "totalBalls": game.maxBalls
+    }
+
   async def _career_stats(self, pid, match_format="all"):
     fc = self._format_filter(match_format)
     fc_alias = self._format_filter(match_format, "d2.")
@@ -353,16 +367,19 @@ class RankingCog(commands.Cog):
             "wickets": inn.wickets,
             "balls": inn.balls,
             "overs": f"{inn.balls // 6}.{inn.balls % 6}",
+            "runRate": round(inn.runs / (inn.balls / 6), 2) if inn.balls else 0.0,
             "isDeclared": inn.declared,
             "isFollowOn": inn.followOn
           })
         team_a_players = [{"id": str(p.id), "name": p.name} for p in game.teama.players]
         team_b_players = [{"id": str(p.id), "name": p.name} for p in game.teamb.players]
         day, session = game.getDaysAndSessions() if game.started else (1, 1)
+        phase = self.t15_phase(game) if game.started else None
         matches.append({
           "id": game.gameId,
           "state": state,
           "format": "T15" if game.format == "t15" else "Test",
+          "phase": phase,
           "channelId": str(channel_id),
           "channelName": channel.name if channel else str(channel_id),
           "guildName": guild.name if guild else str(game.ctx.guild.id),
@@ -403,7 +420,8 @@ class RankingCog(commands.Cog):
         ordered_batters = sorted(inn.batters.items(), key=lambda x: get_order(x[0]))
         for player, b in ordered_batters:
           can_do_0 = b.consecutiveDots != 3
-          can_do_boundary = not b.cantDoBoundaryThisOver
+          can_do_boundary = not game.cantBoundary(b, inn)
+          boundary_limit = game.PHASES[game.phase(inn.balls)]["boundaries"] if game.format == "t15" else (2 if b.balls >= 15 else 1)
           batters_out.append({
             "playerId": str(player.id),
             "playerName": player.name,
@@ -418,6 +436,7 @@ class RankingCog(commands.Cog):
             "boundaryThisOver": b.BoundaryThisOver,
             "canDo0": can_do_0,
             "canDoBoundary": can_do_boundary,
+            "boundaryLimit": boundary_limit,
             "timeline": list(b.timeline)
           })
         bowlers_out = []
@@ -451,6 +470,8 @@ class RankingCog(commands.Cog):
         })
       current_batters = []
       current_bowlers = []
+      current_inning = None
+      phase = None
       partnership = None
       timeline = []
       if game.started and game.innings:
@@ -460,7 +481,8 @@ class RankingCog(commands.Cog):
         for i, p in enumerate(ci.currentBatters):
           b = ci.batters.get(p)
           can_do_0 = (b.consecutiveDots != 3) if b else True
-          can_do_boundary = (not b.cantDoBoundaryThisOver) if b else True
+          can_do_boundary = (not game.cantBoundary(b, ci)) if b else True
+          boundary_limit = (game.PHASES[game.phase(ci.balls)]["boundaries"] if game.format == "t15" else (2 if (b and b.balls >= 15) else 1))
           current_batters.append({
             "playerId": str(p.id),
             "playerName": p.name,
@@ -473,7 +495,8 @@ class RankingCog(commands.Cog):
             "consecutiveDots": b.consecutiveDots if b else 0,
             "boundaryThisOver": b.BoundaryThisOver if b else 0,
             "canDo0": can_do_0,
-            "canDoBoundary": can_do_boundary
+            "canDoBoundary": can_do_boundary,
+            "boundaryLimit": boundary_limit
           })
         for i, p in enumerate(ci.currentBowlers):
           b = ci.bowlers.get(p)
@@ -490,13 +513,53 @@ class RankingCog(commands.Cog):
             "economy": round((b.runsConceded / b.balls) * 6, 2) if (b and b.balls) else 0.0,
             "isBowling": i == 0,
             "isOnHattrick": b.isOnHattrick if b else False,
+            "lastOverMaiden": b.lastOverMaiden if b else False,
             "canDo0": bowler_can_do_0
           })
+        phase = self.t15_phase(game)
+        chase = (game.format == "t15" and ci.inningNo == 2) or (game.format == "test" and ci.inningNo == 4)
+        target = None
+        runs_needed = None
+        balls_remaining = None
+        required_rate = None
+        if chase:
+          bat_total = game.teamTotal(ci.battingTeam)
+          bowl_total = game.teamTotal(ci.bowlingTeam)
+          bat_prev = bat_total - ci.runs
+          target = (bowl_total - bat_prev) + 1
+          runs_needed = max(0, target - ci.runs)
+          if game.format == "t15":
+            balls_remaining = max(0, game.maxBalls - ci.balls)
+            required_rate = round((runs_needed / balls_remaining) * 6, 2) if balls_remaining > 0 else None
+        current_inning = {
+          "inningNo": ci.inningNo,
+          "battingTeam": ci.battingTeam.name if ci.battingTeam else None,
+          "bowlingTeam": ci.bowlingTeam.name if ci.bowlingTeam else None,
+          "runs": ci.runs,
+          "wickets": ci.wickets,
+          "balls": ci.balls,
+          "overs": f"{ci.balls // 6}.{ci.balls % 6}",
+          "runRate": round(ci.runs / (ci.balls / 6), 2) if ci.balls else 0.0,
+          "target": target,
+          "runsNeeded": runs_needed,
+          "ballsRemaining": balls_remaining,
+          "requiredRate": required_rate,
+          "isDeclared": ci.declared,
+          "isFollowOn": ci.followOn,
+          "phase": phase,
+          "partnership": partnership,
+          "currentOverRuns": ci.currentOverRuns,
+          "lastOverRuns": ci.lastOverRuns,
+          "zeroByBowler": ci.zeroByBowler,
+          "timeline": list(ci.timeline),
+          "fallOfWickets": ci.fallOfWickets
+        }
       day, session = game.getDaysAndSessions() if game.started else (1, 1)
       return web.json_response({
         "id": game.gameId,
         "state": state,
         "format": "T15" if game.format == "t15" else "Test",
+        "phase": phase,
         "channelName": channel.name if channel else str(game.ctx.channel.id),
         "guildName": guild.name if guild else str(game.ctx.guild.id),
         "teamAName": game.teama.name,
@@ -510,6 +573,7 @@ class RankingCog(commands.Cog):
         "tossStatus": game.tossStatus,
         "statusText": game.matchStatus() if game.started and game.innings else "Waiting in Lobby",
         "innings": innings_out,
+        "currentInning": current_inning,
         "currentBatters": current_batters,
         "currentBowlers": current_bowlers,
         "partnership": partnership,

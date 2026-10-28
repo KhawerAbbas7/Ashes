@@ -266,26 +266,79 @@ class RankingCog(commands.Cog):
       if not match_row:
         return web.json_response({"error": "No innings found"}, status=404, headers=self.get_cors_headers())
       matchId, channelId, guildId, teamAName, teamBName, winner, mvpId, matchMaximumBalls, drawByAgreement, matchFormat= match_row
+      matchFormat = (matchFormat or "test").lower()
+      score_max_balls = matchMaximumBalls or (90 if matchFormat == "t15" else 180)
       innings_rows = await self.bot.fetchall(
         "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isFollowOn,isDeclared FROM innings WHERE matchId=? ORDER BY inningNo",
         [match_id]
       )
+      innings_ctx = [
+        {
+          "inningNo": row[1],
+          "battingTeam": row[2],
+          "bowlingTeam": row[3],
+          "runs": row[4] or 0
+        }
+        for row in innings_rows
+      ]
       result = []
       match_total_balls = 0
       for inning in innings_rows:
         inningId, inningNo, battingTeam, bowlingTeam, totalRuns, totalWickets, totalBalls, isFollowOn, isDeclared = inning
         match_total_balls += (totalBalls or 0)
         bat_rows = await self.bot.fetchall(
-          "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls, SUM(CASE WHEN runs=4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN runs=6 THEN 1 ELSE 0 END) AS sixes, MIN(timestamp) AS batting_order, MAX(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) AS dismissed, MAX(CASE WHEN isWicket=1 THEN bowlerId ELSE NULL END) AS dismissedBy FROM deliveries WHERE inningId=? AND batterId IS NOT NULL GROUP BY batterId ORDER BY batting_order",
+          "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls, SUM(CASE WHEN runs=4 THEN 1 ELSE 0 END) AS fours, SUM(CASE WHEN runs=6 THEN 1 ELSE 0 END) AS sixes, SUM(CASE WHEN runs=0 AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS dots, MIN(timestamp) AS batting_order, MAX(CASE WHEN isWicket=1 THEN 1 ELSE 0 END) AS dismissed, MAX(CASE WHEN isWicket=1 THEN bowlerId ELSE NULL END) AS dismissedBy FROM deliveries WHERE inningId=? AND batterId IS NOT NULL GROUP BY batterId ORDER BY batting_order",
           [inningId]
         )
+        wicket_rows = await self.bot.fetchall(
+          "SELECT batterId,InningBalls,batterNum,bowlerNum,runs,canDo0,canDoBoundary,InningRuns,InningWickets FROM deliveries WHERE inningId=? AND isWicket=1 AND batterId IS NOT NULL ORDER BY timestamp, rowid",
+          [inningId]
+        )
+        dismissal_map = {}
+        for wicket in wicket_rows:
+          if wicket[0] not in dismissal_map:
+            dismissal_map[wicket[0]] = wicket
         batters = []
         for row in bat_rows:
-          batterId, runs, balls, fours, sixes, batting_order, dismissed, dismissedBy = row
+          batterId, runs, balls, fours, sixes, dots, batting_order, dismissed, dismissedBy = row
           sr = round((runs / balls) * 100, 2) if balls else 0
           u = await self.fetch_user_data(batterId)
+          dismissal = None
           if bool(dismissed):
-            if dismissedBy:
+            wicket = dismissal_map.get(batterId)
+            if wicket:
+              ball_no = wicket[1] or 0
+              batter_num = wicket[2]
+              bowler_num = wicket[3]
+              is_afk = batter_num is None or bowler_num is None
+              if batter_num is None and bowler_num is None:
+                afk_side = "both"
+              elif batter_num is None:
+                afk_side = "batter"
+              elif bowler_num is None:
+                afk_side = "bowler"
+              else:
+                afk_side = None
+              dismissal_runs = wicket[7] or 0
+              dismissal_wickets = wicket[8] or 0
+              dismissal = {
+                "ball": f"{ball_no // 6}.{ball_no % 6}",
+                "batterNum": batter_num,
+                "bowlerNum": bowler_num,
+                "runs": wicket[4] or 0,
+                "batterCanDo0": bool(wicket[5]),
+                "batterCanDoBoundary": bool(wicket[6]),
+                "isAfk": is_afk,
+                "afkSide": afk_side,
+                "inningScore": f"{dismissal_runs}/{dismissal_wickets}",
+                "matchStatus": self._delivery_status(
+                  innings_ctx, matchFormat, score_max_balls, inningNo,
+                  dismissal_runs, dismissal_wickets, ball_no
+                )
+              }
+            if dismissal and dismissal["isAfk"]:
+              dismissed_str = "AFK / Out"
+            elif dismissedBy:
               dismissedByU = await self.fetch_user_data(dismissedBy)
               dismissed_str = f"b. {dismissedByU['name']}"
             else:
@@ -300,9 +353,11 @@ class RankingCog(commands.Cog):
             "balls": balls or 0,
             "fours": fours or 0,
             "sixes": sixes or 0,
+            "dots": dots or 0,
             "strikeRate": sr,
             "dismissed": bool(dismissed),
-            "dismissedBy": dismissed_str
+            "dismissedBy": dismissed_str,
+            "dismissal": dismissal
           })
         bowl_rows = await self.bot.fetchall(
           "SELECT bowlerId, COUNT(*) AS balls, SUM(runs) AS runs, SUM(isWicket) AS wickets, MIN(timestamp) AS bowling_order FROM deliveries WHERE inningId=? AND bowlerId IS NOT NULL AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL GROUP BY bowlerId ORDER BY bowling_order",
@@ -413,6 +468,12 @@ class RankingCog(commands.Cog):
       }
       if delivery_filter not in allowed_filters:
         delivery_filter = 'all'
+      batter_filter = request.query.get('batterId') or None
+      if batter_filter and not batter_filter.isdigit():
+        batter_filter = None
+      bowler_filter = request.query.get('bowlerId') or None
+      if bowler_filter and not bowler_filter.isdigit():
+        bowler_filter = None
 
       innings_rows = await self.bot.fetchall(
         "SELECT inningId,inningNo,battingTeam,bowlingTeam,runs,wickets,balls,isDeclared,isFollowOn FROM innings WHERE matchId=? ORDER BY inningNo",
@@ -550,6 +611,11 @@ class RankingCog(commands.Cog):
       else:
         filtered = deliveries
 
+      if batter_filter:
+        filtered = [d for d in filtered if d["batterId"] == batter_filter]
+      if bowler_filter:
+        filtered = [d for d in filtered if d["bowlerId"] == bowler_filter]
+
       filtered.reverse()
       total = len(filtered)
       start = (page - 1) * limit
@@ -583,6 +649,8 @@ class RankingCog(commands.Cog):
         "maxBalls": max_balls,
         "inningNo": inning_no,
         "filter": delivery_filter,
+        "batterId": batter_filter,
+        "bowlerId": bowler_filter,
         "page": page,
         "limit": limit,
         "total": total,

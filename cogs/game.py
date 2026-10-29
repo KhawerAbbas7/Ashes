@@ -152,7 +152,9 @@ class Game():
     self.started = False 
     self.startedAt = None
     self.batFirstTeam = None
-    self.tossStatus = None
+    self._tossStatus = None
+    self.tossWinner = None
+    self.tossDecision = None
     self.innings = []
     self.ballsData = []
     self.repIds: list[int] = []
@@ -165,6 +167,14 @@ class Game():
     self.DEBUG = False
     self.updateMsg = None
     self.forceYeet = False
+  @property
+  def tossStatus(self):
+    if self.tossWinner and self.tossDecision:
+      return f"**{self.tossWinner.name}** have won the toss and have elected to {self.tossDecision} first"
+    return self._tossStatus
+  @tossStatus.setter
+  def tossStatus(self, value):
+    self._tossStatus = value
   def phase(self, balls): return min(3, balls // 30 + 1)
   def cantBoundary(self, p, inn):
     if self.format == 'test': return p.cantDoBoundaryThisOver
@@ -781,6 +791,10 @@ class Game():
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
       container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}\n-# **Toss:** {self.tossStatus}"))
+      if self.format == 'test':
+        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+      else:
+        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**T15** ✅\n**Rep Limit:** {self.repLimit}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"### {self.teama.name} {t.get(self.teama.name, 'YTB')}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
@@ -823,12 +837,13 @@ class Game():
       await view.wait()
       if view.value:
         other = self.teamb if winner.id == 1 else self.teama
-        self.tossStatus = f"**{winner.name}** have won the toss and have elected to {view.value} first"
+        self.tossWinner = winner
+        self.tossDecision = view.value
         await self.ctx.send(f"**{winner.name} have won the toss and have elected to {view.value} first**")
         if view.value == 'Bat':self.batFirstTeam = winner
         else:self.batFirstTeam = other
       else:
-        self.tossStatus= None
+        self.tossStatus = None
     else:
       self.tossStatus = None
   def textScore(self):

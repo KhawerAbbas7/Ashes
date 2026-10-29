@@ -219,7 +219,7 @@ class Ashes(commands.Bot):
         "host": game.hostId,
         "startTime": game.startedAt,
         "endTime": time.time(),
-        "settings": {"maxBalls": game.maxBalls, "T10": game.T10},
+        "settings": {"maxBalls": game.maxBalls, "format": game.format},
         "guild": game.ctx.guild.id,
         "channel": game.ctx.channel.id,
         "repLimit": game.repLimit,

@@ -891,7 +891,7 @@ class RankingCog(commands.Cog):
         "repLimit": game.repLimit,
         "day": day,
         "session": session,
-        "tossStatus": game.tossStatus,
+        "tossStatus": game.tossStatus.replace("*",""),
         "statusText": game.matchStatus() if game.started and game.innings else "Waiting in Lobby",
         "innings": innings_out,
         "currentInning": current_inning,

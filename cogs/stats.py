@@ -96,7 +96,7 @@ class Statistics(commands.Cog, name= "Statistics"):
     await v.wait()
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def leaderboard(self, ctx):
+  async def shameleaderboard(self, ctx):
     table, footer = await ShamefulLBview(ctx.bot, "Most Runs", "test")
     v = LBview(ctx, table, "Most Runs", footer, "test")
     v.m = await ctx.send(view=v)

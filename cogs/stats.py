@@ -71,21 +71,9 @@ class Statistics(commands.Cog, name= "Statistics"):
   @commands.command(aliases= ['lb'], description= 'View the leading performer across different categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
   async def leaderboard(self, ctx):
-    table = PrettyTable(padding_width=5)
-    table.field_names = ["Player", "Runs", "Balls"]
-    table.align = "l"
-    table.border=False
-    table.header=True
-    table.hrules=0
-    table.vrules=0
-    table.left_padding_width=0
-    rows=await ctx.bot.fetchall("SELECT batterId,SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries GROUP BY batterId ORDER BY runs DESC LIMIT 10", ())
-    for i,r in enumerate(rows,1):
-      batterId, runs, balls = r
-      batter = ctx.bot.get_user(batterId ) or batterId 
-      table.add_row([f"{i}. {batter}", runs,balls])
-    v = LBview(ctx, table)
-    v.m =await ctx.send(view=v)
+    table, footer = await getLBData(ctx.bot, "Most Runs", "test")
+    v = LBview(ctx, table, "Most Runs", footer, "test")
+    v.m = await ctx.send(view=v)
     await v.wait()
   @commands.command(aliases= ['clb'], description= 'View the leading performer across different categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
@@ -108,22 +96,10 @@ class Statistics(commands.Cog, name= "Statistics"):
     await v.wait()
   @commands.command(aliases= ['shamelb'], description= 'View the leading performer across shameful categories.')
   @commands.max_concurrency(1, per=BucketType.user, wait=False)
-  async def hallofshame(self, ctx):
-    table = PrettyTable(padding_width=5)
-    table.field_names = ["Player", "AFKs"]
-    table.align = "l"
-    table.border=False
-    table.header=True
-    table.hrules=0
-    table.vrules=0
-    table.left_padding_width=0
-    rows=await self.bot.fetchall("SELECT playerId, SUM(batter_afk+bowler_afk) AS total_afks FROM (SELECT batterId AS playerId, CASE WHEN batterNum IS NULL THEN 1 ELSE 0 END AS batter_afk, 0 AS bowler_afk FROM deliveries WHERE batterId IS NOT NULL UNION ALL SELECT bowlerId AS playerId, 0 AS batter_afk, CASE WHEN bowlerNum IS NULL THEN 1 ELSE 0 END AS bowler_afk FROM deliveries WHERE bowlerId IS NOT NULL) t GROUP BY playerId ORDER BY total_afks DESC LIMIT 10;", ())
-    for i,r in enumerate(rows,1):
-      batterId, afks = r
-      batter = ctx.bot.get_user(batterId ) or batterId 
-      table.add_row([f"{i}. {batter}", afks])
-    v = ShamefulLBview(ctx, table, "Most AFKs")
-    v.m =await ctx.send(view=v)
+  async def leaderboard(self, ctx):
+    table, footer = await ShamefulLBview(ctx.bot, "Most Runs", "test")
+    v = LBview(ctx, table, "Most Runs", footer, "test")
+    v.m = await ctx.send(view=v)
     await v.wait()
   @commands.command(aliases= ['Badges'], description= 'View the achievements/Badges.')
   async def achievements(self, ctx, target: NonBotUser = None):

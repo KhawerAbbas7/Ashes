@@ -1376,7 +1376,7 @@ class Game():
             inn.balls,
             float(self.ballsToOvers(inn.balls)),
             inn.wickets,
-            None, int(bowl_task.result().content),
+            None, int(self.parseMoves(bowl_task.result().content)[0]),
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
@@ -1412,7 +1412,7 @@ class Game():
             inn.balls,
             float(self.ballsToOvers(inn.balls)),
             inn.wickets,
-            None, int(bowl_task.result().content),
+            None, int(self.parseMoves(bowl_task.result().content)[0]),
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
@@ -1441,7 +1441,7 @@ class Game():
             inn.balls,
             float(self.ballsToOvers(inn.balls)),
             inn.wickets,
-            None, int(bowl_task.result().content),
+            None, int(self.parseMoves(bowl_task.result().content)[0]),
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))
@@ -1469,7 +1469,7 @@ class Game():
             inn.balls,
             float(self.ballsToOvers(inn.balls)),
             inn.wickets,
-            int(bat_task.result().content),None, 
+            int(self.parseMoves(bat_task.result().content)[0]),None, 
             int(time.time()),
             DaysAndSessions[0], DaysAndSessions[1],
           ))

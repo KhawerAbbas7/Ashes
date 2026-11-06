@@ -1207,21 +1207,21 @@ class Game():
         allowed={'1','2','3'}
       else:
         allowed={'1','2','3','4','6'}
-      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})"
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})\n-#You can also premove by using comma. e.g `2,3,0`, now 2 will be played for this shot and 3 and 0 will be automatically played for next deliveries."
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
       batview.add_item(ui.TextDisplay(battxt))
       batview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       bowlview = ui.LayoutView(timeout=None)
       bowlview.add_item(self.score(True))
-      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery ({','.join(bowlerAllowed)})"))
+      bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery ({','.join(bowlerAllowed)})\n-# You can also premove by using comma. e.g `2,3,2`, now 2 will be played for this shot and 3 and 2 will be automatically played for next deliveries."))
       bowlview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
       batPre = striker_p.premoves[0] if striker_p.premoves and striker_p.premoves[0] in allowed else None
       bowlPre = bowler_p.premoves[0] if bowler_p.premoves and bowler_p.premoves[0] in bowlerAllowed else None
       if not batPre: striker_p.premoves.clear()
       if not bowlPre: bowler_p.premoves.clear()
-      msg1 = await striker.send(f"Premove played: {batPre}") if batPre else await striker.send(view=batview)
-      msg2 = await bowler.send(f"Premove played: {bowlPre}") if bowlPre else await bowler.send(view=bowlview)
+      msg1 = None if batPre else await striker.send(view=batview)
+      msg2 = None if bowlPre else await bowler.send(view=bowlview)
       def checkBatter(m): return m.author.id==striker.id and m.guild is None and bool(t:=self.parseMoves(m.content)) and t[0] in allowed and set(t) <= {'0','1','2','3','4','6'}
       def checkBowler(m): return m.author.id==bowler.id and m.guild is None and bool(t:=self.parseMoves(m.content)) and t[0] in bowlerAllowed and set(t) <= {'0','1','2','3','4','6'}
       async def fixed(v): return SimpleNamespace(content=v)
@@ -1330,7 +1330,7 @@ class Game():
             await self.selectNextBatter()
           elif not inn.currentBatters:return 'Inning Over'
         else:
-          batterExtraTXT = f"You were AFK, AFK number: {striker_p.AFKs}.\n-# Just incase u didn't know, u will get first warning at 3 AFKs, and will be declared out at 6."
+          batterExtraTXT = f"You were AFK, total AFKs: `{striker_p.AFKs}`.\n-# Just in case u didn't know, u will get first warning at 3 AFKs, and will be declared out at 6."
           if not(isRep):
             self.ballsData.append((
             ballId,
@@ -1417,7 +1417,7 @@ class Game():
             DaysAndSessions[0], DaysAndSessions[1],
           ))
           await self.sendToNonStriker("Striker was declared out because of being AFK.")
-          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
+          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6th ball, look out for the aggravated teammates!!")
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):
             inn.nextBatterId = None
@@ -1552,10 +1552,18 @@ class Game():
         achievement = "hattrick "
       await self.sendWicketGraphic(striker.name.upper()[:18], f"b. {bowler.name.upper()}", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, achievement)
       await asyncio.sleep(0.3)
-      await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}")
+      await striker.send(
+        f"Played your **premove:** {bat}\nYour score:\n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}"
+        if batPre else
+        f"Your score:\n{striker_p.runs} ({striker_p.balls})\n**You are out!!**\nBowler did {bowl}"
+      )
       inn.fallOfWickets.append(str(inn.runs))
       await asyncio.sleep(0.3)
-      await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}")
+      await bowler.send(
+        f"Played your **premove:** {bowlPre}\nTheir score: \n{striker_p.runs} ({striker_p.balls})\n**They are out!! (+100 Aura for getting them on premove)**\nBatter did {bat}"
+        if bowlPre else
+        f"Their score: \n{striker_p.runs} ({striker_p.balls})\nThey are out!!\nBatter did {bat}"
+      )
       striker_p.dismissedBy = f"b. {bowler.name[:14]}"
       await asyncio.sleep(0.3)
       await self.sendToNonStriker(f"{striker.name}'s score: \n{striker_p.runs} ({striker_p.balls})\n**They are out!!**\nBowler -> {bowl}")
@@ -1604,7 +1612,7 @@ class Game():
         txt = f"{pship}**{striker.name} has reached the rep limit ({self.repLimit}) and therefore he is going off.**"
         if excess:
           txt += f"The batter scored {bat} on the previous delivery, but it has been revised to {realNumber} due to the rep limit."
-        await self.sendWicketGraphic(striker.name.upper()[:18], f"REP LIMT REACHED", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, None)
+        await self.sendWicketGraphic(striker.name.upper()[:18], f"REP LIMIT REACHED", str(striker_p.runs), str(striker_p.balls), f"{inn.runs}-{inn.wickets}", str(striker_p.sixes), str(striker_p.fours), str(striker_p.sr), txt, None)
         await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat} (revised to {realNumber} due to rep limit)\nAnd he is out!!")
         await asyncio.sleep(0.3)
         await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}. **Your number was reassessed to {realNumber}**\nYou have reached the rep limit with this shot, therefore you are being **declared out**.")
@@ -1681,7 +1689,11 @@ class Game():
           await self.sendPartnershipGraphic(p1, p2, curr_pship, p1s, p2s,p1r, p2r)
         overEnded = '\n**Over has now ended.**' if inn.balls%6==0 else ''
         youRemainOffStrike = ''
-        await striker.send(f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}")
+        await striker.send(
+          f"Played your **premove:** {batPre}\nYour score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}"
+        if batPre else
+          f"Your score: \n{striker_p.runs} ({striker_p.balls})\nBowler did {bowl}{overEnded}"
+        )
         if bat%2==1 and inn.balls%6!=0:
           youRemainOffStrike = '\nYou are now on strike.'
         elif bat%2!=1 and inn.balls%6!=0:
@@ -1689,7 +1701,11 @@ class Game():
         elif bat%2!=1 and inn.balls%6==0:
           youRemainOffStrike = '\nYou are now on strike.'
         await asyncio.sleep(0.3)
-        await bowler.send(f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}")
+        await bowler.send(
+          f"Played your **premove:** {bowlPre}\nTheir score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}"
+          if bowlPre else
+          f"Their score: \n{striker_p.runs} ({striker_p.balls})\nBatter did {bat}{overEnded}"
+        )
         await self.sendToNonStriker(f"{self.textScore()}\n\n**Batter digit -> {bat}**\nBowler -> {bowl}{overEnded}{youRemainOffStrike}")
         inn.timeline.append(f"{bat}")
         if bat%2==1 and len(inn.currentBatters) > 1:

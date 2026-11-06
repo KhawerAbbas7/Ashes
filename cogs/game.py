@@ -1,10 +1,11 @@
-import random, traceback,os, time,json, math
+import random, traceback,os, time,json, math, re
 from cogs.views import *
 from discord import Embed, Color,ui
 from collections import deque
 import asyncio
 import discord
 from PIL import Image, ImageDraw, ImageFont
+from types import SimpleNamespace
 from io import BytesIO
 from uuid6 import uuid7
 BASE_DIR=os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -24,6 +25,7 @@ class BattingInning():
     self.player=player
     self.name = player.name
     self.runs=0
+    self.premoves = deque()
     self.balls=0
     self.consecutiveDots=0
     self.BoundaryThisOver= 0
@@ -46,6 +48,7 @@ class BowlingInning():
     self.player=player
     self.name=player.name
     self.runsConceded=0
+    self.premoves = deque()
     self.wickets=0
     self.balls=0
     self.timeline = deque(maxlen=13)
@@ -167,6 +170,7 @@ class Game():
     self.DEBUG = False
     self.updateMsg = None
     self.forceYeet = False
+  def parseMoves(self, content): return [x for x in re.split(r'[,\s]+', content.strip()) if x]
   @property
   def tossStatus(self):
     if self.tossWinner and self.tossDecision:
@@ -1212,13 +1216,17 @@ class Game():
       bowlview.add_item(self.score(True))
       bowlview.add_item(ui.TextDisplay(f"{bowlerExtraTXT}\nSend your delivery ({','.join(bowlerAllowed)})"))
       bowlview.add_item(ui.TextDisplay(f"Respond within: 20 second(s)", id = 37))
-      msg1= await striker.send(view=batview)
-      msg2 = await bowler.send(view=bowlview)
-      def checkBatter(m): return m.author.id==striker.id and m.guild is None and m.content in allowed
-      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and m.content in bowlerAllowed
-      await asyncio.sleep(0.5)
-      bat_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBatter))
-      bowl_task=asyncio.create_task(self.ctx.bot.wait_for("message",check=checkBowler))
+      batPre = striker_p.premoves[0] if striker_p.premoves and striker_p.premoves[0] in allowed else None
+      bowlPre = bowler_p.premoves[0] if bowler_p.premoves and bowler_p.premoves[0] in bowlerAllowed else None
+      if not batPre: striker_p.premoves.clear()
+      if not bowlPre: bowler_p.premoves.clear()
+      msg1 = await striker.send(f"Premove played: {batPre}") if batPre else await striker.send(view=batview)
+      msg2 = await bowler.send(f"Premove played: {bowlPre}") if bowlPre else await bowler.send(view=bowlview)
+      def checkBatter(m): return m.author.id==striker.id and m.guild is None and bool(t:=self.parseMoves(m.content)) and t[0] in allowed and set(t) <= {'0','1','2','3','4','6'}
+      def checkBowler(m): return m.author.id==bowler.id and m.guild is None and bool(t:=self.parseMoves(m.content)) and t[0] in bowlerAllowed and set(t) <= {'0','1','2','3','4','6'}
+      async def fixed(v): return SimpleNamespace(content=v)
+      bat_task=asyncio.create_task(fixed(batPre) if batPre else self.ctx.bot.wait_for("message",check=checkBatter))
+      bowl_task=asyncio.create_task(fixed(bowlPre) if bowlPre else self.ctx.bot.wait_for("message",check=checkBowler))
       async def runCountdown():
         start_time = time.time()
         rangesToEdit = [17, 13, 10, 7, 5, 3, 2, 1]
@@ -1474,11 +1482,19 @@ class Game():
         else:
           bowlerExtraTXT = f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {bowler_p.AFKs}`"
           batterExtraTXT = f"Bowler didn't respond in time. `Their AFKs: {bowler_p.AFKs}"
-        await asyncio.sleep(0.3)
-        
+        await asyncio.sleep(0.3)   
         continue
-      bat=int(bat_task.result().content)
-      bowl=int(bowl_task.result().content)
+      batMoves = self.parseMoves(bat_task.result().content)
+      bowlMoves = self.parseMoves(bowl_task.result().content)
+      bat, bowl = int(batMoves[0]), int(bowlMoves[0])
+      if batPre: striker_p.premoves.popleft()
+      elif len(batMoves) > 1:
+        striker_p.premoves.extend(batMoves[1:7])
+        await striker.send(f"Premoves queued: {', '.join(batMoves[1:7])}")
+      if bowlPre: bowler_p.premoves.popleft()
+      elif len(bowlMoves) > 1:
+        bowler_p.premoves.extend(bowlMoves[1:7])
+        await bowler.send(f"Premoves queued: {', '.join(bowlMoves[1:7])}")
       for t in pending: t.cancel()
       break
     inn.balls+=1
@@ -1689,6 +1705,7 @@ class Game():
         bowler_p.lastOverMaiden = False
       inn.currentOverRuns = 0
       inn.zeroByBowler = 0
+      bowler_p.premoves.clear()
       for b in inn.currentBatters:
         inn.batters[b].BoundaryThisOver = 0
       if len(inn.currentBatters) > 1:

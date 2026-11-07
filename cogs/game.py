@@ -794,11 +794,10 @@ class Game():
         else: t[i.battingTeam.name] = s
       view = ui.LayoutView(timeout= None)
       container = ui.Container(accent_color = discord.Colour.from_str("#0a9b65"))
-      container.add_item(ui.TextDisplay(f"**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}\n-# **Toss:** {self.tossStatus}"))
       if self.format == 'test':
-        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
+        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**follow-on Limit:** {self.followOnLimit}\n**Maximum Overs:**{self.ballsToOvers(self.maxBalls)}\n**Rep Limit:** {self.repLimit}"))
       else:
-        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**T15** ✅\n**Rep Limit:** {self.repLimit}"))
+        container.add_item(ui.TextDisplay(f"{self.tossStatus}\n**T15:** ✅\n**Rep Limit:** {self.repLimit}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
       container.add_item(ui.TextDisplay(f"### {self.teama.name} {t.get(self.teama.name, 'YTB')}\n{teamaP}"))
       container.add_item(ui.Separator(visible= True,spacing=discord.SeparatorSpacing.small))
@@ -1207,7 +1206,7 @@ class Game():
         allowed={'1','2','3'}
       else:
         allowed={'1','2','3','4','6'}
-      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})\n-#You can also premove by using comma. e.g `2,3,0`, now 2 will be played for this shot and 3 and 0 will be automatically played for next deliveries."
+      battxt = f"{batterExtraTXT}\nSend your shot ({','.join(sorted(allowed, key=int))})\n-# You can also premove by using comma. e.g `2,3,0`, now 2 will be played for this shot and 3 and 0 will be automatically played for next deliveries."
       batview = ui.LayoutView(timeout=None)
       batview.add_item(self.score(True))
       batview.add_item(ui.TextDisplay(battxt))
@@ -1322,7 +1321,7 @@ class Game():
             DaysAndSessions[0], DaysAndSessions[1],
           ))
           inn.wickets+=1
-          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being deported to Epstein Island, happy sucking !!")
+          await striker.send(f"You didn't respond in time. Replaying the ball.\nYou AFKed for 6 balls, you are being declared out!!")
           await self.sendToNonStriker("Striker was declared out because of being AFK.")
           inn.currentBatters.pop(0)
           if len(inn.cantBat) < len(inn.battingTeam.players):
@@ -1481,7 +1480,7 @@ class Game():
           batterExtraTXT = "Bowler didn't respond in time. Bowler was changed!!"
         else:
           bowlerExtraTXT = f"You didn't respond in time. Replaying the ball.\n`Your AFKs: {bowler_p.AFKs}`"
-          batterExtraTXT = f"Bowler didn't respond in time. `Their AFKs: {bowler_p.AFKs}"
+          batterExtraTXT = f"Bowler didn't respond in time. `Their AFKs: {bowler_p.AFKs}`"
         await asyncio.sleep(0.3)   
         continue
       batMoves = self.parseMoves(bat_task.result().content)

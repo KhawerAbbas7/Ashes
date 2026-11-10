@@ -8,7 +8,7 @@ from PIL import Image, ImageDraw, ImageFont
 class OwnerOnly(commands.Cog):
   def __init__(self, bot):
     self.bot = bot
-    rankings.start()
+    self.rankings.start()
   @tasks.loop(seconds=5.0)
   async def rankings(self):
     rankingsData = {}

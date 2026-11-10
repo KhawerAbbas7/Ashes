@@ -60,7 +60,7 @@ class OwnerOnly(commands.Cog):
     c =  ui.LayoutView(timeout= 60)
     container = ui.Container(accent_color=discord.Colour.from_str("#15a74a"))
     gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(file, spoiler = False))
-    container.add_item(ui.TextDisplay(f"**RANKINGS ARE HERE FOR {date_str}**\n-# For Full Rankings Visit (Website)(https://ashesdb.vercel.app/rankings)"))
+    container.add_item(ui.TextDisplay(f"**RANKINGS ARE HERE FOR {date_str}**\n-# For Full Rankings Visit (Website)[https://ashesdb.vercel.app/rankings]\n**Batting #1: <@{rankingsData['batting']['playerId']}>**\n**All-Rounder #1: <@{rankingsData['allrounder']['playerId']}>**\n**Bowling #1: <@{rankingsData['bowling']['playerId']}>**"))
     container.add_item(gallery)
     c.add_item(container)
     await ctx.send(file=file, view = c)

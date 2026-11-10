@@ -39,7 +39,7 @@ class OwnerOnly(commands.Cog):
     async with aiohttp.ClientSession() as session:
       for i, cat in enumerate(categories):
         item = rankingsData[cat]
-        name = item['playerName'].upper()
+        name = item['playerName'].upper()[:10]
         rating = str(item['rating'])
         pfp_url = item['profileImageUrl']
         x = positions[i]
@@ -53,7 +53,7 @@ class OwnerOnly(commands.Cog):
         draw.text(((x - nameFont.getlength(name)) / 2, 735), name, font=nameFont, fill="#ffffff")
         draw.text(((x - ratingFont.getlength(rating)) / 2, 845), rating, font=ratingFont, fill="#172c3c")
     buffer = io.BytesIO()
-    img.save(buffer, format="PNG")
+    img.save(buffer, format="PNG", optimize=True)
     buffer.seek(0)
     await ctx.send(file=discord.File(buffer, filename="Ranking.png"))
 async def setup(bot): await bot.add_cog(OwnerOnly(bot))

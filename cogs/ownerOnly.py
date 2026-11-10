@@ -8,9 +8,9 @@ from PIL import Image, ImageDraw, ImageFont
 class OwnerOnly(commands.Cog):
   def __init__(self, bot):
     self.bot = bot
-    self.rankings.start()
+    self.rankingsTask.start()
   @tasks.loop(seconds=5.0)
-  async def rankings(self):
+  async def rankingsTask(self):
     rankingsData = {}
     cutoff_ts = None
     async with aiohttp.ClientSession() as session:

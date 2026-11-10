@@ -2,6 +2,7 @@ import io
 import aiohttp
 from datetime import datetime, timezone
 import discord
+from discord import Embed, Color,ui
 from discord.ext import commands
 from PIL import Image, ImageDraw, ImageFont
 class OwnerOnly(commands.Cog):

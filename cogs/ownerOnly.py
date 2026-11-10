@@ -39,7 +39,7 @@ class OwnerOnly(commands.Cog):
     async with aiohttp.ClientSession() as session:
       for i, cat in enumerate(categories):
         item = rankingsData[cat]
-        name = item['playerName'].upper()[:10]
+        name = item['playerName'].upper()[:8]
         rating = str(item['rating'])
         pfp_url = item['profileImageUrl']
         x = positions[i]
@@ -55,5 +55,12 @@ class OwnerOnly(commands.Cog):
     buffer = io.BytesIO()
     img.save(buffer, format="PNG", optimize=True)
     buffer.seek(0)
-    await ctx.send(file=discord.File(buffer, filename="Ranking.png"))
+    file=discord.File(fp=buffer,filename=f'Rankings ({date_str}).png')
+    c =  ui.LayoutView(timeout= 60)
+    container = ui.Container(accent_color=discord.Colour.from_str("#15a74a"))
+    gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(file, spoiler = False))
+    container.add_item(ui.TextDisplay(f"**RANKINGS ARE HERE FOR {date_str}**\n-# For Full Rankings Visit (Website)(https://ashesdb.vercel.app/rankings)"))
+    container.add_item(gallery)
+    c.add_item(container)
+    await ctx.send(file=file, view = c)
 async def setup(bot): await bot.add_cog(OwnerOnly(bot))

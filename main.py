@@ -17,10 +17,12 @@ def human_readable_size(size_bytes):
   else:return f"{size_bytes / 1024**3:.2f} GB"
 async def get_pre(bot, message):
   if not message.guild:return commands.when_mentioned_or(*["", "."])(bot, message) 
+  if message.guild.id in bot.prefixCache: return commands.when_mentioned_or(*bot.prefixCache[message.guild.id])(bot, message) 
   async with bot.settingsdb.execute("SELECT prefix FROM settings WHERE guildId =?", (message.guild.id,)) as cursor:
     p = await cursor.fetchone()
     prefix_return = [p[0] if p else "as!"]
     prefix_return.append('as!')
+    bot.prefixCache[message.guild.id] = prefix_return
     return commands.when_mentioned_or(*prefix_return)(bot, message)
 class Ashes(commands.Bot):
   def __init__(self, intents= discord.Intents.all(), command_prefix= get_pre,case_insensitive=True, strip_after_prefix= True):
@@ -30,6 +32,7 @@ class Ashes(commands.Bot):
     self.games = {}
     self.Botstatuses = cycle(["Watching {usersLen} users.", "Playing with {user}", "I am in {serversLen} servers.", "Watching {gamesLen} games.", "Enjoying my stay in {randomServerName}", "not.urlight is THE legend. No debate.", "I miss you Zuhairrrrrr😔😔"])
     self.statsCache = LRUCache(maxsize=1000)
+    self.prefixCache = {}
     self.AshesCoin = "<:AshesCoin:1525822431066062879>"
     self.dev_id = 759713678013890560
     self.staticData = {}
@@ -373,6 +376,7 @@ async def prefix(ctx, newPrefix: str = None):
       return await ctx.send(f"You can either mention me or use the following prefixes to call me in the server:\n{prefix_str}")
   if len(newPrefix) > 3: return await ctx.send("The length of prefix must not exceed 3 characters.")
   await bot.settingsdb.execute("INSERT INTO settings (guildId,prefix) VALUES (?,?) ON CONFLICT(guildId) DO UPDATE SET prefix=excluded.prefix", (ctx.guild.id, newPrefix))
+  bot.prefixCache[ctx.guild.id] = [newPrefix] if newPrefix == "as!" else [newPrefix, "as!"]
   await bot.settingsdb.commit()
   return await ctx.send(f"Bot's new prefix -> `{newPrefix}`")
 bot.run(token)

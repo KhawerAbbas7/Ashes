@@ -88,7 +88,7 @@ class OwnerOnly(commands.Cog):
     if not expires_at: reason = till + reason
     await bot.settingsdb.execute("INSERT INTO blacklist (object_id, object_type, reason, moderator_id, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(object_id, object_type) DO UPDATE SET reason = excluded.reason, moderator_id = excluded.moderator_id, created_at = unixepoch(), expires_at = excluded.expires_at",(what.id, object_type, reason, ctx.author.id, expires_at))
     expires_at_text = f"<t:{expires_at}:F>" if expires_at else "Permanent"
-    ctx.bot.blacklist_cache[what.id, object_type)] = {
+    ctx.bot.blacklist_cache[(what.id, object_type)] = {
       'Expiry': expires_at,
       'Reason': reason
     }
@@ -99,21 +99,21 @@ class OwnerOnly(commands.Cog):
     await ctx.send(view=view)
   @commands.command(aliases=[], description='.')
   async def whitelist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild]):
-  if isinstance(what, discord.User):
-    object_type = "user"
-  elif isinstance(what, discord.TextChannel):
-    object_type = "channel"
-  elif isinstance(what, discord.Guild):
-    object_type = "server"
-  async with bot.settingsdb.execute(
-    "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type) as cursor:
-    removed = cursor.rowcount
-  if not removed:
-    return await ctx.send(f"{what.name} is not blacklisted.")
-  ctx.bot.blacklist_cache.pop((what.id, object_type), None)
-  view = ui.LayoutView(timeout=60)
-  container = ui.Container(accent_color=discord.Colour.green())
-  container.add_item(ui.TextDisplay(f"## Whitelist\n**Whitelisted {object_type.title()}:** {what.name}\n**Moderator:** {ctx.author.mention}"))
-  view.add_item(container)
-  await ctx.send(view=view)
+    if isinstance(what, discord.User):
+      object_type = "user"
+    elif isinstance(what, discord.TextChannel):
+      object_type = "channel"
+    elif isinstance(what, discord.Guild):
+      object_type = "server"
+    async with bot.settingsdb.execute(
+      "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type)) as cursor:
+      removed = cursor.rowcount
+    if not removed:
+      return await ctx.send(f"{what.name} is not blacklisted.")
+    ctx.bot.blacklist_cache.pop((what.id, object_type), None)
+    view = ui.LayoutView(timeout=60)
+    container = ui.Container(accent_color=discord.Colour.green())
+    container.add_item(ui.TextDisplay(f"## Whitelist\n**Whitelisted {object_type.title()}:** {what.name}\n**Moderator:** {ctx.author.mention}"))
+    view.add_item(container)
+    await ctx.send(view=view)
 async def setup(bot): await bot.add_cog(OwnerOnly(bot))

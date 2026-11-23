@@ -63,6 +63,10 @@ class Ashes(commands.Bot):
   async def gamesDeletionCheck(self):
     for g in self.games.copy().values():
       await g.checkIfDeletable()
+    now = int(time.time())
+    expired = [key for key, entry in self.blacklist_cache.items()if entry['Expiry'] is not None and entry['Expiry'] <= now]
+    for key in expired:self.blacklist_cache.pop(key, None)
+    if expired:await self.settingsdb.executemany("DELETE FROM blacklist WHERE object_id = ? AND object_type = ? AND expires_at <= ?",[(key[0], key[1], now) for key in expired])
     status = next(self.Botstatuses)
     activity = discord.CustomActivity(name=status.format(usersLen= len(self.users), user= self.lastUser, serversLen= len(self.guilds), gamesLen= len(self.games), randomServerName=random.choice(self.guilds).name), emoji= None)
     await self.change_presence(activity= activity)
@@ -100,12 +104,23 @@ class Ashes(commands.Bot):
   def loadStaticData(self):
     self.staticData = json.load(open('staticData.json', 'r'))
     self.Gifs = self.staticData['Gifs']
-    self.bannedUsers = {int(k): v for k, v in self.staticData['BannedUsers'].items()}
+  async def load_blacklist():
+    async with bot.settingsdb.execute("SELECT object_id,object_type, reason, expires_at FROM blacklist") as cursor:rows = await cursor.fetchall()
+    now = int(time.time())
+    self.blacklist_cache = {
+      (object_id, object_type): {'Expiry': expires_at, 'Reason': reason}
+      for object_id,object_type,reason, expires_at in rows
+      if expires_at is None or expires_at > now}
   async def globalCheck(self, ctx):
-    if ctx.author and ctx.author.id in self.bannedUsers:
-      reason= self.bannedUsers[ctx.author.id]
-      await ctx.send(f"You're banned from this bot. Reason: {reason}")
-      return False
+    if not ctx.author: return False
+    checks = [(ctx.author.id, "user"),(ctx.channel.id, "channel")]
+    if ctx.guild:checks.append((ctx.guild.id, "server")):
+    for key in checks:
+      entry = self.blacklist_cache.get(key)
+      if entry:
+        if entry['Expiry'] is None or entry['Expiry'] > int(time.time()):
+          await ctx.send(f"You cannot use this bot here. Reason: {entry['Reason'] or 'No reason provided.'}"); return False
+      self.blacklist_cache.pop(key, None)
     if not ctx.guild and ctx.command.name in ["create", "claim"]:
       await ctx.send("Cannot run this command in dm.")
       return False
@@ -135,6 +150,7 @@ class Ashes(commands.Bot):
     await self.load_extension('api')
     for file in os.listdir('cogs'):
       if file.endswith('py') and file not in ['game.py', 'views.py']:await self.load_extension('cogs.' + file[:-3])
+    await self.load_blacklist()
     #await self.tree.sync()
   async def on_message(self, message):
     if not message.author.bot and message.channel.type == discord.ChannelType.private and (message.content.startswith(".") or message.content.startswith("+")):

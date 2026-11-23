@@ -1,4 +1,4 @@
-import io
+import io, typing, re
 import aiohttp
 from datetime import datetime, timezone, timedelta, time
 import discord
@@ -73,58 +73,47 @@ class OwnerOnly(commands.Cog):
     await self.bot.wait_until_ready()
   async def cog_check(self, ctx): return await self.bot.is_owner(ctx.author)
   @commands.command(aliases=[], description='.')
-  async def rankings(self, ctx):
-    rankingsData = {}
-    cutoff_ts = None
-    async with aiohttp.ClientSession() as session:
-      url = "http://0.0.0.0:8000/rankings/batting?limit=1"
-      async with session.get(url) as response:
-        data = await response.json()
-        rankingsData["batting"] = data['data'][0]
-        cutoff_ts = data.get('cutoff')
-      url = "http://0.0.0.0:8000/rankings/allrounder?limit=1"
-      async with session.get(url) as response:
-        data = await response.json()
-        rankingsData["allrounder"] = data['data'][0]
-      url = "http://0.0.0.0:8000/rankings/bowling?limit=1"
-      async with session.get(url) as response:
-        data = await response.json()
-        rankingsData["bowling"] = data['data'][0]
-    date_str = datetime.fromtimestamp(cutoff_ts, tz=timezone.utc).strftime("%d %b %Y").upper() if cutoff_ts else "NOW"
-    img = Image.open("templates/playersRanking.png").convert("RGBA")
-    draw = ImageDraw.Draw(img)
-    dateFont = ImageFont.truetype("fonts/CanvaSansBoldByCanva.woff2", 45)
-    nameFont = ImageFont.truetype("fonts/CanvaSansBoldByCanva.woff2", 53)
-    ratingFont = ImageFont.truetype("fonts/canvaSansRegular.woff2", 40)
-    draw.text((975, 150), date_str, font=dateFont, fill="#35605a")
-    categories = ["batting", "allrounder", "bowling"]
-    positions = [485, 1285, 2085]
-    picturePositions = [87.4, 487.4, 887.4]
-    async with aiohttp.ClientSession() as session:
-      for i, cat in enumerate(categories):
-        item = rankingsData[cat]
-        name = item['playerName'].upper()[:8]
-        rating = str(item['rating'])
-        pfp_url = item['profileImageUrl']
-        x = positions[i]
-        px = int(picturePositions[i])
-        async with session.get(pfp_url) as resp:
-          if resp.status == 200:
-            pfp_bytes = await resp.read()
-            pfp = Image.open(io.BytesIO(pfp_bytes)).convert("RGBA")
-            pfp = pfp.resize((300, 229), Image.Resampling.LANCZOS)
-            img.paste(pfp, (px, 490), pfp)
-        draw.text(((x - nameFont.getlength(name)) / 2, 735), name, font=nameFont, fill="#ffffff")
-        draw.text(((x - ratingFont.getlength(rating)) / 2, 845), rating, font=ratingFont, fill="#172c3c")
-    buffer = io.BytesIO()
-    img.save(buffer, format="PNG", optimize=True)
-    buffer.seek(0)
-    file=discord.File(fp=buffer,filename=f'Rankings ({date_str}).png')
-    c =  ui.LayoutView(timeout= 60)
-    container = ui.Container(accent_color=discord.Colour.from_str("#15a74a"))
-    gallery = discord.ui.MediaGallery(discord.MediaGalleryItem(file, spoiler = False))
-    container.add_item(ui.TextDisplay(f"**RANKINGS ARE HERE FOR {date_str}**\n-# For Full Rankings Visit [Website](https://ashesdb.vercel.app/rankings)\n**Batting #1: <@{rankingsData['batting']['playerId']}>**\n**All-Rounder #1: <@{rankingsData['allrounder']['playerId']}>**\n**Bowling #1: <@{rankingsData['bowling']['playerId']}>**"))
-    container.add_item(gallery)
-    c.add_item(container)
-    await ctx.send(file=file, view = c)
+  async def blacklist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild], till: str = None, *, reason: str = None):
+    if ctx.author.id == what.id: return 
+    if isinstance(what, discord.User):
+      object_type = "user"
+    elif isinstance(what, discord.TextChannel):
+      object_type = "channel"
+    elif isinstance(what, discord.Guild):
+      object_type = "server"
+    expires_at = None 
+    if till:
+      match = re.fullmatch(r"<t:(\d+)(?::[tTdDfFR])?>", till)
+      expires_at = int(match.group(1)) if match else None
+    if not expires_at: reason = till + reason
+    await bot.settingsdb.execute("INSERT INTO blacklist (object_id, object_type, reason, moderator_id, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(object_id, object_type) DO UPDATE SET reason = excluded.reason, moderator_id = excluded.moderator_id, created_at = unixepoch(), expires_at = excluded.expires_at",(what.id, object_type, reason, ctx.author.id, expires_at))
+    expires_at_text = f"<t:{expires_at}:F>" if expires_at else "Permanent"
+    ctx.bot.blacklist_cache[what.id, object_type)] = {
+      'Expiry': expires_at,
+      'Reason': reason
+    }
+    view =  ui.LayoutView(timeout= 60)
+    container = ui.Container(accent_color=discord.Colour.from_str("#e11111"))
+    container.add_item(ui.TextDisplay(f"## Blacklist\n**Blacklisted {object_type.title()}:** {what.name}\n**Reason:** {reason}\n**Expires At:** {expires_at_text}"))
+    view.add_item(container)
+    await ctx.send(view=view)
+  @commands.command(aliases=[], description='.')
+  async def whitelist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild]):
+  if isinstance(what, discord.User):
+    object_type = "user"
+  elif isinstance(what, discord.TextChannel):
+    object_type = "channel"
+  elif isinstance(what, discord.Guild):
+    object_type = "server"
+  async with bot.settingsdb.execute(
+    "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type) as cursor:
+    removed = cursor.rowcount
+  if not removed:
+    return await ctx.send(f"{what.name} is not blacklisted.")
+  ctx.bot.blacklist_cache.pop((what.id, object_type), None)
+  view = ui.LayoutView(timeout=60)
+  container = ui.Container(accent_color=discord.Colour.green())
+  container.add_item(ui.TextDisplay(f"## Whitelist\n**Whitelisted {object_type.title()}:** {what.name}\n**Moderator:** {ctx.author.mention}"))
+  view.add_item(container)
+  await ctx.send(view=view)
 async def setup(bot): await bot.add_cog(OwnerOnly(bot))

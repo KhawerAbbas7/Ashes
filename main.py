@@ -114,7 +114,7 @@ class Ashes(commands.Bot):
   async def globalCheck(self, ctx):
     if not ctx.author: return False
     checks = [(ctx.author.id, "user"),(ctx.channel.id, "channel")]
-    if ctx.guild:checks.append((ctx.guild.id, "server")):
+    if ctx.guild:checks.append((ctx.guild.id, "server"))
     for key in checks:
       entry = self.blacklist_cache.get(key)
       if entry:

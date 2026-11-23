@@ -113,8 +113,10 @@ class Ashes(commands.Bot):
       if expires_at is None or expires_at > now}
   async def globalCheck(self, ctx):
     if not ctx.author: return False
-    checks = [(ctx.author.id, "user"),(ctx.channel.id, "channel")]
+    checks = [(ctx.author.id, "user")]
     if ctx.guild:checks.append((ctx.guild.id, "server"))
+    if ctx.channel:checks.append((ctx.channel.id, "channel"))
+    if ctx.channel and ctx.channel.category_id:checks.append((ctx.channel.id, "CategoryChannel"))
     for key in checks:
       entry = self.blacklist_cache.get(key)
       if entry:

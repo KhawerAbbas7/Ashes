@@ -73,19 +73,22 @@ class OwnerOnly(commands.Cog):
     await self.bot.wait_until_ready()
   async def cog_check(self, ctx): return await self.bot.is_owner(ctx.author)
   @commands.command(aliases=[], description='.')
-  async def blacklist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild], till: str = None, *, reason: str = None):
+  async def blacklist(self, ctx, what: discord.Object, till: str = None, *, reason: str = None):
     if ctx.author.id == what.id: return 
-    if isinstance(what, discord.User):
+    if isinstance(what.type, discord.User):
       object_type = "user"
-    elif isinstance(what, discord.TextChannel):
+    elif isinstance(what.type, discord.TextChannel):
       object_type = "channel"
-    elif isinstance(what, discord.Guild):
+    elif isinstance(what.type, discord.Guild):
       object_type = "server"
+    elif isinstance(what.type, discord.CategoryChannel):
+      object_type = "CategoryChannel"
+    else: return await ctx.send("Wrong type to blacklist")
     expires_at = None 
     if till:
       match = re.fullmatch(r"<t:(\d+)(?::[tTdDfFR])?>", till)
       expires_at = int(match.group(1)) if match else None
-    if not expires_at: reason = till + reason
+    if not expires_at: reason = till + reason if reason is not None else till
     await ctx.bot.settingsdb.execute("INSERT INTO blacklist (object_id, object_type, reason, moderator_id, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(object_id, object_type) DO UPDATE SET reason = excluded.reason, moderator_id = excluded.moderator_id, created_at = unixepoch(), expires_at = excluded.expires_at",(what.id, object_type, reason, ctx.author.id, expires_at))
     expires_at_text = f"<t:{expires_at}:F>" if expires_at else "Permanent"
     ctx.bot.blacklist_cache[(what.id, object_type)] = {
@@ -98,13 +101,16 @@ class OwnerOnly(commands.Cog):
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases=[], description='.')
-  async def whitelist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild]):
-    if isinstance(what, discord.User):
+  async def whitelist(self, ctx, what: discord.Object):
+    if isinstance(what.type, discord.User):
       object_type = "user"
-    elif isinstance(what, discord.TextChannel):
+    elif isinstance(what.type, discord.TextChannel):
       object_type = "channel"
-    elif isinstance(what, discord.Guild):
+    elif isinstance(what.type, discord.Guild):
       object_type = "server"
+    elif isinstance(what.type, discord.CategoryChannel):
+      object_type = "CategoryChannel"
+    else: return await ctx.send("Wrong type to whitelist")
     async with ctx.bot.settingsdb.execute(
       "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type)) as cursor:
       removed = cursor.rowcount

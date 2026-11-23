@@ -82,7 +82,7 @@ class OwnerOnly(commands.Cog):
     elif isinstance(what, discord.Guild):
       object_type = "server"
     elif isinstance(what, discord.CategoryChannel):
-      object_type = "CategoryChannel"
+      object_type = "category"
     else: return await ctx.send("Wrong type to blacklist")
     expires_at = None 
     if till:

@@ -109,7 +109,7 @@ class OwnerOnly(commands.Cog):
     elif isinstance(what, discord.Guild):
       object_type = "server"
     elif isinstance(what, discord.CategoryChannel):
-      object_type = "CategoryChannel"
+      object_type = "category"
     else: return await ctx.send("Wrong type to whitelist")
     async with ctx.bot.settingsdb.execute(
       "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type)) as cursor:

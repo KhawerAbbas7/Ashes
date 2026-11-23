@@ -116,7 +116,7 @@ class Ashes(commands.Bot):
     checks = [(ctx.author.id, "user")]
     if ctx.guild:checks.append((ctx.guild.id, "server"))
     if ctx.channel:checks.append((ctx.channel.id, "channel"))
-    if ctx.channel and ctx.channel.category_id:checks.append((ctx.channel.id, "CategoryChannel"))
+    if ctx.channel and ctx.channel.category_id:checks.append((ctx.channel.id, "category"))
     for key in checks:
       entry = self.blacklist_cache.get(key)
       if entry:

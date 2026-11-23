@@ -74,6 +74,7 @@ class OwnerOnly(commands.Cog):
   async def cog_check(self, ctx): return await self.bot.is_owner(ctx.author)
   @commands.command(aliases=[], description='.')
   async def blacklist(self, ctx, what: discord.Object, till: str = None, *, reason: str = None):
+    return await ctx.send(what.type)
     if ctx.author.id == what.id: return 
     if isinstance(what.type, discord.User):
       object_type = "user"

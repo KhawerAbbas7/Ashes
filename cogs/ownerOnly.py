@@ -73,8 +73,7 @@ class OwnerOnly(commands.Cog):
     await self.bot.wait_until_ready()
   async def cog_check(self, ctx): return await self.bot.is_owner(ctx.author)
   @commands.command(aliases=[], description='.')
-  async def blacklist(self, ctx, what: discord.Object, till: str = None, *, reason: str = None):
-    return await ctx.send(what.type.type)
+  async def blacklist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild, discord.CategoryChannel], till: str = None, *, reason: str = None):
     if ctx.author.id == what.id: return 
     if isinstance(what.type, discord.User):
       object_type = "user"
@@ -102,7 +101,7 @@ class OwnerOnly(commands.Cog):
     view.add_item(container)
     await ctx.send(view=view)
   @commands.command(aliases=[], description='.')
-  async def whitelist(self, ctx, what: discord.Object):
+  async def whitelist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild, discord.CategoryChannel]):
     if isinstance(what.type, discord.User):
       object_type = "user"
     elif isinstance(what.type, discord.TextChannel):

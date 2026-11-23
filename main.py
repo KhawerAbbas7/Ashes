@@ -104,7 +104,7 @@ class Ashes(commands.Bot):
   def loadStaticData(self):
     self.staticData = json.load(open('staticData.json', 'r'))
     self.Gifs = self.staticData['Gifs']
-  async def load_blacklist():
+  async def load_blacklist(self):
     async with bot.settingsdb.execute("SELECT object_id,object_type, reason, expires_at FROM blacklist") as cursor:rows = await cursor.fetchall()
     now = int(time.time())
     self.blacklist_cache = {

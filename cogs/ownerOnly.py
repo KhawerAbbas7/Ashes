@@ -75,13 +75,13 @@ class OwnerOnly(commands.Cog):
   @commands.command(aliases=[], description='.')
   async def blacklist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild, discord.CategoryChannel], till: str = None, *, reason: str = None):
     if ctx.author.id == what.id: return 
-    if isinstance(what.type, discord.User):
+    if isinstance(what, discord.User):
       object_type = "user"
-    elif isinstance(what.type, discord.TextChannel):
+    elif isinstance(what, discord.TextChannel):
       object_type = "channel"
-    elif isinstance(what.type, discord.Guild):
+    elif isinstance(what, discord.Guild):
       object_type = "server"
-    elif isinstance(what.type, discord.CategoryChannel):
+    elif isinstance(what, discord.CategoryChannel):
       object_type = "CategoryChannel"
     else: return await ctx.send("Wrong type to blacklist")
     expires_at = None 
@@ -102,13 +102,13 @@ class OwnerOnly(commands.Cog):
     await ctx.send(view=view)
   @commands.command(aliases=[], description='.')
   async def whitelist(self, ctx, what: typing.Union[discord.User, discord.TextChannel, discord.Guild, discord.CategoryChannel]):
-    if isinstance(what.type, discord.User):
+    if isinstance(what, discord.User):
       object_type = "user"
-    elif isinstance(what.type, discord.TextChannel):
+    elif isinstance(what, discord.TextChannel):
       object_type = "channel"
-    elif isinstance(what.type, discord.Guild):
+    elif isinstance(what, discord.Guild):
       object_type = "server"
-    elif isinstance(what.type, discord.CategoryChannel):
+    elif isinstance(what, discord.CategoryChannel):
       object_type = "CategoryChannel"
     else: return await ctx.send("Wrong type to whitelist")
     async with ctx.bot.settingsdb.execute(

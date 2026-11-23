@@ -86,7 +86,7 @@ class OwnerOnly(commands.Cog):
       match = re.fullmatch(r"<t:(\d+)(?::[tTdDfFR])?>", till)
       expires_at = int(match.group(1)) if match else None
     if not expires_at: reason = till + reason
-    await bot.settingsdb.execute("INSERT INTO blacklist (object_id, object_type, reason, moderator_id, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(object_id, object_type) DO UPDATE SET reason = excluded.reason, moderator_id = excluded.moderator_id, created_at = unixepoch(), expires_at = excluded.expires_at",(what.id, object_type, reason, ctx.author.id, expires_at))
+    await ctx.bot.settingsdb.execute("INSERT INTO blacklist (object_id, object_type, reason, moderator_id, expires_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(object_id, object_type) DO UPDATE SET reason = excluded.reason, moderator_id = excluded.moderator_id, created_at = unixepoch(), expires_at = excluded.expires_at",(what.id, object_type, reason, ctx.author.id, expires_at))
     expires_at_text = f"<t:{expires_at}:F>" if expires_at else "Permanent"
     ctx.bot.blacklist_cache[(what.id, object_type)] = {
       'Expiry': expires_at,
@@ -105,7 +105,7 @@ class OwnerOnly(commands.Cog):
       object_type = "channel"
     elif isinstance(what, discord.Guild):
       object_type = "server"
-    async with bot.settingsdb.execute(
+    async with ctx.bot.settingsdb.execute(
       "DELETE FROM blacklist WHERE object_id = ? AND object_type = ?",(what.id, object_type)) as cursor:
       removed = cursor.rowcount
     if not removed:

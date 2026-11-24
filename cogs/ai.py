@@ -4,7 +4,7 @@ from openai import AsyncOpenAI
 
 MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
 SQL_PROMPT = "Write one read-only SQLite SELECT query for this cricket match database.\nSchema:\n{schema}\nNotes: player ids are Discord user ids. deliveries.runs is runs per ball, isWicket=1 is a wicket, only count balls where batterNum IS NOT NULL AND bowlerNum IS NOT NULL. Return only the SQL, no explanation. If the question cannot be answered from the schema, return exactly NO."
-ANSWER_PROMPT = "Answer the question briefly using only the query result. Write player ids as <@id>. If the result is empty, say no data was found."
+ANSWER_PROMPT = "Answer the question briefly using only the query result. Write player ids as <@id>, do not include inning id, ball id.If the answer has match id write it like [match](<https://ashesdb.vercel.app/match/matchId>) If the result is empty, say no data was found."
 
 class AskDB(commands.Cog, name="AskDB"):
   def __init__(self, bot):

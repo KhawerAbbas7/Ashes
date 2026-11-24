@@ -4,7 +4,15 @@ from discord.ext import commands
 from openai import AsyncOpenAI
 
 MODEL = os.getenv("ASK_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
-SQL_PROMPT = "Write one read-only SQLite SELECT query for this cricket match database.\nSchema:\n{schema}\nNotes: player ids are Discord user ids. deliveries.runs is runs per ball, isWicket=1 is a wicket, only count balls where batterNum IS NOT NULL AND bowlerNum IS NOT NULL. Use clear column aliases. Name every player id column so it ends with Id (batterId, bowlerId, mvpId) and any match id column matchId. Return only the SQL, no explanation. If the question cannot be answered from the schema, return exactly NO."
+SQL_PROMPT = "Write one read-only SQLite SELECT query for this cricket match database.\nSchema:\n{schema}\nNotes: player ids are Discord user ids, and players in the question appear as <@id>, so use the number. deliveries.runs is runs per ball, isWicket=1 is a wicket, only count balls where batterNum IS NOT NULL AND bowlerNum IS NOT NULL. matches.format defaults to 'test'. Use clear column aliases. Name player id columns batterId, bowlerId or mvpId and the match column matchId. Return only the SQL, no explanation. If the question cannot be answered from the schema, return exactly NO.\nExamples:\n{examples}"
+EXAMPLES = [
+  ("most runs", "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY batterId ORDER BY runs DESC LIMIT 10"),
+  ("most ducks", "WITH inning_totals AS (SELECT matchId, inningId, batterId, SUM(runs) AS total_runs, MAX(isWicket) AS got_out FROM deliveries WHERE batterId IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY matchId, inningId, batterId) SELECT batterId, COUNT(*) AS ducks FROM inning_totals WHERE total_runs=0 AND got_out=1 GROUP BY batterId ORDER BY ducks DESC LIMIT 10"),
+  ("which bowler got the same batter out the most", "SELECT bowlerId, batterId, COUNT(*) AS wickets FROM deliveries WHERE isWicket=1 AND matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY bowlerId, batterId ORDER BY wickets DESC LIMIT 10"),
+  ("worst bowling figures in an inning", "SELECT bowlerId, SUM(isWicket) AS wickets, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY inningId, bowlerId ORDER BY runs DESC LIMIT 10"),
+  ("who gets out most in the nervous 40s", "SELECT batterId, COUNT(*) AS dismissals FROM (SELECT batterId, inningId, SUM(runs) AS totalRuns, MAX(isWicket) AS out FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL AND matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY batterId, inningId HAVING out=1 AND totalRuns BETWEEN 40 AND 49) t GROUP BY batterId ORDER BY dismissals DESC LIMIT 10"),
+  ("how many runs has <@123> scored", "SELECT SUM(runs) AS runs FROM deliveries WHERE batterId=123 AND batterNum IS NOT NULL AND bowlerNum IS NOT NULL")
+]
 HIDDEN = {"inningid", "ballid"}
 
 def cell(col, v):
@@ -16,20 +24,21 @@ def cell(col, v):
 class AskDB(commands.Cog, name="AskDB"):
   def __init__(self, bot):
     self.bot = bot
-    self.ai = AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.getenv("OPENROUTER_API_KEY"))
+    self.ai = AsyncOpenAI(base_url=os.getenv("ASK_BASE_URL", "https://openrouter.ai/api/v1"), api_key=os.getenv("ASK_API_KEY") or os.getenv("OPENROUTER_API_KEY"))
     self.cache = LRUCache(256)
   async def cog_load(self):
     path = os.path.join(os.getcwd(), "databases", "ashes.db")
     self.conn = await aiosqlite.connect(f"file:{path}?mode=ro", uri=True)
     await self.conn.execute("PRAGMA query_only = ON")
     async with self.conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'") as c:
-      self.prompt = SQL_PROMPT.format(schema="\n".join(r[0] for r in await c.fetchall()))
+      schema = "\n".join(r[0] for r in await c.fetchall())
+    self.prompt = SQL_PROMPT.format(schema=schema, examples="\n".join(f"Q: {q}\nSQL: {s}" for q, s in EXAMPLES))
   async def cog_unload(self):
     await self.conn.close()
   async def makeSql(self, question):
     key = question.lower()
     if key in self.cache:return self.cache[key]
-    r = await self.ai.chat.completions.create(model=MODEL, max_tokens=600, temperature=0, extra_body={"reasoning": {"effort": "low"}}, messages=[{"role": "system", "content": self.prompt}, {"role": "user", "content": question}])
+    r = await self.ai.chat.completions.create(model=MODEL, max_tokens=700, temperature=0, messages=[{"role": "system", "content": self.prompt}, {"role": "user", "content": question}])
     sql = re.sub(r"^```(?:sql)?|```$", "", (r.choices[0].message.content or "").strip(), flags=re.M).strip().rstrip(";")
     if re.match(r"(?is)^(select|with)\b", sql) and ";" not in sql:self.cache[key] = sql
     return sql

@@ -6,7 +6,7 @@ uuid6
 aiosqlite
 prettytable
 psutil
-Cordia>=1.2.3
+openai
 matplotlib
 numpy
 cachetools

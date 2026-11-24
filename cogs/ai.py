@@ -3,7 +3,7 @@ from cachetools import LRUCache
 from discord.ext import commands
 from openai import AsyncOpenAI
 
-MODEL = os.getenv("ASK_MODEL", "nvidia/nemotron-3-ultra-550b-a55b:free")
+MODEL = os.getenv("ASK_MODEL", "nvidia/nemotron-3.5-lightning:free")
 SQL_PROMPT = "Write one read-only SQLite SELECT query for this cricket match database.\nSchema:\n{schema}\nNotes: player ids are Discord user ids, and players in the question appear as <@id>, so use the number. deliveries.runs is runs per ball, isWicket=1 is a wicket, only count balls where batterNum IS NOT NULL AND bowlerNum IS NOT NULL. matches.format defaults to 'test'. Use clear column aliases. Name player id columns batterId, bowlerId or mvpId and the match column matchId. Return only the SQL, no explanation. If the question cannot be answered from the schema, return exactly NO.\nExamples:\n{examples}"
 EXAMPLES = [
   ("most runs", "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY batterId ORDER BY runs DESC LIMIT 10"),

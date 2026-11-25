@@ -59,21 +59,22 @@ class AskDB(commands.Cog, name="AskDB"):
   async def AIHandler(self, message):
     if message.channel and message.channel.id == 1575090043054329867 and message.author and not message.author.bot:
       if message.author.id in self.cooldownMap and time.time() - self.cooldownMap[message.author.id] < 30:
-        cd = 30 - (time.time() - self.cooldownMap[message.author.id)
+        cd = 30 - (time.time() - self.cooldownMap[message.author.id])
         return await message.reply(f"You are on cooldown. Please try again in {int(cd)}s")
       if len(self.tasks) >= 3: return await message.reply("Please wait for other questions to be processed.")
-      if len(message.content) <= 10: return await message.reply("Your question has to more richer than that.")  
-      try:
-        self.tasks[message.id] = message.content
-        sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, message.content), flags=re.M).strip().rstrip(";")
-        if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.")
-        cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
-        answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
-        await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
-        self.tasks.pop(message.id)
-      except:
-        self.tasks.pop(message.id)
-        await message.reply("I am sorry I couldn't answer that.")
+      if len(message.content) <= 10: return await message.reply("Your question has to more richer than that.") 
+      async with message.channel.typing():
+        try:
+          self.tasks[message.id] = message.content
+          sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, message.content), flags=re.M).strip().rstrip(";")
+          if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.")
+          cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
+          answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
+          await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
+          self.tasks.pop(message.id)
+        except:
+          self.tasks.pop(message.id)
+          await message.reply("I am sorry I couldn't answer that.")
   @commands.command(aliases=["ask"], description="Ask a question about match data in plain English.")
   @commands.cooldown(1, 20, commands.BucketType.user)
   async def askdb(self, ctx, *, question: str):

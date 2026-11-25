@@ -72,9 +72,9 @@ class AskDB(commands.Cog, name="AskDB"):
           answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
           await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
           self.tasks.pop(message.id)
-        except:
+        except Exception as e:
           self.tasks.pop(message.id)
-          await message.reply("I am sorry I couldn't answer that.")
+          await message.reply(f"{e},I am sorry I couldn't answer that.")
   @commands.command(aliases=["ask"], description="Ask a question about match data in plain English.")
   @commands.cooldown(1, 20, commands.BucketType.user)
   async def askdb(self, ctx, *, question: str):

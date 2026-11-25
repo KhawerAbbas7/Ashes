@@ -4,8 +4,10 @@ from openai import AsyncOpenAI
 from google import genai
 from google.genai import types, errors
 
-GEMINI_MODEL = "gemini-3.1-flash-lite"
+GEMINI_MODEL = "gemini-3.5-flash-lite"
+DECISION_MODEL = "gemini-decision-1"
 OPENROUTER_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
+
 SQL_PROMPT = """You are a SQLite query generator for the Ashes cricket database.
 
 Your ONLY task is to generate one accurate, read-only SQLite SELECT query.
@@ -45,7 +47,9 @@ EXAMPLES:
 {examples}
 
 Return only SQL or exactly NO."""
+
 ANSWER_PROMPT = "Answer the question briefly using only the query result. Write player ids as <@id>, do not include inning id, ball id. If the answer has match id write it like [match](<https://ashesdb.vercel.app/match/matchId>). If the result is empty, say no data was found."
+
 EXAMPLES = [
   ("most runs", "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY batterId ORDER BY runs DESC LIMIT 10"),
   ("top 5 run scorers in t15", "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='t15') GROUP BY batterId ORDER BY runs DESC LIMIT 5"),
@@ -67,9 +71,12 @@ class AskDB(commands.Cog, name="AskDB"):
   def __init__(self, bot):
     self.bot = bot
     self.cooldownMap = {}
-    self.tasks= {}
+    self.tasks = {}
+    self.lock = asyncio.Lock()
     self.gemini = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    self.decision = genai.Client(api_key=os.getenv("GEMINI_API_KEY"), http_options={"api_version": "v1beta"})
     self.ai = AsyncOpenAI(base_url="https://openrouter.ai/api/v1", api_key=os.getenv("OPENROUTER_API_KEY"))
+
   async def cog_load(self):
     path = os.path.join(os.getcwd(), "databases", "ashes.db")
     self.conn = await aiosqlite.connect(f"file:{path}?mode=ro", uri=True)
@@ -77,68 +84,105 @@ class AskDB(commands.Cog, name="AskDB"):
     async with self.conn.execute("SELECT sql FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'") as c:
       schema = "\n".join(r[0] for r in await c.fetchall())
     self.prompt = SQL_PROMPT.format(schema=schema, examples="\n".join(f"Q: {q}\nSQL: {s}" for q, s in EXAMPLES))
+
   async def cog_unload(self):
     await self.conn.close()
+
+  async def classify(self, question):
+    if re.fullmatch(r"(?i)(hi|hello|hey|thanks|thank you|ty|ok|okay|bye|lol|haha|hahaha)[!. ]*", question.strip()):
+      return "NO_AI"
+    try:
+      r = await asyncio.to_thread(self.decision.decisions.create, model=DECISION_MODEL, input=question, questions={"route": {"type": "choice", "instructions": "Choose the processing route required for this Discord message.", "criteria": {"NO_AI": "Greetings, acknowledgements, thanks, casual conversation, jokes, or messages that do not require an AI response.", "GENERAL": "Questions about cricket rules, cricket explanations, definitions, programming, general knowledge, or anything answerable without querying the Ashes database.", "DATABASE": "Questions requiring Ashes database records, player statistics, match statistics, rankings, calculations, comparisons, scorecards, or historical cricket data."}}})
+      answer = r.answers["route"]
+      return answer.choice if answer.confidence >= 0.80 else "GENERAL"
+    except Exception:
+      return "GENERAL"
+
   async def llm(self, system, user):
     try:
-      r = await self.gemini.aio.models.generate_content(
-        model=GEMINI_MODEL,
-        contents=user,
-        config=types.GenerateContentConfig(
-          system_instruction=system,
-          max_output_tokens=4000,
-          temperature=0,
-          top_p=1
-        )
-      )
+      r = await self.gemini.aio.models.generate_content(model=GEMINI_MODEL, contents=user, config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=4000, temperature=0, top_p=1))
       if r.text:
         return r.text.strip()
     except errors.APIError as e:
       if e.code not in (429, 503):
         raise
-    r = await self.ai.chat.completions.create(model=OPENROUTER_MODEL, max_tokens=4000,temperature=0,top_p=1, messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
+    r = await self.ai.chat.completions.create(model=OPENROUTER_MODEL, max_tokens=4000, temperature=0, top_p=1, messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
     return (r.choices[0].message.content or "").strip()
-  @commands.Cog.listener('on_message')
+
+  async def generate_sql(self, question):
+    sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, question), flags=re.M).strip().rstrip(";")
+    if sql.upper() == "NO":
+      return None
+    if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:
+      return None
+    return sql
+
+  async def execute_sql(self, sql):
+    async with self.lock:
+      async def run():
+        cur = await self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25")
+        rows = await cur.fetchall()
+        return [d[0] for d in cur.description], rows
+      return await asyncio.wait_for(run(), 10)
+
+  async def query(self, question):
+    sql = await self.generate_sql(question)
+    if not sql:
+      return "I couldn't turn that into a valid query."
+    columns, rows = await self.execute_sql(sql)
+    if not rows:
+      return "No data was found."
+    return await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {columns}\nRows: {rows}")
+
+  async def process(self, question):
+    route = await self.classify(question)
+    if route == "NO_AI":
+      return None
+    if route == "DATABASE":
+      return await self.query(question)
+    return await self.llm("You are Ashes, a cricket assistant. Answer questions briefly and accurately.", question)
+
+  @commands.Cog.listener("on_message")
   async def AIHandler(self, message):
-    if message.channel and message.channel.id == 1575090043054329867 and message.author and not message.author.bot:
-      if message.author.id in self.cooldownMap and time.time() - self.cooldownMap[message.author.id] < 30:
-        cd = 30 - (time.time() - self.cooldownMap[message.author.id])
-        return await message.reply(f"You are on cooldown. Please try again in {int(cd)}s")
-      if len(self.tasks) >= 3: return await message.reply("Please wait for other questions to be processed.")
-      if len(message.content) <= 10: return await message.reply("Your question has to more richer than that.") 
+    if not message.channel or message.channel.id != 1575090043054329867 or not message.author or message.author.bot:
+      return
+    if message.author.id in self.cooldownMap and time.time() - self.cooldownMap[message.author.id] < 30:
+      return await message.reply(f"You are on cooldown. Please try again in {int(30-(time.time()-self.cooldownMap[message.author.id]))}s")
+    if len(self.tasks) >= 3:
+      return await message.reply("Please wait for other questions to be processed.")
+    if len(message.content) <= 10:
+      return await message.reply("Your question has to be more detailed than that.")
+    question = f"Replying to: {message.reference.resolved.content}\n{message.content}" if message.reference and message.reference.resolved else message.content
+    self.tasks[message.id] = message.author.id
+    try:
       async with message.channel.typing():
-        try:
-          if message.reference and (replyMsg:= message.reference.resolved):
-            question= f"replying to: {replyMsg.content}\n{message.content}"
-          else:
-            question= message.content
-          self.tasks[message.id] = message.content
-          sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, question), flags=re.M).strip().rstrip(";")
-          if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.");self.tasks.pop(message.id)
-          cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
-          rows = await cur.fetchall()
-          answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
-          await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
-          self.tasks.pop(message.id)
-        except Exception as e:
-          self.tasks.pop(message.id)
-          await message.reply(f"I am sorry I couldn't answer that.")
+        answer = await self.process(question)
+      if answer:
+        self.cooldownMap[message.author.id] = time.time()
+        await message.reply(answer[:1900], allowed_mentions=discord.AllowedMentions.none())
+    except Exception:
+      await message.reply("I am sorry, I couldn't answer that.")
+    finally:
+      self.tasks.pop(message.id, None)
+
   @commands.command(aliases=["ask"], description="Ask a question about match data in plain English.")
   @commands.cooldown(1, 20, commands.BucketType.user)
   async def askdb(self, ctx, *, question: str):
     async with ctx.typing():
       try:
-        sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, question), flags=re.M).strip().rstrip(";")
-        if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:
+        sql = await self.generate_sql(question)
+        if not sql:
           return await ctx.send("I couldn't turn that into a valid query.")
-        await ctx.send(sql)
-        cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
-        rows = await cur.fetchall()
-        answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
-      except Exception as e:
-        stop = self.conn.interrupt()
-        if inspect.isawaitable(stop):await stop
-        return await ctx.send(f" {e}, Couldn't answer that right now. Try rephrasing or try again later.")
-    await ctx.send(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
+        await ctx.send(sql[:1900])
+        columns, rows = await self.execute_sql(sql)
+        if not rows:
+          answer = "No data was found."
+        else:
+          answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {columns}\nRows: {rows}")
+      except Exception:
+        return await ctx.send("Couldn't answer that right now. Try rephrasing or try again later.")
+    await ctx.send(answer[:1900], allowed_mentions=discord.AllowedMentions.none())
 
-async def setup(bot):await bot.add_cog(AskDB(bot))
+
+async def setup(bot):
+  await bot.add_cog(AskDB(bot))

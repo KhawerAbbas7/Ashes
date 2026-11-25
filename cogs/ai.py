@@ -65,12 +65,16 @@ class AskDB(commands.Cog, name="AskDB"):
       if len(message.content) <= 10: return await message.reply("Your question has to more richer than that.") 
       async with message.channel.typing():
         try:
+          if message.reference and (replyMsg:= message.reference.resolved):
+            question= f"replying to: {replyMsg.content}\n{message.content}"
+          else:
+            question= message.content
           self.tasks[message.id] = message.content
-          sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, message.content), flags=re.M).strip().rstrip(";")
+          sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, question), flags=re.M).strip().rstrip(";")
           if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.")
           cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
           rows = await cur.fetchall()
-          answer = await self.llm(ANSWER_PROMPT, f"Question: {message.content}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
+          answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
           await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
           self.tasks.pop(message.id)
         except Exception as e:

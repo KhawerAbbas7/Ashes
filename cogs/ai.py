@@ -69,7 +69,7 @@ class AskDB(commands.Cog, name="AskDB"):
           sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, message.content), flags=re.M).strip().rstrip(";")
           if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.")
           cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
-          answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
+          answer = await self.llm(ANSWER_PROMPT, f"Question: {message.content}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
           await message.reply(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
           self.tasks.pop(message.id)
         except Exception as e:

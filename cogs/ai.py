@@ -75,7 +75,7 @@ class AskDB(commands.Cog, name="AskDB"):
           self.tasks.pop(message.id)
         except Exception as e:
           self.tasks.pop(message.id)
-          await message.reply(f"{e},I am sorry I couldn't answer that.")
+          await message.reply(f"I am sorry I couldn't answer that.")
   @commands.command(aliases=["ask"], description="Ask a question about match data in plain English.")
   @commands.cooldown(1, 20, commands.BucketType.user)
   async def askdb(self, ctx, *, question: str):

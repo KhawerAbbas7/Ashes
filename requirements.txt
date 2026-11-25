@@ -10,3 +10,4 @@ openai
 matplotlib
 numpy
 cachetools
+google-genai

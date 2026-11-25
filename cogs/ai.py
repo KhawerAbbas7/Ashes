@@ -44,11 +44,12 @@ class AskDB(commands.Cog, name="AskDB"):
         sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(SQL_PROMPT.format(schema=self.schema), question), flags=re.M).strip().rstrip(";")
         if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:
           return await ctx.send("I couldn't turn that into a valid query.")
+        await ctx.send(sql)
         cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
         rows = await cur.fetchall()
         answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
       except Exception:
-        self.conn.interrupt()
+        await self.conn.interrupt()
         return await ctx.send("Couldn't answer that right now. Try rephrasing or try again later.")
     await ctx.send(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
 

@@ -48,9 +48,9 @@ class AskDB(commands.Cog, name="AskDB"):
         cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
         rows = await cur.fetchall()
         answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")
-      except Exception:
+      except Exception as e:
         await self.conn.interrupt()
-        return await ctx.send("Couldn't answer that right now. Try rephrasing or try again later.")
+        return await ctx.send(f" {e}, Couldn't answer that right now. Try rephrasing or try again later.")
     await ctx.send(answer[:1900] or "No result.", allowed_mentions=discord.AllowedMentions.none())
 
 async def setup(bot):await bot.add_cog(AskDB(bot))

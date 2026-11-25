@@ -6,7 +6,45 @@ from google.genai import types, errors
 
 GEMINI_MODEL = "gemini-3.1-flash-lite"
 OPENROUTER_MODEL = "nvidia/nemotron-3-ultra-550b-a55b:free"
-SQL_PROMPT = "Write one read-only SQLite SELECT query for this cricket match database.\nSchema:\n{schema}\nNotes: player ids are Discord user ids, and players in the question appear as <@id>, so use the number. deliveries.runs is runs per ball, isWicket=1 is a wicket, only count balls where batterNum IS NOT NULL AND bowlerNum IS NOT NULL. format is either test or t15, if user doesn't mention a specific format, use test. Name player id columns so they end with Id and the match column matchId. Return only the SQL, no explanation. If the question cannot be answered from the schema, return exactly NO.\nExamples:\n{examples}\notes: A hattrick is a bowler taking wickets on 3 consecutive balls. A WoW moment is a wicket, then a dot ball, then another wicket. Balls to 50 means the number of balls a batter faced when their running total first reached 50."
+SQL_PROMPT = """You are a SQLite query generator for the Ashes cricket database.
+
+Your ONLY task is to generate one accurate, read-only SQLite SELECT query.
+
+DATABASE SCHEMA:
+{schema}
+
+RULES:
+1. Return exactly one SQL query. Never return explanations.
+2. Only use tables and columns present in the schema.
+3. Never invent column names or relationships.
+4. Player IDs mentioned as <@123> must be converted to integer 123.
+5. Player ID output columns must end with Id.
+6. Match ID output columns must be named matchId.
+7. The available formats are 'test' and 't15'.
+8. Default to format='test' unless another format is explicitly requested.
+9. Always filter the format through matches.format when relevant.
+10. deliveries.runs represents runs scored on a delivery.
+11. Only count legal deliveries for balls faced or bowled using:
+    batterNum IS NOT NULL AND bowlerNum IS NOT NULL.
+12. isWicket=1 represents a wicket.
+13. Never count NULL player IDs as actual players.
+14. Use appropriate GROUP BY clauses for aggregate statistics.
+15. Use deterministic ORDER BY clauses, including tie-breakers.
+16. Use LIMIT for leaderboard queries.
+17. Do not use SELECT * unless necessary.
+18. Never use INSERT, UPDATE, DELETE, DROP, ALTER, PRAGMA or other write operations.
+19. If the question cannot be answered from the schema, return exactly NO.
+
+CRICKET DEFINITIONS:
+- Hat-trick: Three wickets on three consecutive legal deliveries.
+- WoW moment: A wicket, followed by a dot ball, followed by another wicket.
+- Balls to 50: Legal deliveries faced when the batter first reaches 50 runs.
+- Ducks: An innings where a batter scores zero and gets dismissed.
+
+EXAMPLES:
+{examples}
+
+Return only SQL or exactly NO."""
 ANSWER_PROMPT = "Answer the question briefly using only the query result. Write player ids as <@id>, do not include inning id, ball id. If the answer has match id write it like [match](<https://ashesdb.vercel.app/match/matchId>). If the result is empty, say no data was found."
 EXAMPLES = [
   ("most runs", "SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) AS balls FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format='test') GROUP BY batterId ORDER BY runs DESC LIMIT 10"),
@@ -46,6 +84,7 @@ class AskDB(commands.Cog, name="AskDB"):
       r = await self.gemini.aio.models.generate_content(
         model=GEMINI_MODEL,
         contents=user,
+        temperature=0, top_p=1,candidate_count=1
         config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=4000)
       )
       if r.text:
@@ -53,7 +92,7 @@ class AskDB(commands.Cog, name="AskDB"):
     except errors.APIError as e:
       if e.code not in (429, 503):
         raise
-    r = await self.ai.chat.completions.create(model=OPENROUTER_MODEL, max_tokens=4000, messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
+    r = await self.ai.chat.completions.create(model=OPENROUTER_MODEL, max_tokens=4000,temperature=0,top_p=1, messages=[{"role": "system", "content": system}, {"role": "user", "content": user}])
     return (r.choices[0].message.content or "").strip()
   @commands.Cog.listener('on_message')
   async def AIHandler(self, message):
@@ -71,7 +110,7 @@ class AskDB(commands.Cog, name="AskDB"):
             question= message.content
           self.tasks[message.id] = message.content
           sql = re.sub(r"^```(?:sql)?|```$", "", await self.llm(self.prompt, question), flags=re.M).strip().rstrip(";")
-          if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.")
+          if not re.match(r"(?is)^(select|with)\b", sql) or ";" in sql:return await message.reply("I couldn't turn that into a valid query.");self.tasks.pop(message.id)
           cur = await asyncio.wait_for(self.conn.execute(f"SELECT * FROM ({sql}) LIMIT 25"), 10)
           rows = await cur.fetchall()
           answer = await self.llm(ANSWER_PROMPT, f"Question: {question}\nColumns: {[d[0] for d in cur.description]}\nRows: {rows}")

@@ -84,8 +84,12 @@ class AskDB(commands.Cog, name="AskDB"):
       r = await self.gemini.aio.models.generate_content(
         model=GEMINI_MODEL,
         contents=user,
-        temperature=0, top_p=1,candidate_count=1,
-        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=4000)
+        config=types.GenerateContentConfig(
+          system_instruction=system,
+          max_output_tokens=4000,
+          temperature=0,
+          top_p=1
+        )
       )
       if r.text:
         return r.text.strip()

@@ -329,6 +329,7 @@ async def getLBData(bot, v, fmt='test'):
   table.vrules = 0
   table.left_padding_width = 0
   footer = None
+  winRowsSQL="WITH pm AS (SELECT d.batterId p,d.matchId,i.battingTeam team,MAX(d.timestamp) ts FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.batterId IS NOT NULL AND d.matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY d.batterId,d.matchId UNION ALL SELECT d.bowlerId,d.matchId,i.bowlingTeam,MAX(d.timestamp) FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE d.bowlerId IS NOT NULL AND d.matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY d.bowlerId,d.matchId), pp AS (SELECT p,matchId,MAX(team) team,MAX(ts) ts FROM pm GROUP BY p,matchId), r AS (SELECT pp.p,pp.ts,CASE WHEN m.winner=pp.team THEN 1 ELSE 0 END w FROM pp JOIN matches m ON m.matchId=pp.matchId WHERE m.winner IS NOT NULL AND m.winner NOT IN ('Drawn','Tied')) "
   if v == 'Most Runs':
     table.field_names = ["Player", "Runs", "Balls"]
     rows = await bot.fetchall("SELECT batterId, SUM(runs) AS runs, SUM(CASE WHEN batterNum IS NOT NULL AND bowlerNum IS NOT NULL THEN 1 ELSE 0 END) FROM deliveries WHERE matchId IN (SELECT matchId FROM matches WHERE format=?) GROUP BY batterId ORDER BY runs DESC LIMIT 10;", (fmt,))
@@ -562,6 +563,22 @@ async def getLBData(bot, v, fmt='test'):
       player = bot.get_user(playerId) or playerId
       table.add_row([f"{i}. {player}", f"{x}%"])
     footer = "MIN: 60 BALLS"
+  elif v == 'Best Current Winning Streak':
+    table.field_names = ["Player", "Streak"]
+    rows = await bot.fetchall(winRowsSQL+"SELECT p,COUNT(*) FROM r WHERE w=1 AND ts>COALESCE((SELECT MAX(r2.ts) FROM r r2 WHERE r2.p=r.p AND r2.w=0),0) GROUP BY p ORDER BY COUNT(*) DESC LIMIT 10;", (fmt, fmt))
+    for i, r in enumerate(rows, 1):
+      playerId, x = r
+      player = bot.get_user(playerId) or playerId
+      table.add_row([f"{i}. {player}", x])
+    footer = "Draws and ties don't break the streak"
+  elif v == 'Best Winning Streak Ever':
+    table.field_names = ["Player", "Streak"]
+    rows = await bot.fetchall(winRowsSQL+"SELECT p,MAX(c) FROM (SELECT p,COUNT(*) c FROM (SELECT p,w,ROW_NUMBER() OVER(PARTITION BY p ORDER BY ts)-ROW_NUMBER() OVER(PARTITION BY p,w ORDER BY ts) grp FROM r) WHERE w=1 GROUP BY p,grp) GROUP BY p ORDER BY MAX(c) DESC LIMIT 10;", (fmt, fmt))
+    for i, r in enumerate(rows, 1):
+      playerId, x = r
+      player = bot.get_user(playerId) or playerId
+      table.add_row([f"{i}. {player}", x])
+    footer = "Draws and ties don't break the streak"
   return table, footer
 class LBFormatSwitchBtn(ui.Button):
   def __init__(self, userId, currentFmt, isShameful=False):
@@ -612,7 +629,7 @@ class LBSelection1(ui.Select):
 class LBSelection2(ui.Select):
   def __init__(self, v):
     currentlySelected = v.statType
-    options = ["Most WoW Moments", "Best Bowling Match", "Longest Scoring Streak", "Most Matches Won", "Best Win %", "Best Dot Balls %"]
+    options = ["Most WoW Moments", "Best Bowling Match", "Longest Scoring Streak", "Most Matches Won", "Best Win %", "Best Dot Balls %", "Best Current Winning Streak", "Best Winning Streak Ever"]
     options = [discord.SelectOption(label=b, value=b) for b in options]
     super().__init__(placeholder="Select Category", min_values=1, max_values=1, options=options)
   async def callback(self, interaction: discord.Interaction):

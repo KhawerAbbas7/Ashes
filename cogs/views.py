@@ -78,11 +78,12 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   q_bowl_nums="SELECT bowlerNum,COUNT(*) FROM deliveries WHERE "+bow_where+" GROUP BY bowlerNum"
   q_team_pct="SELECT d.inningId,SUM(CASE WHEN d.batterId=? THEN d.runs ELSE 0 END),SUM(d.runs) FROM deliveries d WHERE d.batterNum IS NOT NULL AND d.bowlerNum IS NOT NULL"+(" AND "+filter_sql_d_bat if filter_sql_d_bat else "")+" GROUP BY d.inningId"
   q_results="SELECT COALESCE(SUM(CASE WHEN m.winner=t.team THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner!=t.team AND m.winner NOT IN ('Drawn','Tied') THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Drawn' THEN 1 ELSE 0 END),0),COALESCE(SUM(CASE WHEN m.winner='Tied' THEN 1 ELSE 0 END),0) FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?)"+(" AND "+filter_sql_d_bat if filter_sql_d_bat else "")+" GROUP BY d.matchId) t ON m.matchId=t.matchId"
+  q_recent="SELECT m.winner,t.team FROM matches m JOIN (SELECT d.matchId,MAX(CASE WHEN d.batterId=? THEN i.battingTeam ELSE i.bowlingTeam END) team,MAX(d.timestamp) ts FROM deliveries d JOIN innings i ON d.inningId=i.inningId WHERE (d.batterId=? OR d.bowlerId=?)"+(" AND "+filter_sql_d_bat if filter_sql_d_bat else "")+" GROUP BY d.matchId) t ON m.matchId=t.matchId WHERE m.winner IS NOT NULL ORDER BY t.ts DESC LIMIT 5"
   q_topscore_field="SELECT inningId,batterId,SUM(runs) r FROM deliveries WHERE batterNum IS NOT NULL AND bowlerNum IS NOT NULL"+(" AND "+filter_sql_bat if filter_sql_bat else "")+" GROUP BY inningId,batterId"
   (
     total_matches_row,og_row,matches_row,mvps_row,bat_innings_rows,bowlers_faced_rows,partner_rows,bat_nums_rows,
     bowl_stats_row,bowl_innings_rows,bowl_matches_rows,wow_row,hattrick_row,bowl_nums_rows,
-    team_pct_rows,results_row,topscore_rows
+    team_pct_rows,results_row,topscore_rows,recent_rows
   )=await asyncio.gather(
     bot.fetchrow(q_total_matches, tuple([uid]+filter_params_bat+[uid]+filter_params_bow)),
     bot.fetchrow(q_og,(uid,uid,1768935600)),
@@ -101,6 +102,7 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
     bot.fetchall(q_team_pct,tuple([uid]+filter_params_d_bat)),
     bot.fetchrow(q_results,tuple([uid,uid,uid]+filter_params_d_bat)),
     bot.fetchall(q_topscore_field,tuple(filter_params_bat)),
+    bot.fetchall(q_recent,tuple([uid,uid,uid]+filter_params_d_bat)),
   )
   og=og_row[0]!=0
   innings,total_runs,balls_faced,wickets=matches_row
@@ -163,12 +165,16 @@ async def makeProfileView(target,ctx,lastNMatches=0,lastNInnings=0,lastNBatInnin
   bowl_econ=round((conceded/overs),2) if overs else 0
   bowl_avg=round((conceded/wkts),2) if wkts else 0.00
   bowl_sr=round((balls_bowled/wkts),2) if wkts else 0.00
+  form="".join("☑️" if w==t else "🤝" if w in ("Drawn","Tied") else "❎" for w,t in recent_rows)
   view=ui.LayoutView(timeout=30);view.target=target;view.ctx=ctx
   view.fmt=fmt;view.lastNMatches=lastNMatches;view.lastNInnings=lastNInnings
   view.lastNBatInnings=lastNBatInnings;view.lastNBowlInnings=lastNBowlInnings
   view.fromTs=fromTs;view.toTs=toTs
+  
   container=ui.Container(accent_color=discord.Colour.from_str("#0a9b65"))
   container.add_item(ui.Section(f"### {target}'s {fmt.upper() if fmt=='t15' else 'Test'} Stats", accessory=discord.ui.Thumbnail(target.avatar.url if target.avatar else bot.user.avatar.url)))
+  container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
+  container.add_item(ui.TextDisplay(f"**Last 5 Results:** {form or '—'}"))
   container.add_item(ui.Separator(visible=True,spacing=discord.SeparatorSpacing.small))
   if og or uid in [882988325810614353]:
     container.add_item(ui.TextDisplay(f"{ogEmoji}\n-# I have played a key role in the development and success of this bot."))

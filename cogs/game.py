@@ -1912,7 +1912,7 @@ class Game():
         while True:
           if self.forceYeet: return
           g = await self.getInputs()
-          
+          if g == 'Inning Over': self.currentInning.declared = False
           if self.forceYeet: return
           if self.v:
             self.v.stop()

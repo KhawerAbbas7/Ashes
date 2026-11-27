@@ -1142,6 +1142,14 @@ class Game():
       p =self.currentInning.currentBatters[1]
       await asyncio.sleep(0.3)
       await p.send(content, **kwargs)
+  async def notifyInningEnd(self, content):
+    inn = self.currentInning
+    for p in [*inn.currentBatters, *list(inn.currentBowlers)[:1]]:
+      try:
+        await asyncio.sleep(0.3)
+        await p.send(content)
+      except:
+        pass
   def getGif(self,userId,achievement):return self.ctx.bot.staticData['customGIFs'].get(str(userId),{}).get(achievement)
   async def sendWicketGraphic(self, batterName, bowlerName, runsScored, ballsPlayed, FOW, SIXES, FOURS, STRIKERATE, text= None, achievement= None):
     img=Image.open(os.path.join(os.getcwd(), "templates/wicket.png")).convert("RGBA")
@@ -1912,7 +1920,9 @@ class Game():
         while True:
           if self.forceYeet: return
           g = await self.getInputs()
-          if g == 'Inning Over': self.currentInning.declared = False
+          if g == 'Inning Over':
+            self.currentInning.declared = False
+            await self.notifyInningEnd(f"**Inning Over**\n{self.currentInning.battingTeam.name} finished on {self.currentInning.runs}/{self.currentInning.wickets}.")
           if self.forceYeet: return
           if self.v:
             self.v.stop()
@@ -1931,10 +1941,12 @@ class Game():
             await self.ctx.send(view=c, files=[bat, bowl])
             await asyncio.sleep(3)
             if not self.drawnByAgreement:await self.checkFollowOn()
+            if w:await self.notifyInningEnd(f"**{w}**")
             break
           if self.currentInning.declared:
             await self.ctx.send("**Inning Declared**")
             await asyncio.sleep(1)
+            await self.notifyInningEnd(f"**Inning Declared**\n{self.currentInning.battingTeam.name} declared on {self.currentInning.runs}/{self.currentInning.wickets}.")
             bat,bowl=self.battingCard(), self.bowlingCard()
             c =  ui.LayoutView(timeout= 60)
             container = ui.Container(accent_color=discord.Colour.from_str(self.currentInning.battingTeam.color))
